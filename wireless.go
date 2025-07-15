@@ -3,7 +3,6 @@ package goubus
 import (
 	"encoding/json"
 	"errors"
-	"strconv"
 )
 
 type UbusWirelessDevice struct {
@@ -112,20 +111,12 @@ func (u *Client) wirelessCountryList(device string) (UbusCountryList, error) {
 	if errLogin != nil {
 		return UbusCountryList{}, errLogin
 	}
-	var jsonStr = []byte(`
-		{ 
-			"jsonrpc": "2.0", 
-			"id": ` + strconv.Itoa(u.id) + `, 
-			"method": "call", 
-			"params": [ 
-				"` + u.AuthData.UbusRPCSession + `", 
-				"iwinfo", 
-				"countrylist", 
-				{ 
-					"device": "` + device + `"
-				} 
-			] 
-		}`)
+
+	params := map[string]interface{}{
+		"device": device,
+	}
+
+	jsonStr := u.buildUbusCall("iwinfo", "countrylist", params)
 	call, err := u.Call(jsonStr)
 	if err != nil {
 		return UbusCountryList{}, err
@@ -144,20 +135,12 @@ func (u *Client) wirelessTxPowerList(device string) (UbusTxPowerList, error) {
 	if errLogin != nil {
 		return UbusTxPowerList{}, errLogin
 	}
-	var jsonStr = []byte(`
-		{ 
-			"jsonrpc": "2.0", 
-			"id": ` + strconv.Itoa(u.id) + `, 
-			"method": "call", 
-			"params": [ 
-				"` + u.AuthData.UbusRPCSession + `", 
-				"iwinfo", 
-				"txpowerlist", 
-				{ 
-					"device": "` + device + `"
-				} 
-			] 
-		}`)
+
+	params := map[string]interface{}{
+		"device": device,
+	}
+
+	jsonStr := u.buildUbusCall("iwinfo", "txpowerlist", params)
 	call, err := u.Call(jsonStr)
 	if err != nil {
 		return UbusTxPowerList{}, err
@@ -176,20 +159,12 @@ func (u *Client) wirelessFreqList(device string) (UbusWirelessFreqList, error) {
 	if errLogin != nil {
 		return UbusWirelessFreqList{}, errLogin
 	}
-	var jsonStr = []byte(`
-		{ 
-			"jsonrpc": "2.0", 
-			"id": ` + strconv.Itoa(u.id) + `, 
-			"method": "call", 
-			"params": [ 
-				"` + u.AuthData.UbusRPCSession + `", 
-				"iwinfo", 
-				"freqlist", 
-				{ 
-					"device": "` + device + `"
-				} 
-			] 
-		}`)
+
+	params := map[string]interface{}{
+		"device": device,
+	}
+
+	jsonStr := u.buildUbusCall("iwinfo", "freqlist", params)
 	call, err := u.Call(jsonStr)
 	if err != nil {
 		return UbusWirelessFreqList{}, err
@@ -208,21 +183,13 @@ func (u *Client) wirelessAssocList(device string, mac string) (UbusWirelessAssoc
 	if errLogin != nil {
 		return UbusWirelessAssocList{}, errLogin
 	}
-	var jsonStr = []byte(`
-		{ 
-			"jsonrpc": "2.0", 
-			"id": ` + strconv.Itoa(u.id) + `, 
-			"method": "call", 
-			"params": [ 
-				"` + u.AuthData.UbusRPCSession + `", 
-				"iwinfo", 
-				"assoclist", 
-				{ 
-					"device": "` + device + `",
-					"mac": "` + mac + `"
-				} 
-			] 
-		}`)
+
+	params := map[string]interface{}{
+		"device": device,
+		"mac":    mac,
+	}
+
+	jsonStr := u.buildUbusCall("iwinfo", "assoclist", params)
 	call, err := u.Call(jsonStr)
 	if err != nil {
 		return UbusWirelessAssocList{}, err
@@ -241,20 +208,12 @@ func (u *Client) wirelessScanner(device string) (UbusWirelessScanner, error) {
 	if errLogin != nil {
 		return UbusWirelessScanner{}, errLogin
 	}
-	var jsonStr = []byte(`
-		{ 
-			"jsonrpc": "2.0", 
-			"id": ` + strconv.Itoa(u.id) + `, 
-			"method": "call", 
-			"params": [ 
-				"` + u.AuthData.UbusRPCSession + `", 
-				"iwinfo", 
-				"scan", 
-				{ 
-					"device": "` + device + `"
-				} 
-			] 
-		}`)
+
+	params := map[string]interface{}{
+		"device": device,
+	}
+
+	jsonStr := u.buildUbusCall("iwinfo", "scan", params)
 	call, err := u.Call(jsonStr)
 	if err != nil {
 		return UbusWirelessScanner{}, err
@@ -273,20 +232,12 @@ func (u *Client) wirelessInfo(device string) (UbusWirelessInfoData, error) {
 	if errLogin != nil {
 		return UbusWirelessInfoData{}, errLogin
 	}
-	var jsonStr = []byte(`
-		{ 
-			"jsonrpc": "2.0", 
-			"id": ` + strconv.Itoa(u.id) + `, 
-			"method": "call", 
-			"params": [ 
-				"` + u.AuthData.UbusRPCSession + `", 
-				"iwinfo", 
-				"info", 
-				{ 
-					"device": "` + device + `"
-				} 
-			] 
-		}`)
+
+	params := map[string]interface{}{
+		"device": device,
+	}
+
+	jsonStr := u.buildUbusCall("iwinfo", "info", params)
 	call, err := u.Call(jsonStr)
 	if err != nil {
 		return UbusWirelessInfoData{}, err
@@ -305,18 +256,8 @@ func (u *Client) wirelessDevices() (UbusWirelessDevice, error) {
 	if errLogin != nil {
 		return UbusWirelessDevice{}, errLogin
 	}
-	var jsonStr = []byte(`
-		{ 
-			"jsonrpc": "2.0", 
-			"id": ` + strconv.Itoa(u.id) + `, 
-			"method": "call", 
-			"params": [ 
-				"` + u.AuthData.UbusRPCSession + `", 
-				"iwinfo", 
-				"devices",
-				{}
-			] 
-		}`)
+
+	jsonStr := u.buildUbusCall("iwinfo", "devices", nil)
 	call, err := u.Call(jsonStr)
 	if err != nil {
 		return UbusWirelessDevice{}, err

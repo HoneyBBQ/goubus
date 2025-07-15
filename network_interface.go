@@ -91,24 +91,46 @@ type NetworkInterface struct {
 }
 
 // NetworkInterfaceStatus retrieves the status of a specific network interface.
+// It first tries to get the status directly from the interface, and if that fails
+// (e.g., due to permission issues), it falls back to using the dump method.
 func (u *Client) networkInterfaceStatus(name string) (NetworkInterface, error) {
 	errLogin := u.LoginCheck()
 	if errLogin != nil {
 		return NetworkInterface{}, errLogin
 	}
+
+	// First try: Direct interface status query
 	jsonStr := u.buildUbusCall("network.interface."+name, "status", nil)
 	call, err := u.Call(jsonStr)
-	if err != nil {
+	if err == nil {
+		// Success - parse and return the result
+		ubusData := NetworkInterface{}
+		ubusDataByte, err := json.Marshal(call.Result.([]interface{})[1])
+		if err != nil {
+			return NetworkInterface{}, errors.New("data error")
+		}
+		json.Unmarshal(ubusDataByte, &ubusData)
+		return ubusData, nil
+	}
+
+	// First attempt failed, try fallback using dump
+	// This handles cases where direct interface status queries are blocked by ACL
+	dump, dumpErr := u.networkInterfaceDump()
+	if dumpErr != nil {
+		// Both methods failed, return the original error from the direct call
 		return NetworkInterface{}, err
 	}
-	ubusData := NetworkInterface{}
 
-	ubusDataByte, err := json.Marshal(call.Result.([]interface{})[1])
-	if err != nil {
-		return NetworkInterface{}, errors.New("data error")
+	// Search for the interface in the dump results
+	for _, iface := range dump.Interface {
+		if iface.Interface == name {
+			// Found the interface in dump results
+			return iface.NetworkInterface, nil
+		}
 	}
-	json.Unmarshal(ubusDataByte, &ubusData)
-	return ubusData, nil
+
+	// Interface not found in dump, return the original error
+	return NetworkInterface{}, errors.New("interface '" + name + "' not found")
 }
 
 // NetworkInterfaceDump retrieves information about all network interfaces.

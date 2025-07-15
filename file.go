@@ -86,7 +86,7 @@ func (u *Client) FileRead(path string) (UbusFile, error) {
 		return UbusFile{}, errLogin
 	}
 
-	readData := map[string]string{
+	readData := map[string]interface{}{
 		"path": path,
 	}
 
@@ -115,7 +115,7 @@ func (u *Client) FileStat(path string) (UbusFileStat, error) {
 		return UbusFileStat{}, errLogin
 	}
 
-	statData := map[string]string{
+	statData := map[string]interface{}{
 		"path": path,
 	}
 
@@ -141,7 +141,7 @@ func (u *Client) FileList(path string) (UbusFileList, error) {
 		return UbusFileList{}, errLogin
 	}
 
-	listData := map[string]string{
+	listData := map[string]interface{}{
 		"path": path,
 	}
 

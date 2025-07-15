@@ -257,6 +257,21 @@ func (wdm *WifiDeviceManager) AssocList(mac string) (UbusWirelessAssocList, erro
 	return wdm.client.wirelessAssocList(wdm.section, mac)
 }
 
+// CountryList retrieves the list of available country codes for the device.
+func (wdm *WifiDeviceManager) CountryList() (UbusCountryList, error) {
+	return wdm.client.wirelessCountryList(wdm.section)
+}
+
+// TxPowerList retrieves the list of available TX power levels for the device.
+func (wdm *WifiDeviceManager) TxPowerList() (UbusTxPowerList, error) {
+	return wdm.client.wirelessTxPowerList(wdm.section)
+}
+
+// FreqList retrieves the list of available frequencies/channels for the device.
+func (wdm *WifiDeviceManager) FreqList() (UbusWirelessFreqList, error) {
+	return wdm.client.wirelessFreqList(wdm.section)
+}
+
 // WifiIfaceManager provides methods to configure a specific wifi-iface.
 type WifiIfaceManager struct {
 	client  *Client

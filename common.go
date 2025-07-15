@@ -3,7 +3,6 @@ package goubus
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 )
@@ -29,6 +28,7 @@ type UbusResponse struct {
 	Jsonrpc string      `json:"jsonrpc"`
 	ID      int         `json:"id"`
 	Result  interface{} `json:"result"`
+	Error   interface{} `json:"error"`
 }
 
 // Call a RPC method - now with the correct receiver *ubus
@@ -43,18 +43,23 @@ func (u *Client) Call(jsonStr []byte) (UbusResponse, error) {
 	if err != nil {
 		return UbusResponse{}, err
 	}
-	// Check for error code in response
-	if ubusResp.Result == nil {
-		return ubusResp, errors.New("ubus call failed with nil result")
+
+	// Check for JSON-RPC error
+	if ubusResp.Error != nil {
+		return ubusResp, fmt.Errorf("JSON-RPC error: %s", ubusResp.Error)
 	}
-	// This type assertion can be brittle, but we follow the existing pattern
-	if resArray, ok := ubusResp.Result.([]interface{}); ok {
-		if len(resArray) > 0 {
-			if code, ok := resArray[0].(float64); ok && code != 0 {
-				return ubusResp, UbusError{Code: int(code), Message: ubusErrCode[int(code)]}
+
+	// Check for ubus error code in result
+	if ubusResp.Result != nil {
+		if resArray, ok := ubusResp.Result.([]interface{}); ok {
+			if len(resArray) > 0 {
+				if code, ok := resArray[0].(float64); ok && code != 0 {
+					return ubusResp, UbusError{Code: int(code), Message: ubusErrCode[int(code)]}
+				}
 			}
 		}
 	}
+
 	return ubusResp, nil
 }
 
@@ -98,6 +103,16 @@ func (u *Client) buildUbusCall(service, method string, data interface{}) []byte 
 // buildUbusCallWithSession creates a ubus JSON-RPC call with a specific session ID
 // This is useful for login operations where we need to use a null session ID
 func (u *Client) buildUbusCallWithSession(sessionID, service, method string, data interface{}) []byte {
+	return u.buildUbusCallWithSessionAndID(sessionID, u.id, service, method, data)
+}
+
+// buildUbusCallWithID creates a ubus JSON-RPC call with a specific ID
+func (u *Client) buildUbusCallWithID(id int, service, method string, data interface{}) []byte {
+	return u.buildUbusCallWithSessionAndID(u.AuthData.UbusRPCSession, id, service, method, data)
+}
+
+// buildUbusCallWithSessionAndID creates a ubus JSON-RPC call with specific session and ID
+func (u *Client) buildUbusCallWithSessionAndID(sessionID string, id int, service, method string, data interface{}) []byte {
 	var dataJSON string
 	if data == nil {
 		dataJSON = "{}"
@@ -105,10 +120,16 @@ func (u *Client) buildUbusCallWithSession(sessionID, service, method string, dat
 		switch v := data.(type) {
 		case string:
 			dataJSON = v
+		case []byte:
+			dataJSON = string(v)
 		default:
 			// For complex data, still use Marshal but this is the minority case
-			jsonBytes, _ := json.Marshal(data)
-			dataJSON = string(jsonBytes)
+			jsonBytes, err := json.Marshal(data)
+			if err != nil {
+				dataJSON = "{}"
+			} else {
+				dataJSON = string(jsonBytes)
+			}
 		}
 	}
 
@@ -123,7 +144,13 @@ func (u *Client) buildUbusCallWithSession(sessionID, service, method string, dat
 			"%s",
 			%s
 		]
-	}`, u.id, sessionID, service, method, dataJSON))
+	}`, id, sessionID, service, method, dataJSON))
+}
+
+// getNextID increments and returns the next ID
+func (u *Client) getNextID() int {
+	u.id++
+	return u.id
 }
 
 // UbusDhcpLeases represents the combined DHCP lease response containing both IPv4 and IPv6 leases

@@ -222,11 +222,175 @@ err = client.Log().Write("Application started")
 
 ### Permission Issues
 
-If you encounter permission issues when accessing certain ubus services, please refer to the official OpenWrt ubus documentation ACLs (Access Control Lists) section:
+#### Understanding ubus Access Control
 
-**📖 [OpenWrt ubus ACLs Documentation](https://openwrt.org/docs/techref/ubus#acls)**
+OpenWrt ubus has two different access modes:
 
-The ACL system controls which users and processes can access specific ubus objects and methods. You may need to configure appropriate ACL rules for your use case.
+1. **SSH CLI Access**: Full direct access to all ubus methods (no ACL restrictions)
+2. **HTTP RPC Access**: Restricted by ACL (Access Control Lists) configuration
+
+When using this Go library (which uses HTTP RPC), you may encounter permission denials for certain ubus objects and methods.
+
+#### Common Permission-Restricted Objects
+
+The following objects typically require explicit ACL configuration:
+
+- **Network interfaces**: `network.*`, `network.interface.*`, `network.device.*`
+- **System control**: `system.reboot`, `system.upgrade`, etc.
+- **Service management**: `service.*` operations
+- **File operations**: `file.*` (read/write/exec operations)
+- **UCI configuration**: `uci.*` (system configuration access)
+- **Wireless management**: Advanced wireless configuration methods
+
+#### Default vs. Full Network Access
+
+By default, most OpenWrt installations only provide basic network status access (like `network.interface.dump`). For full network management capabilities, you need to configure additional permissions.
+
+#### Configuring ACL Permissions
+
+To resolve permission issues, create or modify ACL configuration files in `/usr/share/rpcd/acl.d/` on your OpenWrt device:
+
+**Example 1: Full Network Management Access**
+
+Create `/usr/share/rpcd/acl.d/network-full.json`:
+
+```json
+{
+    "network-manager": {
+        "description": "Full network management access",
+        "read": {
+            "ubus": {
+                "network": ["*"],
+                "network.device": ["*"],
+                "network.interface": ["*"],
+                "network.interface.*": ["*"],
+                "network.wireless": ["*"]
+            }
+        },
+        "write": {
+            "ubus": {
+                "network": ["*"],
+                "network.device": ["*"],
+                "network.interface": ["*"],
+                "network.interface.*": ["*"],
+                "network.wireless": ["*"]
+            }
+        }
+    }
+}
+```
+
+**Example 2: Comprehensive System Access**
+
+Create `/usr/share/rpcd/acl.d/system-admin.json`:
+
+```json
+{
+    "system-admin": {
+        "description": "System administration access",
+        "read": {
+            "ubus": {
+                "system": ["*"],
+                "service": ["*"],
+                "file": ["*"],
+                "network": ["*"],
+                "network.device": ["*"],
+                "network.interface": ["*"],
+                "network.interface.*": ["*"],
+                "wireless": ["*"],
+                "dhcp": ["*"]
+            },
+            "uci": ["*"]
+        },
+        "write": {
+            "ubus": {
+                "system": ["*"],
+                "service": ["*"],
+                "file": ["*"],
+                "network": ["*"],
+                "network.device": ["*"],
+                "network.interface": ["*"],
+                "network.interface.*": ["*"],
+                "wireless": ["*"],
+                "dhcp": ["*"]
+            },
+            "uci": ["*"]
+        }
+    }
+}
+```
+
+**Example 3: Read-only Monitoring Access**
+
+Create `/usr/share/rpcd/acl.d/monitor.json`:
+
+```json
+{
+    "monitor": {
+        "description": "Read-only system monitoring",
+        "read": {
+            "ubus": {
+                "system": ["info", "board"],
+                "network": ["dump"],
+                "network.device": ["status"],
+                "network.interface.*": ["status"],
+                "service": ["list"],
+                "dhcp": ["ipv4leases", "ipv6leases"]
+            }
+        }
+    }
+}
+```
+
+#### Assigning ACL Roles to Users
+
+After creating ACL files, assign them to users in `/etc/config/rpcd`:
+
+```
+config login
+    option username 'admin'
+    option password '$p$admin'
+    list read 'network-manager'
+    list write 'network-manager'
+
+config login
+    option username 'monitor'
+    option password '$p$monitor'
+    list read 'monitor'
+```
+
+#### Applying Changes
+
+After modifying ACL configurations:
+
+```bash
+# Restart rpcd service to apply changes
+/etc/init.d/rpcd restart
+```
+
+#### Verification
+
+You can verify permissions using ubus commands on the device:
+
+```bash
+# Check available methods for an object
+ubus -v list network.interface.lan
+
+# Test specific method access
+ubus call network.interface.lan status
+```
+
+#### Alternative: SSH Tunnel Method
+
+If you cannot modify ACL configurations, you can use SSH tunneling to access the full ubus capabilities:
+
+```go
+// Example: Using SSH tunnel for full access
+// This would require implementing SSH tunnel support in your application
+// and connecting through the tunnel instead of HTTP RPC
+```
+
+**📖 For more details, see the [OpenWrt ubus ACLs Documentation](https://openwrt.org/docs/techref/ubus#acls)**
 
 ## Examples
 

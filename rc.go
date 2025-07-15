@@ -3,7 +3,6 @@ package goubus
 import (
 	"encoding/json"
 	"errors"
-	"strconv"
 )
 
 type UbusRcInitRequest struct {
@@ -23,18 +22,8 @@ func (u *Client) rcList() (map[string]UbusRcListResponse, error) {
 	if errLogin != nil {
 		return nil, errLogin
 	}
-	var jsonStr = []byte(`
-		{ 
-			"jsonrpc": "2.0", 
-			"id": ` + strconv.Itoa(u.id) + `, 
-			"method": "call", 
-			"params": [ 
-				"` + u.AuthData.UbusRPCSession + `", 
-				"rc",
-				"list", 
-				{} 
-			] 
-		}`)
+
+	jsonStr := u.buildUbusCall("rc", "list", nil)
 	call, err := u.Call(jsonStr)
 	if err != nil {
 		return nil, err
@@ -56,23 +45,7 @@ func (u *Client) rcInit(request UbusRcInitRequest) error {
 		return errLogin
 	}
 
-	jsonData, err := json.Marshal(request)
-	if err != nil {
-		return errors.New("error parsing rc init request data")
-	}
-
-	var jsonStr = []byte(`
-		{ 
-			"jsonrpc": "2.0", 
-			"id": ` + strconv.Itoa(u.id) + `, 
-			"method": "call", 
-			"params": [ 
-				"` + u.AuthData.UbusRPCSession + `", 
-				"rc",
-				"init", 
-				` + string(jsonData) + ` 
-			] 
-		}`)
-	_, err = u.Call(jsonStr)
+	jsonStr := u.buildUbusCall("rc", "init", request)
+	_, err := u.Call(jsonStr)
 	return err
 }

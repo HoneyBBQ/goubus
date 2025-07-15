@@ -46,6 +46,16 @@ func main() {
 		log.Fatalf("Unable to connect to device: %v", err)
 	}
 
+	for key, acl := range client.AuthData.ACLs.AccessGroup {
+		fmt.Println(key, acl)
+	}
+	for key, acl := range client.AuthData.ACLs.Ubus {
+		fmt.Println(key, acl)
+	}
+	for key, acl := range client.AuthData.ACLs.Uci {
+		fmt.Println(key, acl)
+	}
+
 	var results []TestResult
 
 	// 1. Test system information related read-only interfaces
@@ -545,6 +555,90 @@ func testWirelessInfo(client *goubus.Client) []TestResult {
 		} else {
 			fmt.Printf("✗ Wireless device %s scan failed: %v\n", radio, err)
 		}
+
+		// Test country list
+		countryList, err := client.Wireless().Device(radio).CountryList()
+		results = append(results, TestResult{
+			TestName: fmt.Sprintf("Wireless Device %s Country List", radio),
+			Success:  err == nil,
+			Error:    err,
+			Data:     countryList,
+		})
+		if err == nil {
+			fmt.Printf("✓ Wireless device %s country list retrieval successful, countries: %d\n", radio, len(countryList.Results))
+			// Show first 5 countries
+			for i, country := range countryList.Results {
+				if i < 5 {
+					fmt.Printf("  Country %d: %s - %s (Code: %s)\n",
+						i+1, country.Code, country.Country, country.ISO3166)
+					if country.Active {
+						fmt.Printf("    (Currently active)\n")
+					}
+				}
+			}
+			if len(countryList.Results) > 5 {
+				fmt.Printf("  ... %d more countries\n", len(countryList.Results)-5)
+			}
+		} else {
+			fmt.Printf("✗ Wireless device %s country list retrieval failed: %v\n", radio, err)
+		}
+
+		// Test TX power list
+		txPowerList, err := client.Wireless().Device(radio).TxPowerList()
+		results = append(results, TestResult{
+			TestName: fmt.Sprintf("Wireless Device %s TX Power List", radio),
+			Success:  err == nil,
+			Error:    err,
+			Data:     txPowerList,
+		})
+		if err == nil {
+			fmt.Printf("✓ Wireless device %s TX power list retrieval successful, power levels: %d\n", radio, len(txPowerList.Results))
+			// Show first 5 power levels
+			for i, power := range txPowerList.Results {
+				if i < 5 {
+					fmt.Printf("  Power level %d: %d dBm (%d mW)", i+1, power.Dbm, power.Mw)
+					if power.Active {
+						fmt.Printf(" (Currently active)")
+					}
+					fmt.Println()
+				}
+			}
+			if len(txPowerList.Results) > 5 {
+				fmt.Printf("  ... %d more power levels\n", len(txPowerList.Results)-5)
+			}
+		} else {
+			fmt.Printf("✗ Wireless device %s TX power list retrieval failed: %v\n", radio, err)
+		}
+
+		// Test frequency/channel list
+		freqList, err := client.Wireless().Device(radio).FreqList()
+		results = append(results, TestResult{
+			TestName: fmt.Sprintf("Wireless Device %s Frequency List", radio),
+			Success:  err == nil,
+			Error:    err,
+			Data:     freqList,
+		})
+		if err == nil {
+			fmt.Printf("✓ Wireless device %s frequency list retrieval successful, channels: %d\n", radio, len(freqList.Results))
+			// Show first 10 channels
+			for i, freq := range freqList.Results {
+				if i < 10 {
+					fmt.Printf("  Channel %d: %d MHz", freq.Channel, freq.Mhz)
+					if freq.Active {
+						fmt.Printf(" (Currently active)")
+					}
+					if freq.Restricted {
+						fmt.Printf(" (Restricted)")
+					}
+					fmt.Println()
+				}
+			}
+			if len(freqList.Results) > 10 {
+				fmt.Printf("  ... %d more channels\n", len(freqList.Results)-10)
+			}
+		} else {
+			fmt.Printf("✗ Wireless device %s frequency list retrieval failed: %v\n", radio, err)
+		}
 	}
 
 	// Test actual existing wireless interface configuration
@@ -625,7 +719,7 @@ func testFileSystemInfo(client *goubus.Client) []TestResult {
 	var results []TestResult
 
 	// Test reading system files
-	testFiles := []string{"/proc/version", "/etc/hosts", "/proc/uptime"}
+	testFiles := []string{"/proc/stat", "/etc/passwd", "/proc/filesystems"}
 	for _, file := range testFiles {
 		content, err := client.File().Read(file)
 		results = append(results, TestResult{

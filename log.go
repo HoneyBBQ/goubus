@@ -3,7 +3,6 @@ package goubus
 import (
 	"encoding/json"
 	"errors"
-	"strconv"
 )
 
 type UbusLog struct {
@@ -25,31 +24,13 @@ func (u *Client) logRead(lines int, stream bool, oneshot bool) (UbusLog, error) 
 		return UbusLog{}, errLogin
 	}
 
-	streamStr := "false"
-	if stream {
-		streamStr = "true"
-	}
-	oneshotStr := "false"
-	if oneshot {
-		oneshotStr = "true"
+	params := map[string]interface{}{
+		"lines":   lines,
+		"stream":  stream,
+		"oneshot": oneshot,
 	}
 
-	var jsonStr = []byte(`
-		{ 
-			"jsonrpc": "2.0", 
-			"id": ` + strconv.Itoa(u.id) + `, 
-			"method": "call", 
-			"params": [ 
-				"` + u.AuthData.UbusRPCSession + `", 
-				"log",
-				"read", 
-				{ 
-					"lines": ` + strconv.Itoa(lines) + `,
-					"stream": ` + streamStr + `,
-					"oneshot": ` + oneshotStr + `
-				} 
-			] 
-		}`)
+	jsonStr := u.buildUbusCall("log", "read", params)
 	call, err := u.Call(jsonStr)
 	if err != nil {
 		return UbusLog{}, err
@@ -71,20 +52,11 @@ func (u *Client) logWrite(event string) error {
 		return errLogin
 	}
 
-	var jsonStr = []byte(`
-		{ 
-			"jsonrpc": "2.0", 
-			"id": ` + strconv.Itoa(u.id) + `, 
-			"method": "call", 
-			"params": [ 
-				"` + u.AuthData.UbusRPCSession + `", 
-				"log",
-				"write", 
-				{ 
-					"event": "` + event + `"
-				} 
-			] 
-		}`)
+	params := map[string]interface{}{
+		"event": event,
+	}
+
+	jsonStr := u.buildUbusCall("log", "write", params)
 	_, err := u.Call(jsonStr)
 	return err
 }

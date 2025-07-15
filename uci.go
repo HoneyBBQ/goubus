@@ -1,10 +1,8 @@
 package goubus
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 )
 
@@ -36,21 +34,8 @@ func (u *Client) uciGet(id int, request UbusUciGetRequest) (UbusUciGetResponse, 
 	if errLogin != nil {
 		return UbusUciGetResponse{}, errLogin
 	}
-	jsonData, err := json.Marshal(request)
-	if err != nil {
-		return UbusUciGetResponse{}, errors.New("error parsing UCI request data")
-	}
-	var jsonStr = []byte(`{
-			"jsonrpc": "2.0",
-			"id": ` + strconv.Itoa(id) + `,
-			"method": "call",
-			"params": [
-				"` + u.AuthData.UbusRPCSession + `",
-				"uci",
-				"get",
-				` + string(jsonData) + `
-			]
-		}`)
+
+	jsonStr := u.buildUbusCallWithID(id, "uci", "get", request)
 	call, err := u.Call(jsonStr)
 	if err != nil {
 		return UbusUciGetResponse{}, err
@@ -94,23 +79,9 @@ func (u *Client) uciSet(id int, request UbusUciRequest) error {
 	if errLogin != nil {
 		return errLogin
 	}
-	jsonData, err := json.Marshal(request)
-	if err != nil {
-		return errors.New("error parsing UCI request data")
-	}
-	var jsonStr = []byte(`
-		{
-			"jsonrpc": "2.0",
-			"id": ` + strconv.Itoa(id) + `,
-			"method": "call",
-			"params": [
-				"` + u.AuthData.UbusRPCSession + `",
-				"uci",
-				"set",
-				` + string(jsonData) + `
-			]
-		}`)
-	_, err = u.Call(jsonStr)
+
+	jsonStr := u.buildUbusCallWithID(id, "uci", "set", request)
+	_, err := u.Call(jsonStr)
 	return err
 }
 
@@ -119,23 +90,9 @@ func (u *Client) uciAdd(id int, request UbusUciRequest) error {
 	if errLogin != nil {
 		return errLogin
 	}
-	jsonData, err := json.Marshal(request)
-	if err != nil {
-		return errors.New("error parsing UCI request data")
-	}
-	var jsonStr = []byte(`
-		{
-			"jsonrpc": "2.0",
-			"id": ` + strconv.Itoa(id) + `,
-			"method": "call",
-			"params": [
-				"` + u.AuthData.UbusRPCSession + `",
-				"uci",
-				"add",
-				` + string(jsonData) + `
-			]
-		}`)
-	_, err = u.Call(jsonStr)
+
+	jsonStr := u.buildUbusCallWithID(id, "uci", "add", request)
+	_, err := u.Call(jsonStr)
 	return err
 }
 
@@ -146,22 +103,9 @@ func (u *Client) uciAddToList(id int, request UbusUciRequest) error {
 	}
 	// For add_list, 'values' should contain the single key-value to add.
 	// The key is the option, and the value is the string to add to the list.
-	jsonData, err := json.Marshal(request)
-	if err != nil {
-		return errors.New("error parsing UCI request data")
-	}
-	var jsonStr = []byte(`{
-			"jsonrpc": "2.0",
-			"id": ` + strconv.Itoa(id) + `,
-			"method": "call",
-			"params": [
-				"` + u.AuthData.UbusRPCSession + `",
-				"uci",
-				"add_list",
-				` + string(jsonData) + `
-			]
-		}`)
-	_, err = u.Call(jsonStr)
+
+	jsonStr := u.buildUbusCallWithID(id, "uci", "add_list", request)
+	_, err := u.Call(jsonStr)
 	return err
 }
 
@@ -170,23 +114,9 @@ func (u *Client) uciDelete(id int, request UbusUciRequestGeneric) error {
 	if errLogin != nil {
 		return errLogin
 	}
-	jsonData, err := json.Marshal(request)
-	if err != nil {
-		return errors.New("error parsing UCI request data")
-	}
-	var jsonStr = []byte(`
-		{
-			"jsonrpc": "2.0",
-			"id": ` + strconv.Itoa(id) + `,
-			"method": "call",
-			"params": [
-				"` + u.AuthData.UbusRPCSession + `",
-				"uci",
-				"delete",
-				` + string(jsonData) + `
-			]
-		}`)
-	_, err = u.Call(jsonStr)
+
+	jsonStr := u.buildUbusCallWithID(id, "uci", "delete", request)
+	_, err := u.Call(jsonStr)
 	return err
 }
 
@@ -195,23 +125,9 @@ func (u *Client) uciCommit(id int, request UbusUciRequestGeneric) error {
 	if errLogin != nil {
 		return errLogin
 	}
-	jsonData, err := json.Marshal(request)
-	if err != nil {
-		return errors.New("error parsing UCI request data")
-	}
-	var jsonStr = []byte(`
-		{
-			"jsonrpc": "2.0",
-			"id": ` + strconv.Itoa(id) + `,
-			"method": "call",
-			"params": [
-				"` + u.AuthData.UbusRPCSession + `",
-				"uci",
-				"commit",
-				` + string(jsonData) + `
-			]
-		}`)
-	_, err = u.Call(jsonStr)
+
+	jsonStr := u.buildUbusCallWithID(id, "uci", "commit", request)
+	_, err := u.Call(jsonStr)
 	return err
 }
 

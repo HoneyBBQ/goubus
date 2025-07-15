@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 )
 
 // EventHandler is a callback function type for handling ubus events.
@@ -40,21 +39,12 @@ func (u *Client) publish(eventType string, data interface{}) error {
 		return fmt.Errorf("error marshaling event data: %w", err)
 	}
 
-	var jsonStr = []byte(`{
-		"jsonrpc": "2.0",
-		"id": ` + strconv.Itoa(u.id) + `,
-		"method": "call",
-		"params": [
-			"` + u.AuthData.UbusRPCSession + `",
-			"ubus",
-			"send",
-			{
-				"type": "` + eventType + `",
-				"data": ` + string(eventData) + `
-			}
-		]
-	}`)
+	params := map[string]interface{}{
+		"type": eventType,
+		"data": json.RawMessage(eventData),
+	}
 
+	jsonStr := u.buildUbusCall("ubus", "send", params)
 	_, err = u.Call(jsonStr)
 	return err
 }
@@ -66,25 +56,11 @@ func (u *Client) subscribe(eventTypes []string, handler EventHandler) error {
 		return errLogin
 	}
 
-	eventTypesJSON, err := json.Marshal(eventTypes)
-	if err != nil {
-		return fmt.Errorf("error marshaling event types: %w", err)
+	params := map[string]interface{}{
+		"types": eventTypes,
 	}
 
-	var jsonStr = []byte(`{
-		"jsonrpc": "2.0",
-		"id": ` + strconv.Itoa(u.id) + `,
-		"method": "call",
-		"params": [
-			"` + u.AuthData.UbusRPCSession + `",
-			"ubus",
-			"subscribe",
-			{
-				"types": ` + string(eventTypesJSON) + `
-			}
-		]
-	}`)
-
+	jsonStr := u.buildUbusCall("ubus", "subscribe", params)
 	call, err := u.Call(jsonStr)
 	if err != nil {
 		return err
