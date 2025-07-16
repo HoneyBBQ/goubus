@@ -1,7 +1,6 @@
 package goubus
 
 import (
-	"errors"
 	"time"
 )
 
@@ -66,24 +65,24 @@ func (u *Client) callSystem(method string) (map[string]interface{}, error) {
 	if errLogin != nil {
 		return nil, errLogin
 	}
-	jsonStr := u.buildUbusCall("system", method, nil)
+	jsonStr := u.buildUbusCall(ServiceSystem, method, nil)
 	call, err := u.Call(jsonStr)
 	if err != nil {
 		return nil, err
 	}
 	if len(call.Result.([]interface{})) < 2 {
-		return nil, errors.New("invalid system response")
+		return nil, ErrInvalidResponse
 	}
 	if result, ok := call.Result.([]interface{})[1].(map[string]interface{}); ok {
 		return result, nil
 	}
-	return nil, errors.New("unexpected type for system result")
+	return nil, NewError(ErrorCodeUnexpectedFormat, "unexpected type for system result")
 }
 
 // systemGetInfo retrieves runtime system information (private method).
 func (u *Client) systemGetInfo() (*SystemInfo, error) {
 	// Get runtime information
-	infoData, err := u.callSystem("info")
+	infoData, err := u.callSystem(MethodInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +165,7 @@ func (u *Client) systemGetInfo() (*SystemInfo, error) {
 
 // systemGetBoardInfo retrieves hardware-specific board information (private method).
 func (u *Client) systemGetBoardInfo() (*SystemBoardInfo, error) {
-	boardData, err := u.callSystem("board")
+	boardData, err := u.callSystem(MethodBoard)
 	if err != nil {
 		return nil, err
 	}
@@ -220,6 +219,6 @@ func (u *Client) systemGetBoardInfo() (*SystemBoardInfo, error) {
 
 // systemReboot reboots the device (private method).
 func (u *Client) systemReboot() error {
-	_, err := u.callSystem("reboot")
+	_, err := u.callSystem(MethodReboot)
 	return err
 }

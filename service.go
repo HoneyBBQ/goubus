@@ -2,7 +2,6 @@ package goubus
 
 import (
 	"encoding/json"
-	"errors"
 )
 
 type Respawn struct {
@@ -45,7 +44,7 @@ type ServiceActionRequest struct {
 func (u *Client) startService(serviceName string) error {
 	return u.rcInit(UbusRcInitRequest{
 		Name:   serviceName,
-		Action: "start",
+		Action: ActionStart,
 	})
 }
 
@@ -53,7 +52,7 @@ func (u *Client) startService(serviceName string) error {
 func (u *Client) stopService(serviceName string) error {
 	return u.rcInit(UbusRcInitRequest{
 		Name:   serviceName,
-		Action: "stop",
+		Action: ActionStop,
 	})
 }
 
@@ -61,7 +60,7 @@ func (u *Client) stopService(serviceName string) error {
 func (u *Client) restartService(serviceName string) error {
 	return u.rcInit(UbusRcInitRequest{
 		Name:   serviceName,
-		Action: "restart",
+		Action: ActionRestart,
 	})
 }
 
@@ -74,13 +73,13 @@ func (u *Client) getServiceList(request ServiceListRequest) (ServiceListResponse
 
 	params := make(map[string]interface{})
 	if request.Name != "" {
-		params["name"] = request.Name
+		params[ParamName] = request.Name
 	}
 	if request.Verbose {
-		params["verbose"] = true
+		params[ParamVerbose] = true
 	}
 
-	jsonStr := u.buildUbusCall("service", "list", params)
+	jsonStr := u.buildUbusCall(ServiceService, MethodList, params)
 	call, err := u.Call(jsonStr)
 	if err != nil {
 		return ServiceListResponse{}, err
@@ -89,7 +88,7 @@ func (u *Client) getServiceList(request ServiceListRequest) (ServiceListResponse
 
 	ubusDataByte, err := json.Marshal(call.Result.([]interface{})[1])
 	if err != nil {
-		return ServiceListResponse{}, errors.New("data error")
+		return ServiceListResponse{}, ErrDataParsingError
 	}
 	json.Unmarshal(ubusDataByte, &ubusData)
 	return ubusData, nil

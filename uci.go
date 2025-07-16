@@ -1,7 +1,6 @@
 package goubus
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 )
@@ -35,13 +34,13 @@ func (u *Client) uciGet(id int, request UbusUciGetRequest) (UbusUciGetResponse, 
 		return UbusUciGetResponse{}, errLogin
 	}
 
-	jsonStr := u.buildUbusCallWithID(id, "uci", "get", request)
+	jsonStr := u.buildUbusCallWithID(id, ServiceUCI, MethodGet, request)
 	call, err := u.Call(jsonStr)
 	if err != nil {
 		return UbusUciGetResponse{}, err
 	}
 	if len(call.Result.([]interface{})) < 2 {
-		return UbusUciGetResponse{}, errors.New("invalid uci get response")
+		return UbusUciGetResponse{}, NewError(ErrorCodeInvalidResponse, "invalid uci get response")
 	}
 
 	// ubus 'uci get' can return either a single value or a map of values
@@ -68,7 +67,7 @@ func (u *Client) uciGet(id int, request UbusUciGetRequest) (UbusUciGetResponse, 
 			}
 		}
 	} else {
-		return UbusUciGetResponse{}, errors.New("unexpected type for uci get result")
+		return UbusUciGetResponse{}, NewError(ErrorCodeUnexpectedFormat, "unexpected type for uci get result")
 	}
 
 	return ubusData, nil
@@ -80,7 +79,7 @@ func (u *Client) uciSet(id int, request UbusUciRequest) error {
 		return errLogin
 	}
 
-	jsonStr := u.buildUbusCallWithID(id, "uci", "set", request)
+	jsonStr := u.buildUbusCallWithID(id, ServiceUCI, MethodSet, request)
 	_, err := u.Call(jsonStr)
 	return err
 }
@@ -91,7 +90,7 @@ func (u *Client) uciAdd(id int, request UbusUciRequest) error {
 		return errLogin
 	}
 
-	jsonStr := u.buildUbusCallWithID(id, "uci", "add", request)
+	jsonStr := u.buildUbusCallWithID(id, ServiceUCI, MethodAdd, request)
 	_, err := u.Call(jsonStr)
 	return err
 }
@@ -104,7 +103,7 @@ func (u *Client) uciAddToList(id int, request UbusUciRequest) error {
 	// For add_list, 'values' should contain the single key-value to add.
 	// The key is the option, and the value is the string to add to the list.
 
-	jsonStr := u.buildUbusCallWithID(id, "uci", "add_list", request)
+	jsonStr := u.buildUbusCallWithID(id, ServiceUCI, MethodAddList, request)
 	_, err := u.Call(jsonStr)
 	return err
 }
@@ -115,7 +114,7 @@ func (u *Client) uciDelete(id int, request UbusUciRequestGeneric) error {
 		return errLogin
 	}
 
-	jsonStr := u.buildUbusCallWithID(id, "uci", "delete", request)
+	jsonStr := u.buildUbusCallWithID(id, ServiceUCI, MethodDelete, request)
 	_, err := u.Call(jsonStr)
 	return err
 }
@@ -126,7 +125,7 @@ func (u *Client) uciCommit(id int, request UbusUciRequestGeneric) error {
 		return errLogin
 	}
 
-	jsonStr := u.buildUbusCallWithID(id, "uci", "commit", request)
+	jsonStr := u.buildUbusCallWithID(id, ServiceUCI, MethodCommit, request)
 	_, err := u.Call(jsonStr)
 	return err
 }

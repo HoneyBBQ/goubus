@@ -2,7 +2,6 @@ package goubus
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -27,21 +26,21 @@ type ubusAuth struct {
 // AuthLogin Call JSON-RPC method to Router Authentication
 func (u *Client) AuthLogin() (UbusResponse, error) {
 	loginData := map[string]string{
-		"username": u.Username,
-		"password": u.Password,
+		JSONFieldUsername: u.Username,
+		JSONFieldPassword: u.Password,
 	}
-	jsonStr := u.buildUbusCallWithSession("00000000000000000000000000000000", "session", "login", loginData)
+	jsonStr := u.buildUbusCallWithSession(NullSessionID, ServiceSession, MethodLogin, loginData)
 	call, err := u.Call(jsonStr)
 	if err != nil {
 		if strings.Contains(err.Error(), "404") { // More robust check
-			return UbusResponse{}, errors.New("ubus module not installed, try 'opkg update && opkg install uhttpd-mod-ubus && service uhttpd restart'")
+			return UbusResponse{}, ErrUbusModuleNotInstalled
 		}
-		return UbusResponse{}, errors.New("error calling auth login: " + err.Error())
+		return UbusResponse{}, WrapError(err, ErrorCodeAuthenticationFailed, "error calling auth login")
 	}
 
 	ubusDataByte, err := json.Marshal(call.Result.([]interface{})[1])
 	if err != nil {
-		return UbusResponse{}, errors.New("error parsing login data")
+		return UbusResponse{}, ErrDataParsingError
 	}
 
 	var authData ubusAuth
@@ -60,7 +59,7 @@ func (u *Client) LoginCheck() error {
 	if time.Now().After(u.AuthData.ExpireTime) {
 		_, err := u.AuthLogin()
 		if err != nil {
-			return errors.New("ubus session expired, and failed to login again")
+			return ErrSessionExpired
 		}
 	}
 	return nil
@@ -69,10 +68,10 @@ func (u *Client) LoginCheck() error {
 // AuthLogout logs out the current session
 func (u *Client) AuthLogout() error {
 	if u.AuthData.UbusRPCSession == "" {
-		return errors.New("no active session to logout")
+		return ErrNoActiveSession
 	}
 
-	jsonStr := u.buildUbusCall("session", "destroy", nil)
+	jsonStr := u.buildUbusCall(ServiceSession, MethodDestroy, nil)
 	_, err := u.Call(jsonStr)
 	if err != nil {
 		return fmt.Errorf("error calling auth logout: %w", err)
@@ -86,19 +85,19 @@ func (u *Client) AuthLogout() error {
 // AuthRefresh refreshes the current session to extend its lifetime
 func (u *Client) AuthRefresh() error {
 	if u.AuthData.UbusRPCSession == "" {
-		return errors.New("no active session to refresh")
+		return ErrNoActiveSession
 	}
 
-	jsonStr := u.buildUbusCall("session", "access", nil)
+	jsonStr := u.buildUbusCall(ServiceSession, MethodAccess, nil)
 	call, err := u.Call(jsonStr)
 	if err != nil {
-		return fmt.Errorf("error calling auth refresh: %w", err)
+		return WrapError(err, ErrorCodeAuthenticationFailed, "error calling auth refresh")
 	}
 
 	// Update session data with new expiration time
 	ubusDataByte, err := json.Marshal(call.Result.([]interface{})[1])
 	if err != nil {
-		return errors.New("error parsing refresh data")
+		return ErrDataParsingError
 	}
 
 	var authData ubusAuth
@@ -115,7 +114,7 @@ func (u *Client) AuthRefresh() error {
 // AuthGetSessionInfo retrieves information about the current session
 func (u *Client) AuthGetSessionInfo() (*ubusAuth, error) {
 	if u.AuthData.UbusRPCSession == "" {
-		return nil, errors.New("no active session")
+		return nil, ErrNoActiveSession
 	}
 
 	err := u.LoginCheck() // Ensure session is still valid

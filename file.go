@@ -2,7 +2,6 @@ package goubus
 
 import (
 	"encoding/json"
-	"errors"
 	"strings"
 )
 
@@ -40,11 +39,11 @@ func (u *Client) FileExec(command string, params []string) (UbusExec, error) {
 	}
 
 	execData := map[string]interface{}{
-		"command": command,
-		"params":  params,
+		ParamCommand: command,
+		ParamParams:  params,
 	}
 
-	jsonStr := u.buildUbusCall("file", "exec", execData)
+	jsonStr := u.buildUbusCall(ServiceFile, MethodExec, execData)
 	call, err := u.Call(jsonStr)
 	if err != nil {
 		return UbusExec{}, err
@@ -53,7 +52,7 @@ func (u *Client) FileExec(command string, params []string) (UbusExec, error) {
 	ubusData := UbusExec{}
 	ubusDataByte, err := json.Marshal(call.Result.([]interface{})[1])
 	if err != nil {
-		return UbusExec{}, errors.New("data error")
+		return UbusExec{}, ErrDataParsingError
 	}
 	json.Unmarshal(ubusDataByte, &ubusData)
 	return ubusData, nil
@@ -67,14 +66,14 @@ func (u *Client) FileWrite(path, data string, append bool, mode int, base64 bool
 	}
 
 	writeData := map[string]interface{}{
-		"path":   path,
-		"data":   data,
-		"append": append,
-		"mode":   mode,
-		"base64": base64,
+		ParamPath:   path,
+		ParamData:   data,
+		ParamAppend: append,
+		ParamMode:   mode,
+		ParamBase64: base64,
 	}
 
-	jsonStr := u.buildUbusCall("file", "write", writeData)
+	jsonStr := u.buildUbusCall(ServiceFile, MethodWrite, writeData)
 	_, err := u.Call(jsonStr)
 	return err
 }
@@ -87,14 +86,14 @@ func (u *Client) FileRead(path string) (UbusFile, error) {
 	}
 
 	readData := map[string]interface{}{
-		"path": path,
+		ParamPath: path,
 	}
 
-	jsonStr := u.buildUbusCall("file", "read", readData)
+	jsonStr := u.buildUbusCall(ServiceFile, MethodRead, readData)
 	call, err := u.Call(jsonStr)
 	if err != nil {
 		if strings.Contains(err.Error(), "Object not found") {
-			return UbusFile{}, errors.New("file module not found, try 'opkg update && opkg install rpcd-mod-file && service rpcd restart'")
+			return UbusFile{}, ErrFileModuleNotFound
 		}
 		return UbusFile{}, err
 	}
@@ -102,7 +101,7 @@ func (u *Client) FileRead(path string) (UbusFile, error) {
 	ubusData := UbusFile{}
 	ubusDataByte, err := json.Marshal(call.Result.([]interface{})[1])
 	if err != nil {
-		return UbusFile{}, errors.New("data error")
+		return UbusFile{}, ErrDataParsingError
 	}
 	json.Unmarshal(ubusDataByte, &ubusData)
 	return ubusData, nil
@@ -116,10 +115,10 @@ func (u *Client) FileStat(path string) (UbusFileStat, error) {
 	}
 
 	statData := map[string]interface{}{
-		"path": path,
+		ParamPath: path,
 	}
 
-	jsonStr := u.buildUbusCall("file", "stat", statData)
+	jsonStr := u.buildUbusCall(ServiceFile, MethodStat, statData)
 	call, err := u.Call(jsonStr)
 	if err != nil {
 		return UbusFileStat{}, err
@@ -128,7 +127,7 @@ func (u *Client) FileStat(path string) (UbusFileStat, error) {
 	ubusData := UbusFileStat{}
 	ubusDataByte, err := json.Marshal(call.Result.([]interface{})[1])
 	if err != nil {
-		return UbusFileStat{}, errors.New("data error")
+		return UbusFileStat{}, ErrDataParsingError
 	}
 	json.Unmarshal(ubusDataByte, &ubusData)
 	return ubusData, nil
@@ -142,10 +141,10 @@ func (u *Client) FileList(path string) (UbusFileList, error) {
 	}
 
 	listData := map[string]interface{}{
-		"path": path,
+		ParamPath: path,
 	}
 
-	jsonStr := u.buildUbusCall("file", "list", listData)
+	jsonStr := u.buildUbusCall(ServiceFile, MethodList, listData)
 	call, err := u.Call(jsonStr)
 	if err != nil {
 		return UbusFileList{}, err
@@ -154,7 +153,7 @@ func (u *Client) FileList(path string) (UbusFileList, error) {
 	ubusData := UbusFileList{}
 	ubusDataByte, err := json.Marshal(call.Result.([]interface{})[1])
 	if err != nil {
-		return UbusFileList{}, errors.New("data error")
+		return UbusFileList{}, ErrDataParsingError
 	}
 	json.Unmarshal(ubusDataByte, &ubusData)
 	return ubusData, nil

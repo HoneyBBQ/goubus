@@ -2,7 +2,6 @@ package goubus
 
 import (
 	"encoding/json"
-	"errors"
 )
 
 type UbusRcInitRequest struct {
@@ -23,7 +22,7 @@ func (u *Client) rcList() (map[string]UbusRcListResponse, error) {
 		return nil, errLogin
 	}
 
-	jsonStr := u.buildUbusCall("rc", "list", nil)
+	jsonStr := u.buildUbusCall(ServiceRC, MethodList, nil)
 	call, err := u.Call(jsonStr)
 	if err != nil {
 		return nil, err
@@ -32,7 +31,7 @@ func (u *Client) rcList() (map[string]UbusRcListResponse, error) {
 
 	ubusDataByte, err := json.Marshal(call.Result.([]interface{})[1])
 	if err != nil {
-		return nil, errors.New("data error")
+		return nil, ErrDataParsingError
 	}
 	json.Unmarshal(ubusDataByte, &ubusData)
 	return ubusData, nil
@@ -45,7 +44,7 @@ func (u *Client) rcInit(request UbusRcInitRequest) error {
 		return errLogin
 	}
 
-	jsonStr := u.buildUbusCall("rc", "init", request)
+	jsonStr := u.buildUbusCall(ServiceRC, MethodInit, request)
 	_, err := u.Call(jsonStr)
 	return err
 }

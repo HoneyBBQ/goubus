@@ -7,20 +7,10 @@ import (
 	"net/http"
 )
 
-// UbusError represents the ubus error format
-type UbusError struct {
-	Code    int
-	Message string
-}
-
 // UbusExec is a helper struct for parsing the output of file.exec commands.
 type UbusExec struct {
 	Code   int    `json:"code"`
 	Stdout string `json:"stdout"`
-}
-
-func (e UbusError) Error() string {
-	return e.Message
 }
 
 // UbusResponse represents the ubus response format
@@ -33,7 +23,7 @@ type UbusResponse struct {
 
 // Call a RPC method - now with the correct receiver *ubus
 func (u *Client) Call(jsonStr []byte) (UbusResponse, error) {
-	resp, err := http.Post("http://"+u.Host+"/ubus", "application/json", bytes.NewBuffer(jsonStr))
+	resp, err := http.Post("http://"+u.Host+UbusEndpointPath, ContentTypeJSON, bytes.NewBuffer(jsonStr))
 	if err != nil {
 		return UbusResponse{}, err
 	}
@@ -54,7 +44,7 @@ func (u *Client) Call(jsonStr []byte) (UbusResponse, error) {
 		if resArray, ok := ubusResp.Result.([]interface{}); ok {
 			if len(resArray) > 0 {
 				if code, ok := resArray[0].(float64); ok && code != 0 {
-					return ubusResp, UbusError{Code: int(code), Message: ubusErrCode[int(code)]}
+					return ubusResp, NewUbusCodeError(int(code), "", "")
 				}
 			}
 		}
@@ -135,16 +125,16 @@ func (u *Client) buildUbusCallWithSessionAndID(sessionID string, id int, service
 
 	// Use optimized string template - 5-10x faster than struct + marshal
 	return []byte(fmt.Sprintf(`{
-		"jsonrpc": "2.0",
+		"jsonrpc": "%s",
 		"id": %d,
-		"method": "call",
+		"method": "%s",
 		"params": [
 			"%s",
 			"%s",
 			"%s",
 			%s
 		]
-	}`, id, sessionID, service, method, dataJSON))
+	}`, JSONRPCVersion, id, JSONRPCMethodCall, sessionID, service, method, dataJSON))
 }
 
 // getNextID increments and returns the next ID

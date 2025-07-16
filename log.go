@@ -2,7 +2,6 @@ package goubus
 
 import (
 	"encoding/json"
-	"errors"
 )
 
 type UbusLog struct {
@@ -25,12 +24,12 @@ func (u *Client) logRead(lines int, stream bool, oneshot bool) (UbusLog, error) 
 	}
 
 	params := map[string]interface{}{
-		"lines":   lines,
-		"stream":  stream,
-		"oneshot": oneshot,
+		ParamLines:   lines,
+		ParamStream:  stream,
+		ParamOneshot: oneshot,
 	}
 
-	jsonStr := u.buildUbusCall("log", "read", params)
+	jsonStr := u.buildUbusCall(ServiceLog, MethodRead, params)
 	call, err := u.Call(jsonStr)
 	if err != nil {
 		return UbusLog{}, err
@@ -39,7 +38,7 @@ func (u *Client) logRead(lines int, stream bool, oneshot bool) (UbusLog, error) 
 	ubusData := UbusLog{}
 	ubusDataByte, err := json.Marshal(call.Result.([]interface{})[1])
 	if err != nil {
-		return UbusLog{}, errors.New("data error")
+		return UbusLog{}, ErrDataParsingError
 	}
 	json.Unmarshal(ubusDataByte, &ubusData)
 	return ubusData, nil
@@ -53,10 +52,10 @@ func (u *Client) logWrite(event string) error {
 	}
 
 	params := map[string]interface{}{
-		"event": event,
+		ParamEvent: event,
 	}
 
-	jsonStr := u.buildUbusCall("log", "write", params)
+	jsonStr := u.buildUbusCall(ServiceLog, MethodWrite, params)
 	_, err := u.Call(jsonStr)
 	return err
 }
