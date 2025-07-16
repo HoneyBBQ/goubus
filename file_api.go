@@ -14,27 +14,27 @@ type FileManager struct {
 
 // Read reads the contents of a file.
 func (fm *FileManager) Read(path string) (UbusFile, error) {
-	return fm.client.FileRead(path)
+	return fm.client.fileRead(path)
 }
 
 // Write writes data to a file.
 func (fm *FileManager) Write(path, data string, append bool, mode int, base64 bool) error {
-	return fm.client.FileWrite(path, data, append, mode, base64)
+	return fm.client.fileWrite(path, data, append, mode, base64)
 }
 
 // List lists the contents of a directory.
 func (fm *FileManager) List(path string) (UbusFileList, error) {
-	return fm.client.FileList(path)
+	return fm.client.fileList(path)
 }
 
 // Stat gets file/directory status information.
 func (fm *FileManager) Stat(path string) (UbusFileStat, error) {
-	return fm.client.FileStat(path)
+	return fm.client.fileStat(path)
 }
 
 // Exec executes a command and returns the result.
 func (fm *FileManager) Exec(command string, params []string) (UbusExec, error) {
-	return fm.client.FileExec(command, params)
+	return fm.client.fileExec(command, params)
 }
 
 // Delete removes a file or directory from the filesystem.

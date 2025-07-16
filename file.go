@@ -32,7 +32,7 @@ type UbusFile struct {
 }
 
 // FileExec executes a command on the remote system.
-func (u *Client) FileExec(command string, params []string) (UbusExec, error) {
+func (u *Client) fileExec(command string, params []string) (UbusExec, error) {
 	errLogin := u.LoginCheck()
 	if errLogin != nil {
 		return UbusExec{}, errLogin
@@ -59,7 +59,7 @@ func (u *Client) FileExec(command string, params []string) (UbusExec, error) {
 }
 
 // FileWrite writes data to a file on the remote system.
-func (u *Client) FileWrite(path, data string, append bool, mode int, base64 bool) error {
+func (u *Client) fileWrite(path, data string, append bool, mode int, base64 bool) error {
 	errLogin := u.LoginCheck()
 	if errLogin != nil {
 		return errLogin
@@ -79,7 +79,7 @@ func (u *Client) FileWrite(path, data string, append bool, mode int, base64 bool
 }
 
 // FileRead reads the contents of a file on the remote system.
-func (u *Client) FileRead(path string) (UbusFile, error) {
+func (u *Client) fileRead(path string) (UbusFile, error) {
 	errLogin := u.LoginCheck()
 	if errLogin != nil {
 		return UbusFile{}, errLogin
@@ -108,7 +108,7 @@ func (u *Client) FileRead(path string) (UbusFile, error) {
 }
 
 // FileStat gets file/directory statistics on the remote system.
-func (u *Client) FileStat(path string) (UbusFileStat, error) {
+func (u *Client) fileStat(path string) (UbusFileStat, error) {
 	errLogin := u.LoginCheck()
 	if errLogin != nil {
 		return UbusFileStat{}, errLogin
@@ -134,7 +134,7 @@ func (u *Client) FileStat(path string) (UbusFileStat, error) {
 }
 
 // FileList lists the contents of a directory on the remote system.
-func (u *Client) FileList(path string) (UbusFileList, error) {
+func (u *Client) fileList(path string) (UbusFileList, error) {
 	errLogin := u.LoginCheck()
 	if errLogin != nil {
 		return UbusFileList{}, errLogin

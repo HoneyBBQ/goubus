@@ -66,7 +66,7 @@ func (u *Client) LoginCheck() error {
 }
 
 // AuthLogout logs out the current session
-func (u *Client) AuthLogout() error {
+func (u *Client) authLogout() error {
 	if u.AuthData.UbusRPCSession == "" {
 		return ErrNoActiveSession
 	}
@@ -83,7 +83,7 @@ func (u *Client) AuthLogout() error {
 }
 
 // AuthRefresh refreshes the current session to extend its lifetime
-func (u *Client) AuthRefresh() error {
+func (u *Client) authRefresh() error {
 	if u.AuthData.UbusRPCSession == "" {
 		return ErrNoActiveSession
 	}
@@ -128,7 +128,7 @@ func (u *Client) AuthGetSessionInfo() (*ubusAuth, error) {
 }
 
 // AuthIsSessionValid checks if the current session is still valid without refreshing
-func (u *Client) AuthIsSessionValid() bool {
+func (u *Client) authIsSessionValid() bool {
 	if u.AuthData.UbusRPCSession == "" {
 		return false
 	}
@@ -136,7 +136,7 @@ func (u *Client) AuthIsSessionValid() bool {
 }
 
 // AuthGetTimeUntilExpiry returns the time remaining until session expiry
-func (u *Client) AuthGetTimeUntilExpiry() time.Duration {
+func (u *Client) authGetTimeUntilExpiry() time.Duration {
 	if u.AuthData.UbusRPCSession == "" {
 		return 0
 	}
