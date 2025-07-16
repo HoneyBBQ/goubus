@@ -52,6 +52,9 @@ const (
 	// 事件服务
 	ServiceUbus = "ubus"
 
+	// LUCI 服务
+	ServiceLuci = "luci"
+
 	// LUCI RPC服务
 	ServiceLuciRPC = "luci-rpc"
 )
@@ -106,6 +109,10 @@ const (
 
 	// 日志方法
 	// MethodRead, MethodWrite already defined above
+
+	// LUCI 方法
+	MethodGetTime = "getLocaltime"
+	MethodSetTime = "setLocaltime"
 
 	// 事件方法
 	MethodSend      = "send"
@@ -228,23 +235,24 @@ const (
 
 // 常用的ubus参数名常量
 const (
-	ParamName    = "name"
-	ParamDevice  = "device"
-	ParamMAC     = "mac"
-	ParamPath    = "path"
-	ParamLines   = "lines"
-	ParamStream  = "stream"
-	ParamOneshot = "oneshot"
-	ParamEvent   = "event"
-	ParamType    = "type"
-	ParamData    = "data"
-	ParamTypes   = "types"
-	ParamVerbose = "verbose"
-	ParamCommand = "command"
-	ParamParams  = "params"
-	ParamAppend  = "append"
-	ParamMode    = "mode"
-	ParamBase64  = "base64"
+	ParamName      = "name"
+	ParamDevice    = "device"
+	ParamMAC       = "mac"
+	ParamPath      = "path"
+	ParamLines     = "lines"
+	ParamStream    = "stream"
+	ParamOneshot   = "oneshot"
+	ParamEvent     = "event"
+	ParamType      = "type"
+	ParamData      = "data"
+	ParamTypes     = "types"
+	ParamVerbose   = "verbose"
+	ParamCommand   = "command"
+	ParamParams    = "params"
+	ParamAppend    = "append"
+	ParamMode      = "mode"
+	ParamBase64    = "base64"
+	ParamLocaltime = "localtime"
 )
 
 // 特殊会话ID常量

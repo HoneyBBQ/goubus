@@ -90,6 +90,10 @@ func main() {
 	fmt.Println("\n=== 8. Service Status Test ===")
 	results = append(results, testServiceInfo(client)...)
 
+	// 9. Test LUCI related read-only interfaces
+	fmt.Println("\n=== 9. LUCI Information Test ===")
+	results = append(results, testLuciInfo(client)...)
+
 	// Print test summary
 	printTestSummary(results)
 }
@@ -834,6 +838,25 @@ func testServiceInfo(client *goubus.Client) []TestResult {
 		} else {
 			fmt.Printf("✗ Service %s status retrieval failed: %v\n", service, err)
 		}
+	}
+
+	return results
+}
+
+func testLuciInfo(client *goubus.Client) []TestResult {
+	var results []TestResult
+
+	time, err := client.Luci().GetLocalTime()
+	results = append(results, TestResult{
+		TestName: "Local Time Retrieval",
+		Success:  err == nil,
+		Error:    err,
+		Data:     time,
+	})
+	if err == nil {
+		fmt.Printf("✓ Local time retrieval successful: %s\n", time)
+	} else {
+		fmt.Printf("✗ Local time retrieval failed: %v\n", err)
 	}
 
 	return results

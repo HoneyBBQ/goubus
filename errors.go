@@ -37,6 +37,9 @@ const (
 	ErrorCodeModuleNotInstalled ErrorCode = "ModuleNotInstalled"
 	ErrorCodeModuleNotFound     ErrorCode = "ModuleNotFound"
 
+	// LUCI errors
+	ErrorCodeLuciTimeError ErrorCode = "LuciTimeError"
+
 	// UCI errors
 	ErrorCodeUCIOperationFailed ErrorCode = "UCIOperationFailed"
 	ErrorCodeConfigNotFound     ErrorCode = "ConfigNotFound"
@@ -175,6 +178,9 @@ var (
 	// Module errors
 	ErrUbusModuleNotInstalled = NewError(ErrorCodeModuleNotInstalled, "ubus module not installed, try 'opkg update && opkg install uhttpd-mod-ubus && service uhttpd restart'")
 	ErrFileModuleNotFound     = NewError(ErrorCodeModuleNotFound, "file module not found, try 'opkg update && opkg install rpcd-mod-file && service rpcd restart'")
+
+	// LUCI errors
+	ErrLuciTimeError = NewError(ErrorCodeLuciTimeError, "failed to get local time")
 
 	// UCI errors
 	ErrUCIOperationFailed = NewError(ErrorCodeUCIOperationFailed, "UCI operation failed")

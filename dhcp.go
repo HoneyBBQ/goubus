@@ -22,7 +22,7 @@ func (u *Client) dhcpLeases() (UbusDhcpLeases, error) {
 	}
 
 	// Use the new optimized JSON builder - 5-10x faster than struct + marshal!
-	jsonStr := u.buildUbusCall("luci-rpc", "getDHCPLeases", nil)
+	jsonStr := u.buildUbusCall(ServiceLuciRPC, MethodGetDHCPLeases, nil)
 
 	call, err := u.Call(jsonStr)
 	if err != nil {
