@@ -64,6 +64,30 @@ func (u *Client) restartService(serviceName string) error {
 	})
 }
 
+// reloadService reloads a system service using rc.init.
+func (u *Client) reloadService(serviceName string) error {
+	return u.rcInit(UbusRcInitRequest{
+		Name:   serviceName,
+		Action: ActionReload,
+	})
+}
+
+// enableService enables a system service using rc.init.
+func (u *Client) enableService(serviceName string) error {
+	return u.rcInit(UbusRcInitRequest{
+		Name:   serviceName,
+		Action: ActionEnable,
+	})
+}
+
+// disableService disables a system service using rc.init.
+func (u *Client) disableService(serviceName string) error {
+	return u.rcInit(UbusRcInitRequest{
+		Name:   serviceName,
+		Action: ActionDisable,
+	})
+}
+
 // getServiceList retrieves the status of services.
 func (u *Client) getServiceList(request ServiceListRequest) (ServiceListResponse, error) {
 	errLogin := u.LoginCheck()

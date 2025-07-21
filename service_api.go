@@ -29,6 +29,21 @@ func (sm *ServiceManager) Restart() error {
 	return sm.client.restartService(sm.name)
 }
 
+// Reload reloads the service.
+func (sm *ServiceManager) Reload() error {
+	return sm.client.reloadService(sm.name)
+}
+
+// Enable enables the service.
+func (sm *ServiceManager) Enable() error {
+	return sm.client.enableService(sm.name)
+}
+
+// Disable disables the service.
+func (sm *ServiceManager) Disable() error {
+	return sm.client.disableService(sm.name)
+}
+
 // Status retrieves the current status of the service.
 func (sm *ServiceManager) Status() (ServiceListResponse, error) {
 	return sm.client.getServiceList(ServiceListRequest{Name: sm.name})
