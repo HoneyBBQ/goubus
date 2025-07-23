@@ -1,119 +1,46 @@
 package goubus
 
 import (
-	"encoding/json"
+	"github.com/honeybbq/goubus/api"
+	"github.com/honeybbq/goubus/types"
 )
 
-type Respawn struct {
-	Threshold int `json:"threshold"`
-	Timeout   int `json:"timeout"`
-	Retries   int `json:"retries"`
+// ServiceManager provides an interface for managing system services.
+type ServiceManager struct {
+	client *Client
 }
 
-// ServiceInstance represents an instance of a service.
-type ServiceInstance struct {
-	Running     bool     `json:"running"`
-	Command     []string `json:"command"`
-	TermTimeout int      `json:"term_timeout"`
-	ExitCode    int      `json:"exit_code"`
-	Respawn     Respawn  `json:"respawn"`
+// Service returns a new ServiceManager.
+func (c *Client) Service() *ServiceManager {
+	return &ServiceManager{client: c}
 }
 
-type ServiceInstanceList struct {
-	Instances []ServiceInstance `json:"instances"`
+// List retrieves the status of all services or a specific one.
+func (sm *ServiceManager) List(name string, verbose bool) (map[string]types.ServiceInfo, error) {
+	return api.GetServiceList(sm.client.caller, name, verbose)
 }
 
-// ServiceStatus represents the status of a service.
-type ServiceStatus struct {
-	Service ServiceInstanceList `json:"service"`
+// Set sets or adds a service configuration.
+func (sm *ServiceManager) Set(name, script string, instances map[string]any, triggers []any, autostart bool, data map[string]any) error {
+	return api.SetService(sm.client.caller, name, script, instances, triggers, autostart, data)
 }
 
-// ServiceListResponse represents the response from service list operations.
-type ServiceListResponse map[string]interface{}
-
-type ServiceListRequest struct {
-	Name    string `json:"name"`
-	Verbose bool   `json:"verbose"`
+// Delete deletes a service instance.
+func (sm *ServiceManager) Delete(name, instance string) error {
+	return api.DeleteService(sm.client.caller, name, instance)
 }
 
-type ServiceActionRequest struct {
-	Name string `json:"name"`
+// Signal sends a signal to a service instance.
+func (sm *ServiceManager) Signal(name, instance string, signal int) error {
+	return api.SignalService(sm.client.caller, name, instance, signal)
 }
 
-// startService starts a system service using rc.init.
-func (u *Client) startService(serviceName string) error {
-	return u.rcInit(UbusRcInitRequest{
-		Name:   serviceName,
-		Action: ActionStart,
-	})
+// Event sends a custom event.
+func (sm *ServiceManager) Event(eventType string, data map[string]any) error {
+	return api.ServiceEvent(sm.client.caller, eventType, data)
 }
 
-// stopService stops a system service using rc.init.
-func (u *Client) stopService(serviceName string) error {
-	return u.rcInit(UbusRcInitRequest{
-		Name:   serviceName,
-		Action: ActionStop,
-	})
-}
-
-// restartService restarts a system service using rc.init.
-func (u *Client) restartService(serviceName string) error {
-	return u.rcInit(UbusRcInitRequest{
-		Name:   serviceName,
-		Action: ActionRestart,
-	})
-}
-
-// reloadService reloads a system service using rc.init.
-func (u *Client) reloadService(serviceName string) error {
-	return u.rcInit(UbusRcInitRequest{
-		Name:   serviceName,
-		Action: ActionReload,
-	})
-}
-
-// enableService enables a system service using rc.init.
-func (u *Client) enableService(serviceName string) error {
-	return u.rcInit(UbusRcInitRequest{
-		Name:   serviceName,
-		Action: ActionEnable,
-	})
-}
-
-// disableService disables a system service using rc.init.
-func (u *Client) disableService(serviceName string) error {
-	return u.rcInit(UbusRcInitRequest{
-		Name:   serviceName,
-		Action: ActionDisable,
-	})
-}
-
-// getServiceList retrieves the status of services.
-func (u *Client) getServiceList(request ServiceListRequest) (ServiceListResponse, error) {
-	errLogin := u.LoginCheck()
-	if errLogin != nil {
-		return ServiceListResponse{}, errLogin
-	}
-
-	params := make(map[string]interface{})
-	if request.Name != "" {
-		params[ParamName] = request.Name
-	}
-	if request.Verbose {
-		params[ParamVerbose] = true
-	}
-
-	jsonStr := u.buildUbusCall(ServiceService, MethodList, params)
-	call, err := u.Call(jsonStr)
-	if err != nil {
-		return ServiceListResponse{}, err
-	}
-	ubusData := ServiceListResponse{}
-
-	ubusDataByte, err := json.Marshal(call.Result.([]interface{})[1])
-	if err != nil {
-		return ServiceListResponse{}, ErrDataParsingError
-	}
-	json.Unmarshal(ubusDataByte, &ubusData)
-	return ubusData, nil
+// State retrieves the state of a service.
+func (sm *ServiceManager) State(name string) (map[string]any, error) {
+	return api.GetServiceState(sm.client.caller, name)
 }

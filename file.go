@@ -1,160 +1,51 @@
 package goubus
 
 import (
-	"encoding/json"
-	"strings"
+	"github.com/honeybbq/goubus/api"
+	"github.com/honeybbq/goubus/types"
 )
 
-type UbusFileList struct {
-	Entries []UbusFileListData
+// FileManager provides an interface for interacting with the device's filesystem.
+type FileManager struct {
+	client *Client
 }
 
-type UbusFileListData struct {
-	Name string
-	Type string
+// File returns a new FileManager.
+func (c *Client) File() *FileManager {
+	return &FileManager{client: c}
 }
 
-type UbusFileStat struct {
-	Path  string
-	Type  string
-	Size  int
-	Mode  int
-	Atime int
-	Mtime int
-	Ctime int
-	Inode int
-	Uid   int
-	Gid   int
+// Read retrieves the contents of a file.
+func (fm *FileManager) Read(path string, base64 bool) (*types.FileRead, error) {
+	return api.ReadFile(fm.client.caller, path, base64)
 }
 
-type UbusFile struct {
-	Data string
+// Write writes data to a file.
+func (fm *FileManager) Write(path, data string, append bool, mode int, base64 bool) error {
+	return api.WriteFile(fm.client.caller, path, data, append, mode, base64)
 }
 
-// FileExec executes a command on the remote system.
-func (u *Client) fileExec(command string, params []string) (UbusExec, error) {
-	errLogin := u.LoginCheck()
-	if errLogin != nil {
-		return UbusExec{}, errLogin
-	}
-
-	execData := map[string]interface{}{
-		ParamCommand: command,
-		ParamParams:  params,
-	}
-
-	jsonStr := u.buildUbusCall(ServiceFile, MethodExec, execData)
-	call, err := u.Call(jsonStr)
-	if err != nil {
-		return UbusExec{}, err
-	}
-
-	ubusData := UbusExec{}
-	ubusDataByte, err := json.Marshal(call.Result.([]interface{})[1])
-	if err != nil {
-		return UbusExec{}, ErrDataParsingError
-	}
-	json.Unmarshal(ubusDataByte, &ubusData)
-	return ubusData, nil
+// List lists the contents of a directory.
+func (fm *FileManager) List(path string) (*types.FileList, error) {
+	return api.ListDirectory(fm.client.caller, path)
 }
 
-// FileWrite writes data to a file on the remote system.
-func (u *Client) fileWrite(path, data string, append bool, mode int, base64 bool) error {
-	errLogin := u.LoginCheck()
-	if errLogin != nil {
-		return errLogin
-	}
-
-	writeData := map[string]interface{}{
-		ParamPath:   path,
-		ParamData:   data,
-		ParamAppend: append,
-		ParamMode:   mode,
-		ParamBase64: base64,
-	}
-
-	jsonStr := u.buildUbusCall(ServiceFile, MethodWrite, writeData)
-	_, err := u.Call(jsonStr)
-	return err
+// Stat retrieves statistics for a file or directory.
+func (fm *FileManager) Stat(path string) (*types.FileStat, error) {
+	return api.StatFile(fm.client.caller, path)
 }
 
-// FileRead reads the contents of a file on the remote system.
-func (u *Client) fileRead(path string) (UbusFile, error) {
-	errLogin := u.LoginCheck()
-	if errLogin != nil {
-		return UbusFile{}, errLogin
-	}
-
-	readData := map[string]interface{}{
-		ParamPath: path,
-	}
-
-	jsonStr := u.buildUbusCall(ServiceFile, MethodRead, readData)
-	call, err := u.Call(jsonStr)
-	if err != nil {
-		if strings.Contains(err.Error(), "Object not found") {
-			return UbusFile{}, ErrFileModuleNotFound
-		}
-		return UbusFile{}, err
-	}
-
-	ubusData := UbusFile{}
-	ubusDataByte, err := json.Marshal(call.Result.([]interface{})[1])
-	if err != nil {
-		return UbusFile{}, ErrDataParsingError
-	}
-	json.Unmarshal(ubusDataByte, &ubusData)
-	return ubusData, nil
+// MD5 calculates the MD5 checksum of a file.
+func (fm *FileManager) MD5(path string) (*string, error) {
+	return api.GetFileMD5(fm.client.caller, path)
 }
 
-// FileStat gets file/directory statistics on the remote system.
-func (u *Client) fileStat(path string) (UbusFileStat, error) {
-	errLogin := u.LoginCheck()
-	if errLogin != nil {
-		return UbusFileStat{}, errLogin
-	}
-
-	statData := map[string]interface{}{
-		ParamPath: path,
-	}
-
-	jsonStr := u.buildUbusCall(ServiceFile, MethodStat, statData)
-	call, err := u.Call(jsonStr)
-	if err != nil {
-		return UbusFileStat{}, err
-	}
-
-	ubusData := UbusFileStat{}
-	ubusDataByte, err := json.Marshal(call.Result.([]interface{})[1])
-	if err != nil {
-		return UbusFileStat{}, ErrDataParsingError
-	}
-	json.Unmarshal(ubusDataByte, &ubusData)
-	return ubusData, nil
+// Remove deletes a file or directory.
+func (fm *FileManager) Remove(path string) error {
+	return api.RemoveFile(fm.client.caller, path)
 }
 
-// FileList lists the contents of a directory on the remote system.
-func (u *Client) fileList(path string) (UbusFileList, error) {
-	errLogin := u.LoginCheck()
-	if errLogin != nil {
-		return UbusFileList{}, errLogin
-	}
-
-	listData := map[string]interface{}{
-		ParamPath: path,
-	}
-
-	jsonStr := u.buildUbusCall(ServiceFile, MethodList, listData)
-	call, err := u.Call(jsonStr)
-	if err != nil {
-		return UbusFileList{}, err
-	}
-
-	ubusData := UbusFileList{}
-	ubusDataByte, err := json.Marshal(call.Result.([]interface{})[1])
-	if err != nil {
-		return UbusFileList{}, ErrDataParsingError
-	}
-	json.Unmarshal(ubusDataByte, &ubusData)
-	return ubusData, nil
+// Exec executes a command on the remote system.
+func (fm *FileManager) Exec(command string, params []string, env map[string]string) (*types.FileExec, error) {
+	return api.ExecuteCommand(fm.client.caller, command, params, env)
 }

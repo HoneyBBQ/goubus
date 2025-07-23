@@ -1,41 +1,79 @@
-# goubus: OpenWrt ubus Client Library
+# goubus: An Elegant Go Client Library for OpenWrt ubus
 
 [![Go Version](https://img.shields.io/badge/go-1.24-blue)](https://golang.org/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Go Report Card](https://goreportcard.com/badge/github.com/honeybbq/goubus)](https://goreportcard.com/report/github.com/honeybbq/goubus)
 
-goubus is a comprehensive Go client library for OpenWrt's ubus (micro bus) system. It provides a type-safe, idiomatic Go interface for interacting with OpenWrt routers and devices, enabling seamless integration of network management, system monitoring, and wireless configuration into Go applications.
+[Read this document in Chinese (中文文档)](README_CN.md)
+
+`goubus` is a comprehensive, idiomatic Go client library for OpenWrt's ubus (micro bus) system. It provides a type-safe, elegantly designed API that allows Go developers to seamlessly integrate network management, system monitoring, and device configuration into their applications.
 
 ## Table of Contents
 
-- [Features](#features)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [API Reference](#api-reference)
-- [Troubleshooting](#troubleshooting)
-- [Examples](#examples)
-- [Contributing](#contributing)
-- [License](#license)
-- [Acknowledgments](#acknowledgments)
+- [goubus: An Elegant Go Client Library for OpenWrt ubus](#goubus-an-elegant-go-client-library-for-openwrt-ubus)
+  - [Table of Contents](#table-of-contents)
+  - [Core Features](#core-features)
+  - [Architecture Overview](#architecture-overview)
+  - [Installation](#installation)
+  - [Quick Start](#quick-start)
+  - [API Usage Examples](#api-usage-examples)
+    - [**1. System Management**](#1-system-management)
+    - [**2. Network Status & Control**](#2-network-status--control)
+    - [**3. UCI Configuration Management**](#3-uci-configuration-management)
+      - [Fluent Chained API](#fluent-chained-api)
+      - [Type-Safe Configuration Models](#type-safe-configuration-models)
+      - [Example: Modifying Network Configuration](#example-modifying-network-configuration)
+    - [**4. Wireless (IwInfo & Network.Wireless)**](#4-wireless-iwinfo--networkwireless)
+    - [**5. DHCP Service**](#5-dhcp-service)
+    - [**6. Files & Commands**](#6-files--commands)
+    - [**7. Service Management (RC & Service)**](#7-service-management-rc--service)
+    - [**8. Logging System**](#8-logging-system)
+    - [**9. Sessions & Permissions**](#9-sessions--permissions)
+    - [**10. LuCI Extension Interface**](#10-luci-extension-interface)
+  - [Troubleshooting](#troubleshooting)
+    - [Permission Issues](#permission-issues)
+  - [Contributing](#contributing)
+  - [License](#license)
 
-## Features
+## Core Features
 
-- **Complete API Coverage**: Full support for OpenWrt ubus services including:
-  - Authentication and session management
-  - Network interface configuration and monitoring
-  - Wireless network management
-  - DHCP configuration
-  - System information and control
-  - File system operations
-  - Service management
-  - Event handling
-  - UCI configuration system
+- **Elegant Fluent API**: Features a chained-call design for an intuitive, highly readable API.
+- **Complete Type Safety**: Defines clear Go structs for all ubus API requests and responses, eliminating the hassle of `map[string]interface{}`.
+- **Clean, Layered Architecture**: Separates the user interface, business logic, and transport layer, making the code easy to maintain, test, and extend.
+- **Powerful UCI Configuration**: Provides type-safe model binding and a fluent API to manipulate OpenWrt's UCI configuration system.
+- **Comprehensive API Coverage**: Broadly supports common ubus modules like `system`, `network`, `uci`, `iwinfo`, and `service`.
+- **Automatic Session Management**: Built-in authentication and session handling.
+- **Robust Error Handling**: Defines detailed error types for precise exception handling.
+- **Concurrency Safe**: The client can be safely used across multiple goroutines.
 
-- **Type-Safe**: Strongly typed Go structs for all API responses
-- **Session Management**: Automatic session handling with refresh and expiry detection
-- **Error Handling**: Comprehensive error handling with ubus-specific error codes
-- **Concurrent-Safe**: Thread-safe operations for concurrent usage
-- **Extensible**: Modular design for easy extension and customization
+## Architecture Overview
+
+`goubus` employs a clean, layered design to ensure high cohesion and low coupling:
+
+- **Top-Level API (`goubus` package)**: The user-facing entry point, providing a concise Fluent API. It uses a "Manager-Factory" pattern, e.g., `client.System()` returns a `SystemManager`.
+- **Internal Logic (`api` package)**: Encapsulates all direct interactions with the ubus RPC. It's responsible for building requests, calling the transport layer, and parsing/normalizing various complex data formats returned by ubus.
+- **Transport Layer (`transport` package)**: Handles low-level HTTP/RPC communication, authentication, and session token management.
+- **Data Types (`types` package)**: Defines request and response data structures for all ubus APIs, forming the core of type safety.
+- **UCI Abstraction (`uci` package)**: Offers powerful serialization/deserialization tools and the `ConfigModel` interface, enabling seamless two-way mapping between Go structs and UCI configurations.
+- **Utilities & Errors (`utils`, `errdefs` packages)**: Provides helper functions and unified error definitions.
+
+```mermaid
+graph TD
+    A[User Application] --> B(Top-Level API Layer<br/>`goubus` package);
+    B --> C(Internal Logic Layer<br/>`api` package);
+    C --> D(Transport Layer<br/>`transport` package);
+    D --> E[OpenWrt ubus];
+
+    subgraph "Core Abstractions"
+        F(Data Types<br/>`types` package)
+        G(UCI Models<br/>`uci` package)
+    end
+
+    B -- Uses --> F;
+    B -- Uses --> G;
+    C -- Uses --> F;
+    C -- Uses --> G;
+```
 
 ## Installation
 
@@ -45,212 +83,273 @@ go get github.com/honeybbq/goubus
 
 ## Quick Start
 
+The following example shows how to connect to an OpenWrt device and fetch system information:
+
 ```go
 package main
 
 import (
     "fmt"
     "log"
-    "goubus"
+    "github.com/honeybbq/goubus"
 )
 
 func main() {
-    // Create a new client
-    client, err := goubus.NewClient("192.168.1.1", "root", "password")
+    // Create a client with authentication credentials.
+    rpcClient, err := transport.NewRpcClient("192.168.1.1", "root", "password")
     if err != nil {
-        log.Fatalf("Failed to connect: %v", err)
+        log.Fatalf("Failed to connect to device: %v", err)
     }
-    defer client.Auth().Logout()
 
-    // Get system information
+    client := goubus.NewClient(rpcClient)
+
+    // Get system information.
+    // client.System() returns a SystemManager.
     systemInfo, err := client.System().Info()
     if err != nil {
         log.Fatalf("Failed to get system info: %v", err)
     }
 
-    fmt.Printf("System uptime: %d seconds\n", systemInfo.Uptime)
-    fmt.Printf("Memory usage: %d MB / %d MB\n", 
-        (systemInfo.Memory.Total-systemInfo.Memory.Available)/1024/1024,
+    fmt.Printf("Device Model: %s\n", systemInfo.Release.BoardName)
+    fmt.Printf("System Uptime: %d seconds\n", systemInfo.Uptime)
+    fmt.Printf("Memory Usage: %d MB / %d MB\n",
+        (systemInfo.Memory.Total-systemInfo.Memory.Free)/1024/1024,
         systemInfo.Memory.Total/1024/1024)
 }
 ```
 
-## API Reference
+## API Usage Examples
 
-### Authentication
+`goubus` provides a dedicated "manager" for each ubus module, accessible via methods on the client, such as `client.System()`, `client.Network()`, and `client.Uci()`.
 
-```go
-// Create a new client (automatically logs in)
-client, err := goubus.NewClient("192.168.1.1", "root", "password")
+### **1. System Management**
 
-// Get session information
-sessionInfo, err := client.Auth().GetSessionInfo()
-
-// Check if session is valid
-isValid := client.Auth().IsSessionValid()
-
-// Refresh session
-err = client.Auth().Refresh()
-
-// Logout
-err = client.Auth().Logout()
-```
-
-### System Management
+Use `client.System()` to get the `SystemManager`.
 
 ```go
-// Get system information
-systemInfo, err := client.System().Info()
-
-// Get board information
+// Get hardware information
 boardInfo, err := client.System().Board()
 
-// Reboot system
+// Reboot the system
 err = client.System().Reboot()
 ```
 
-### Network Management
+### **2. Network Status & Control**
+
+Use `client.Network()` to get the `NetworkManager`. The API design mimics the hierarchical structure of `ubus`.
 
 ```go
-// Get all network interfaces
-dump, err := client.Network().Dump()
+// Get a summary of all network interfaces
+dump, err := client.Network().Interfaces()
+for _, iface := range dump.Interface {
+    fmt.Printf("Interface: %s, Protocol: %s, Up: %t\n", iface.Interface, iface.Proto, iface.Up)
+}
 
-// Get specific interface status
-status, err := client.Network().Interface("lan").Status()
+// Get the detailed status of the 'lan' interface.
+// .Interface("lan") returns an InterfaceManager.
+lanStatus, err := client.Network().Interface("lan").Status()
+if err == nil && len(lanStatus.Ipv4Address) > 0 {
+    fmt.Printf("LAN IP Address: %s\n", lanStatus.Ipv4Address[0].Address)
+}
 
-// Get interface configuration
-config, err := client.Network().Interface("lan").GetConfig()
+// Control interface state
+err = client.Network().Interface("wan").Down()
+// ...
+err = client.Network().Interface("wan").Up()
 
-// Set interface configuration
-err = client.Network().Interface("lan").SetConfig(config)
+// Reload the network service
+err = client.Network().Reload()
 ```
 
-### Wireless Management
+### **3. UCI Configuration Management**
+
+The UCI management in `goubus` is a core highlight. The `UciManager`, obtained via `client.Uci()`, makes complex UCI operations extremely simple and safe.
+
+#### Fluent Chained API
+
+You can pinpoint any configuration option with a chained call, just like accessing fields in a Go struct.
+
+- `client.Uci()` -> `UciManager` (Entry point)
+- `.Package("network")` -> `UciPackageContext` (Select config file)
+- `.Section("wan")` -> `UciSectionContext` (Select section)
+- `.Option("proto")` -> `UciOptionContext` (Select option)
+
+#### Type-Safe Configuration Models
+
+`goubus` includes built-in, type-safe models for common UCI configurations (like `network`, `wireless`, `system`). You operate on these Go structs without worrying about underlying string conversions. All models implement the `goubus.ConfigModel` interface.
+
+#### Example: Modifying Network Configuration
 
 ```go
-// Get wireless devices
-devices, err := client.Wireless().GetAvailableDevices()
+import "github.com/honeybbq/goubus/uci/config"
 
-// Get wireless device configuration
-config, err := client.Wireless().Device("radio0").Get()
+// 1. Select the 'wan' interface
+wanSection := client.Uci().Package("network").Section("wan")
 
-// Set wireless device configuration
-err = client.Wireless().Device("radio0").Set(config)
+// 2. Create a NetworkInterface struct to hold the configuration
+var wanConfig config.NetworkInterface
+err := wanSection.Get(&wanConfig)
+if err != nil {
+    log.Fatalf("Failed to get WAN config: %v", err)
+}
+fmt.Printf("Original WAN protocol: %s\n", wanConfig.Proto)
 
-// Get wireless information
-info, err := client.Wireless().Device("radio0").Info()
+// 3. Modify the configuration
+wanConfig.Proto = "static"
+wanConfig.IPAddr = "192.168.100.2"
+wanConfig.Netmask = "255.255.255.0"
+wanConfig.Gateway = "192.168.100.1"
+wanConfig.DNS = []string{"8.8.8.8", "1.1.1.1"}
 
-// Scan for networks
-scanResults, err := client.Wireless().Device("radio0").Scan()
+// 4. Write the modified struct back.
+// The Set method automatically serializes the struct into UCI commands.
+err = wanSection.Set(&wanConfig)
+if err != nil {
+    log.Fatalf("Failed to set WAN config: %v", err)
+}
+
+// 5. Commit the changes to /etc/config/network
+err = client.Uci().Package("network").Commit()
+
+// 6. Apply the changes (usually by reloading the service)
+err = client.Network().Reload()
 ```
 
-### DHCP Management
+### **4. Wireless (IwInfo & Network.Wireless)**
+
+Wireless operations are split into two parts:
+
+- **`client.IwInfo()`**: For real-time wireless status, like scans and associated client lists. It corresponds to the `iwinfo` command.
+- **`client.Uci().Package("wireless")`**: For reading and writing the `/etc/config/wireless` configuration file.
 
 ```go
-// Get DHCP leases
-leases, err := client.DHCP().GetLeases()
+// Get all physical wireless devices (radio0, radio1, ...)
+devices, err := client.IwInfo().Devices()
+if err != nil || len(devices) == 0 {
+    log.Fatal("No wireless devices found")
+}
 
-// Get DHCP IPv4 leases
-ipv4Leases, err := client.DHCP().GetIPv4Leases()
+// Scan using the first wireless device
+scanResults, err := client.IwInfo().Scan(devices[0])
+if err == nil {
+    fmt.Printf("Found %d networks on %s:\n", len(scanResults), devices[0])
+    for _, net := range scanResults {
+        fmt.Printf("  SSID: %s, Signal: %d dBm\n", net.SSID, net.Signal)
+    }
+}
 
-// Get DHCP IPv6 leases
-ipv6Leases, err := client.DHCP().GetIPv6Leases()
+// Get the list of associated clients
+assocList, err := client.IwInfo().AssocList(devices[0])
 ```
 
-### File System Operations
+### **5. DHCP Service**
+
+Use `client.DHCP()` to get the `DHCPManager`.
 
 ```go
-// Execute command
-result, err := client.File().Exec("ls", []string{"-la", "/tmp"})
+// goubus currently provides an interface for adding static leases.
+// Fetching the lease list is typically done via the LuCI interface or by parsing the lease file.
+err := client.DHCP().AddLease(types.AddLeaseRequest{
+    MAC:      "00:11:22:33:44:55",
+    IP:       "192.168.1.100",
+    Hostname: "my-device",
+})
+```
 
-// Read file
-content, err := client.File().Read("/etc/config/network")
+### **6. Files & Commands**
 
-// Write file
-err = client.File().Write("/tmp/test.txt", "Hello World", false, 0644, false)
+Use `client.File()` to get the `FileManager` for file operations and command execution on the device.
+
+```go
+// Execute a command
+output, err := client.File().Exec("uname", []string{"-a"}, nil)
+
+// Read file contents (returns a base64 encoded string)
+fileContent, err := client.File().Read("/etc/os-release", true)
+
+// Write to a file
+err = client.File().Write("/tmp/greeting.txt", "SGVsbG8sIGdvdWJ1cyE=", true, 0644, true)
 
 // Get file stats
 stats, err := client.File().Stat("/etc/config/network")
 
-// List directory
+// List a directory
 files, err := client.File().List("/etc/config")
 ```
 
-### Service Management
+### **7. Service Management (RC & Service)**
+
+- **`client.RC()`**: Corresponds to `/etc/init.d/` scripts for starting, stopping, and restarting services.
+- **`client.Service()`**: `ubus`'s more powerful, built-in service manager.
 
 ```go
-// Get service list
-services, err := client.Service("").List()
+// Restart the network service using rc
+err = client.RC().Restart("network")
 
-// Start service
-err = client.Service("network").Start()
-
-// Stop service
-err = client.Service("network").Stop()
-
-// Restart service
-err = client.Service("network").Restart()
-```
-
-### Event Handling
-
-```go
-// Subscribe to events
-handler := func(event goubus.Event) {
-    fmt.Printf("Received event: %s\n", event.Type)
+// Get the status of all services
+services, err := client.Service().List("", false)
+for name, service := range services {
+    running := false
+    if len(service.Instances) > 0 {
+        // Simplified check; in practice, you should iterate through instances
+        running = service.Instances["instance1"].Running
+    }
+    fmt.Printf("Service: %-15s, Running: %t\n", name, running)
 }
-
-err = client.Events().Subscribe([]string{"network.interface"}, handler)
-
-// Publish event
-err = client.Events().Publish("custom.event", map[string]interface{}{
-    "message": "Hello from Go",
-})
 ```
 
-### Logging
+### **8. Logging System**
+
+Use `client.Log()` to get the `LogManager` for reading from and writing to the system log (`logd`).
 
 ```go
-// Read system logs
-logs, err := client.Log().Read(100, false, true)
+// Read the last 50 system log entries
+logs, err := client.Log().Read(50, false, true)
+for _, entry := range logs.Log {
+    fmt.Printf("[%s] %s: %s\n", entry.Time.Format("2006-01-02 15:04:05"), entry.Source, entry.Text)
+}
+```
 
-// Write to system log
-err = client.Log().Write("Application started")
+### **9. Sessions & Permissions**
+
+Use `client.Session()` to get the `SessionManager` for managing ubus session ACLs.
+
+```go
+// Create a session with a 300-second timeout
+sessionData, err := client.Session().Create(300)
+
+// Grant the session full access to network and uci
+err = client.Session().Grant(sessionData.UbusRpcSession, "ubus", []string{"network.*", "uci.*"})
+```
+
+### **10. LuCI Extension Interface**
+
+`client.Luci()` provides access to the LuCI RPC interface, which often returns richer, more UI-friendly data than standard `ubus` calls.
+
+```go
+// Get more detailed device information than network.interface.dump provides
+devices, err := client.Luci().GetNetworkDevices()
+
+// Get DHCP lease information
+leases, err := client.Luci().GetDHCPLeases()
+if err == nil {
+    for _, lease := range leases.IPv4 {
+        fmt.Printf("Client %s (%s) -> %s\n", lease.Hostname, lease.MAC, lease.IP)
+    }
+}
 ```
 
 ## Troubleshooting
 
 ### Permission Issues
 
-#### Understanding ubus Access Control
+Using `ubus` via the SSH command line typically grants full permissions. However, `goubus` accesses ubus via HTTP RPC, which is subject to OpenWrt's ACLs (Access Control Lists). If you encounter "permission denied" errors, you must configure the appropriate permissions for the user you are logging in with.
 
-OpenWrt ubus has two different access modes:
+To resolve permission issues, create or modify ACL configuration files in the `/usr/share/rpcd/acl.d/` directory on your OpenWrt device.
 
-1. **SSH CLI Access**: Full direct access to all ubus methods (no ACL restrictions)
-2. **HTTP RPC Access**: Restricted by ACL (Access Control Lists) configuration
+**Note**: The default `root` user typically has full (`*`) permissions, so you can often skip this step if you are connecting as `root`.
 
-When using this Go library (which uses HTTP RPC), you may encounter permission denials for certain ubus objects and methods.
-
-#### Common Permission-Restricted Objects
-
-The following objects typically require explicit ACL configuration:
-
-- **Network interfaces**: `network.*`, `network.interface.*`, `network.device.*`
-- **System control**: `system.reboot`, `system.upgrade`, etc.
-- **Service management**: `service.*` operations
-- **File operations**: `file.*` (read/write/exec operations)
-- **UCI configuration**: `uci.*` (system configuration access)
-- **Wireless management**: Advanced wireless configuration methods
-
-#### Default vs. Full Network Access
-
-By default, most OpenWrt installations only provide basic network status access (like `network.interface.dump`). For full network management capabilities, you need to configure additional permissions.
-
-#### Configuring ACL Permissions
-
-To resolve permission issues, create or modify ACL configuration files in `/usr/share/rpcd/acl.d/` on your OpenWrt device:
-
-**Example 1: Full Network Management Access**
+#### **Example 1: Complete Network Management Access**
 
 Create `/usr/share/rpcd/acl.d/network-full.json`:
 
@@ -264,8 +363,10 @@ Create `/usr/share/rpcd/acl.d/network-full.json`:
                 "network.device": ["*"],
                 "network.interface": ["*"],
                 "network.interface.*": ["*"],
-                "network.wireless": ["*"]
-            }
+                "network.wireless": ["*"],
+                "iwinfo": ["*"]
+            },
+            "uci": ["*"]
         },
         "write": {
             "ubus": {
@@ -274,13 +375,14 @@ Create `/usr/share/rpcd/acl.d/network-full.json`:
                 "network.interface": ["*"],
                 "network.interface.*": ["*"],
                 "network.wireless": ["*"]
-            }
+            },
+            "uci": ["*"]
         }
     }
 }
 ```
 
-**Example 2: Comprehensive System Access**
+#### **Example 2: Comprehensive System Administrator Access**
 
 Create `/usr/share/rpcd/acl.d/system-admin.json`:
 
@@ -297,8 +399,10 @@ Create `/usr/share/rpcd/acl.d/system-admin.json`:
                 "network.device": ["*"],
                 "network.interface": ["*"],
                 "network.interface.*": ["*"],
-                "wireless": ["*"],
-                "dhcp": ["*"]
+                "network.wireless": ["*"],
+                "iwinfo": ["*"],
+                "dhcp": ["*"],
+                "luci-rpc": ["*"]
             },
             "uci": ["*"]
         },
@@ -311,8 +415,7 @@ Create `/usr/share/rpcd/acl.d/system-admin.json`:
                 "network.device": ["*"],
                 "network.interface": ["*"],
                 "network.interface.*": ["*"],
-                "wireless": ["*"],
-                "dhcp": ["*"]
+                "rc": ["*"]
             },
             "uci": ["*"]
         }
@@ -320,279 +423,59 @@ Create `/usr/share/rpcd/acl.d/system-admin.json`:
 }
 ```
 
-**Example 3: Read-only Monitoring Access**
+#### **Assign ACL Roles to Users**
 
-Create `/usr/share/rpcd/acl.d/monitor.json`:
+After creating the ACL files, assign the role to a user in `/etc/config/rpcd`:
 
-```json
-{
-    "monitor": {
-        "description": "Read-only system monitoring",
-        "read": {
-            "ubus": {
-                "system": ["info", "board"],
-                "network": ["dump"],
-                "network.device": ["status"],
-                "network.interface.*": ["status"],
-                "service": ["list"],
-                "dhcp": ["ipv4leases", "ipv6leases"]
-            }
-        }
-    }
-}
-```
-
-#### Assigning ACL Roles to Users
-
-After creating ACL files, assign them to users in `/etc/config/rpcd`:
-
-```
+```ini
 config login
     option username 'admin'
     option password '$p$admin'
-    list read 'network-manager'
-    list write 'network-manager'
-
-config login
-    option username 'monitor'
-    option password '$p$monitor'
-    list read 'monitor'
+    list read 'system-admin'
+    list write 'system-admin'
 ```
 
-#### Applying Changes
+#### **Apply Changes**
 
-After modifying ACL configurations:
+After modifying the configuration, restart the `rpcd` service to apply the changes:
 
 ```bash
 # Restart rpcd service to apply changes
 /etc/init.d/rpcd restart
 ```
 
-#### Verification
-
-You can verify permissions using ubus commands on the device:
-
-```bash
-# Check available methods for an object
-ubus -v list network.interface.lan
-
-# Test specific method access
-ubus call network.interface.lan status
-```
-
-#### Alternative: SSH Tunnel Method
-
-If you cannot modify ACL configurations, you can use SSH tunneling to access the full ubus capabilities:
-
-```go
-// Example: Using SSH tunnel for full access
-// This would require implementing SSH tunnel support in your application
-// and connecting through the tunnel instead of HTTP RPC
-```
-
-**📖 For more details, see the [OpenWrt ubus ACLs Documentation](https://openwrt.org/docs/techref/ubus#acls)**
-
-## Examples
-
-### Complete Network Status Check
-
-```go
-package main
-
-import (
-    "fmt"
-    "log"
-    "goubus"
-)
-
-func main() {
-    client, err := goubus.NewClient("192.168.1.1", "root", "password")
-    if err != nil {
-        log.Fatalf("Connection failed: %v", err)
-    }
-    defer client.Auth().Logout()
-
-    // Get system information
-    systemInfo, err := client.System().Info()
-    if err != nil {
-        log.Printf("Failed to get system info: %v", err)
-        return
-    }
-
-    fmt.Printf("=== System Information ===\n")
-    fmt.Printf("Uptime: %d seconds\n", systemInfo.Uptime)
-    fmt.Printf("Load: %v\n", systemInfo.Load)
-    fmt.Printf("Memory: %d MB total, %d MB available\n",
-        systemInfo.Memory.Total/1024/1024,
-        systemInfo.Memory.Available/1024/1024)
-
-    // Get network interfaces
-    dump, err := client.Network().Dump()
-    if err != nil {
-        log.Printf("Failed to get network dump: %v", err)
-        return
-    }
-
-    fmt.Printf("\n=== Network Interfaces ===\n")
-    for _, iface := range dump.Interface {
-        fmt.Printf("Interface: %s\n", iface.Interface)
-        fmt.Printf("  Status: UP=%t, Available=%t\n", iface.Up, iface.Available)
-        fmt.Printf("  Protocol: %s\n", iface.Proto)
-        
-        if len(iface.Ipv4Address) > 0 {
-            fmt.Printf("  IPv4: %s/%d\n", 
-                iface.Ipv4Address[0].Address,
-                iface.Ipv4Address[0].Mask)
-        }
-        
-        if len(iface.DNSServer) > 0 {
-            fmt.Printf("  DNS: %v\n", iface.DNSServer)
-        }
-        fmt.Println()
-    }
-
-    // Get DHCP leases
-    leases, err := client.DHCP().GetLeases()
-    if err != nil {
-        log.Printf("Failed to get DHCP leases: %v", err)
-        return
-    }
-
-    fmt.Printf("=== DHCP Leases ===\n")
-    for _, lease := range leases.DHCPLeases {
-        fmt.Printf("Device: %s (%s) - %s\n", 
-            lease.Hostname, lease.Macaddr, lease.IPAddr)
-    }
-}
-```
-
-### Wireless Network Scanner
-
-```go
-package main
-
-import (
-    "fmt"
-    "log"
-    "goubus"
-)
-
-func main() {
-    client, err := goubus.NewClient("192.168.1.1", "root", "password")
-    if err != nil {
-        log.Fatalf("Connection failed: %v", err)
-    }
-    defer client.Auth().Logout()
-
-    // Get available wireless devices
-    devices, err := client.Wireless().GetAvailableDevices()
-    if err != nil {
-        log.Fatalf("Failed to get wireless devices: %v", err)
-    }
-
-    for _, device := range devices {
-        fmt.Printf("Scanning with device: %s\n", device)
-        
-        // Scan for networks
-        scanResults, err := client.Wireless().Device(device).Scan()
-        if err != nil {
-            log.Printf("Failed to scan with %s: %v", device, err)
-            continue
-        }
-
-        fmt.Printf("Found %d networks:\n", len(scanResults.Results))
-        for _, result := range scanResults.Results {
-            fmt.Printf("  SSID: %s\n", result.SSID)
-            fmt.Printf("  Signal: %d dBm\n", result.Signal)
-            fmt.Printf("  Channel: %d\n", result.Channel)
-            fmt.Printf("  Security: %s\n", result.Encryption.Description)
-            fmt.Println()
-        }
-    }
-}
-```
-
-### Service Monitor
-
-```go
-package main
-
-import (
-    "fmt"
-    "log"
-    "time"
-    "goubus"
-)
-
-func main() {
-    client, err := goubus.NewClient("192.168.1.1", "root", "password")
-    if err != nil {
-        log.Fatalf("Connection failed: %v", err)
-    }
-    defer client.Auth().Logout()
-
-    // Monitor critical services
-    services := []string{"network", "wireless", "dhcp", "firewall"}
-    
-    for {
-        fmt.Printf("=== Service Status at %s ===\n", time.Now().Format("15:04:05"))
-        
-        for _, serviceName := range services {
-            // Note: This would require implementing service status checking
-            // For now, we'll just show the concept
-            fmt.Printf("Service %s: Monitoring...\n", serviceName)
-        }
-        
-        fmt.Println()
-        time.Sleep(30 * time.Second)
-    }
-}
-```
+**📖 For more details, see the [OpenWrt ubus ACLs documentation](https://openwrt.org/docs/techref/ubus#acls)**
 
 ## Contributing
 
-We welcome contributions to goubus! Please see our [Contributing Guide](CONTRIBUTING.md) for details on how to get started.
-
-### Development Setup
-
-1. Fork the repository
-2. Clone your fork: `git clone https://github.com/honeybbq/goubus.git`
-3. Create a feature branch: `git checkout -b feature/your-feature`
-4. Make your changes and add tests
-5. Run tests: `go test ./...`
-6. Submit a pull request
-
-### Code Style
-
-- Follow standard Go conventions
-- Use `gofmt` for formatting
-- Add comprehensive tests for new features
-- Document public APIs with clear comments
+We warmly welcome contributions to `goubus`! Please check out [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
 
 ## License
 
-This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
-### Inspiration Sources
+### Inspiration
 
-This project was inspired by:
-- **[Kubernetes SDK](https://github.com/kubernetes/client-go)**: For its clean API design and comprehensive approach to client libraries
-- **[cdavid14/goubus](https://github.com/cdavid14/goubus)**: For the foundational ubus integration concepts and initial implementation ideas
+This project is inspired by the following projects:
+
+- **[Kubernetes SDK](https://github.com/kubernetes/client-go)**: For its clear API design and comprehensive client library approach.
+- **[moby/moby](https://github.com/moby/moby)**: For its architectural patterns and robust API structure.
+- **[cdavid14/goubus](https://github.com/cdavid14/goubus)**: For foundational concepts and initial implementation ideas for ubus integration.
 
 ### Special Thanks
 
-- The OpenWrt development team for creating the ubus system
-- The Go community for excellent tooling and libraries
-- Contributors who helped improve this library
+- The OpenWrt development team for creating the powerful ubus system.
+- The Go community for its excellent tools and libraries.
+- All contributors who help improve this library.
 
 ## Related Projects
 
-- [OpenWrt](https://openwrt.org/) - The Linux distribution for embedded devices
-- [ubus](https://git.openwrt.org/project/ubus.git) - OpenWrt micro bus architecture
-- [libubus](https://git.openwrt.org/project/libubus.git) - C library for ubus
+- [OpenWrt](https://openwrt.org/) - The Linux distribution for embedded devices.
+- [ubus](https://git.openwrt.org/project/ubus.git) - OpenWrt's micro bus architecture.
+- [libubus](https://git.openwrt.org/project/libubus.git) - The C library for ubus.
 
 ---
 
-For more information, please open an [issue](https://github.com/honeybbq/goubus/issues) if you need help. 
+For more information or if you need help, please feel free to open an [issue](https://github.com/honeybbq/goubus/issues).

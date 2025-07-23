@@ -1,61 +1,28 @@
 package goubus
 
 import (
-	"encoding/json"
+	"github.com/honeybbq/goubus/api"
+	"github.com/honeybbq/goubus/types"
 )
 
-type UbusLog struct {
-	Log []UbusLogData
+// Log returns a manager for log operations.
+func (c *Client) Log() *LogManager {
+	return &LogManager{
+		client: c,
+	}
 }
 
-type UbusLogData struct {
-	Msg      string
-	ID       int
-	Priority int
-	Source   int
-	Time     int
+// LogManager provides methods to interact with the system log.
+type LogManager struct {
+	client *Client
 }
 
-// LogRead reads system log entries.
-func (u *Client) logRead(lines int, stream bool, oneshot bool) (UbusLog, error) {
-	errLogin := u.LoginCheck()
-	if errLogin != nil {
-		return UbusLog{}, errLogin
-	}
-
-	params := map[string]interface{}{
-		ParamLines:   lines,
-		ParamStream:  stream,
-		ParamOneshot: oneshot,
-	}
-
-	jsonStr := u.buildUbusCall(ServiceLog, MethodRead, params)
-	call, err := u.Call(jsonStr)
-	if err != nil {
-		return UbusLog{}, err
-	}
-
-	ubusData := UbusLog{}
-	ubusDataByte, err := json.Marshal(call.Result.([]interface{})[1])
-	if err != nil {
-		return UbusLog{}, ErrDataParsingError
-	}
-	json.Unmarshal(ubusDataByte, &ubusData)
-	return ubusData, nil
+// Read retrieves log entries from the system.
+func (lm *LogManager) Read(lines int, stream bool, oneshot bool) (*types.Log, error) {
+	return api.ReadLog(lm.client.caller, lines, stream, oneshot)
 }
 
-// LogWrite writes an entry to the system log.
-func (u *Client) logWrite(event string) error {
-	errLogin := u.LoginCheck()
-	if errLogin != nil {
-		return errLogin
-	}
-
-	params := map[string]interface{}{
-		ParamEvent: event,
-	}
-
-	jsonStr := u.buildUbusCall(ServiceLog, MethodWrite, params)
-	_, err := u.Call(jsonStr)
-	return err
+// Write sends a new entry to the system log.
+func (lm *LogManager) Write(event string) error {
+	return api.WriteLog(lm.client.caller, event)
 }

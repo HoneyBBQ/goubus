@@ -1,27 +1,26 @@
 package goubus
 
-import "fmt"
+import (
+	"github.com/honeybbq/goubus/types"
+)
 
-// Client is the main struct for ubus connection and API access
+// Client is the main struct for ubus connection and API access.
+// All Manager types are created through factory methods on this client.
 type Client struct {
-	Host     string
-	Username string
-	Password string
-	AuthData ubusAuth
-	id       int
+	// Shared RPC client for all operations
+	caller types.Transport
 }
 
-// NewClient creates a new ubus connection
-func NewClient(host string, username string, password string) (*Client, error) {
-	u := &Client{
-		Host:     host,
-		Username: username,
-		Password: password,
-		id:       1, // Initialize id
+// NewClient creates a new client with the provided caller interface.
+// This allows for dependency injection and easy testing.
+func NewClient(caller types.Transport) *Client {
+	return &Client{
+		caller: caller,
 	}
-	_, err := u.AuthLogin()
-	if err != nil {
-		return nil, fmt.Errorf("failed to login: %w", err)
-	}
-	return u, nil
+}
+
+// Caller returns the underlying caller interface.
+// This can be useful for advanced usage or testing.
+func (c *Client) Caller() types.Transport {
+	return c.caller
 }

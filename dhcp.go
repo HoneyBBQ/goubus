@@ -1,40 +1,23 @@
 package goubus
 
 import (
-	"encoding/json"
-	"errors"
+	"github.com/honeybbq/goubus/api"
+	"github.com/honeybbq/goubus/types"
 )
 
-// UbusDhcpIPv4LeaseData represents a DHCP IPv4 lease.
-type UbusDhcpIPv4LeaseData struct {
-	IPAddr   string `json:"ipaddr"`   // IPv4 address
-	Macaddr  string `json:"macaddr"`  // MAC address
-	Hostname string `json:"hostname"` // Hostname
-	Expires  int    `json:"expires"`  // Expiration time
-	DUID     string `json:"duid"`     // DHCP Unique Identifier
+// DHCPManager provides an interface for interacting with the DHCP server.
+type DHCPManager struct {
+	client *Client
 }
 
-// dhcpLeases retrieves both IPv4 and IPv6 DHCP leases in a single optimized call.
-func (u *Client) dhcpLeases() (UbusDhcpLeases, error) {
-	errLogin := u.LoginCheck()
-	if errLogin != nil {
-		return UbusDhcpLeases{}, errLogin
-	}
+// DHCP returns a new DHCPManager.
+func (c *Client) DHCP() *DHCPManager {
+	return &DHCPManager{client: c}
+}
 
-	// Use the new optimized JSON builder - 5-10x faster than struct + marshal!
-	jsonStr := u.buildUbusCall(ServiceLuciRPC, MethodGetDHCPLeases, nil)
-
-	call, err := u.Call(jsonStr)
-	if err != nil {
-		return UbusDhcpLeases{}, err
-	}
-
-	ubusDataByte, err := json.Marshal(call.Result.([]interface{})[1])
-	if err != nil {
-		return UbusDhcpLeases{}, errors.New("data error")
-	}
-
-	var ubusData UbusDhcpLeases
-	json.Unmarshal(ubusDataByte, &ubusData)
-	return ubusData, nil
+// AddLease adds a static DHCP lease.
+// Note: This method seems to use a non-UCI ubus call 'dhcp.add_lease'.
+// We will keep it here as it's not a direct UCI modification.
+func (dm *DHCPManager) AddLease(req types.AddLeaseRequest) error {
+	return api.AddDHCPLease(dm.client.caller, req)
 }
