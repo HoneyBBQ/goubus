@@ -59,14 +59,14 @@
 
 ```mermaid
 graph TD
-    A[User Application] --> B(Top-Level API Layer<br/>`goubus` package);
-    B --> C(Internal Logic Layer<br/>`api` package);
-    C --> D(Transport Layer<br/>`transport` package);
+    A[User Application] --> B(Top-Level API Layer<br/> goubus package);
+    B --> C(Internal Logic Layer<br/> api package);
+    C --> D(Transport Layer<br/> transport package);
     D --> E[OpenWrt ubus];
 
     subgraph "Core Abstractions"
-        F(Data Types<br/>`types` package)
-        G(UCI Models<br/>`uci` package)
+        F(Data Types<br/> types package)
+        G(UCI Models<br/> uci package)
     end
 
     B -- Uses --> F;
@@ -92,6 +92,7 @@ import (
     "fmt"
     "log"
     "github.com/honeybbq/goubus"
+    "github.com/honeybbq/goubus/transport"
 )
 
 func main() {
@@ -140,7 +141,7 @@ Use `client.Network()` to get the `NetworkManager`. The API design mimics the hi
 
 ```go
 // Get a summary of all network interfaces
-dump, err := client.Network().Interfaces()
+dump, err := client.Network().Interface("").Dump()
 for _, iface := range dump.Interface {
     fmt.Printf("Interface: %s, Protocol: %s, Up: %t\n", iface.Interface, iface.Proto, iface.Up)
 }

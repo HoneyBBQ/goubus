@@ -57,14 +57,14 @@
 
 ```mermaid
 graph TD
-    A[用户应用] --> B(顶层 API层<br/>`goubus` 包);
-    B --> C(内层逻辑层<br/>`api` 包);
-    C --> D(传输层<br/>`transport` 包);
+    A[用户应用] --> B(顶层 API 层<br/> goubus 包);
+    B --> C(内层逻辑层<br/> api 包);
+    C --> D(传输层<br/> transport 包);
     D --> E[OpenWrt ubus];
 
     subgraph "核心抽象"
-        F(数据类型<br/>`types` 包)
-        G(UCI 模型<br/>`uci` 包)
+        F(数据类型<br/> types 包)
+        G(UCI 模型<br/> uci 包)
     end
 
     B -- 使用 --> F;
@@ -90,6 +90,7 @@ import (
     "fmt"
     "log"
     "github.com/honeybbq/goubus"
+    "github.com/honeybbq/goubus/transport"
 )
 
 func main() {
@@ -138,7 +139,7 @@ err = client.System().Reboot()
 
 ```go
 // 获取所有网络接口的摘要信息
-dump, err := client.Network().Interfaces()
+dump, err := client.Network().Interface("").Dump()
 for _, iface := range dump.Interface {
     fmt.Printf("接口: %s, 协议: %s, 状态: %t\n", iface.Interface, iface.Proto, iface.Up)
 }
