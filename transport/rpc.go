@@ -43,6 +43,7 @@ type RpcClient struct {
 	// Session management
 	sessionData SessionData
 	rwMutex     sync.RWMutex
+	closed      bool
 }
 
 var _ types.Transport = (*RpcClient)(nil)
@@ -66,6 +67,10 @@ func NewRpcClient(host, username, password string) (*RpcClient, error) {
 
 // Call performs a JSON-RPC call with automatic session management.
 func (rc *RpcClient) Call(service, method string, data any) (types.Result, error) {
+	if rc.closed {
+		return nil, errdefs.ErrClosed
+	}
+
 	// Get current session ID, re-authenticate if needed
 	sessionID, err := rc.getValidSessionID()
 	if err != nil {
@@ -73,6 +78,19 @@ func (rc *RpcClient) Call(service, method string, data any) (types.Result, error
 	}
 
 	return rc.rawCall(sessionID, service, method, data)
+}
+
+func (rc *RpcClient) Close() error {
+	rc.rwMutex.Lock()
+	defer rc.rwMutex.Unlock()
+
+	rc.closed = true
+	if rc.sessionData.UbusRPCSession != "" {
+		if _, err := rc.rawCall(rc.sessionData.UbusRPCSession, "session", "destroy", nil); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // getValidSessionID returns a valid session ID, re-authenticating if necessary.

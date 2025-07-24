@@ -21,3 +21,7 @@ func NewSocketClient() *SocketClient {
 func (c *SocketClient) Call(service, method string, data any) (types.Result, error) {
 	return nil, errdefs.Wrapf(errdefs.ErrNotSupported, "socket client not implemented")
 }
+
+func (c *SocketClient) Close() error {
+	return nil
+}

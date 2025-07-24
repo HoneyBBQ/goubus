@@ -19,7 +19,7 @@ var (
 	ErrNotSupported     = errors.New("not supported")
 	ErrUnknown          = errors.New("unknown error")
 	ErrConnectionFailed = errors.New("connection failed")
-
+	ErrClosed           = errors.New("client closed")
 	// client-side errors
 	ErrInvalidResponse = errors.New("invalid response")
 	ErrTestSkipped     = errors.New("test skipped")

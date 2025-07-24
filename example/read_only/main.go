@@ -129,6 +129,10 @@ func main() {
 	fmt.Println("\n=== 9. Enhanced UCI Configuration Structures Test ===")
 	results = append(results, testEnhancedConfigStructures(client)...)
 
+	// 10. Test close client
+	fmt.Println("\n=== 10. Close Client Test ===")
+	results = append(results, testClose(client)...)
+
 	// Print test summary
 	printTestSummary(results)
 }
@@ -1269,6 +1273,20 @@ func testEnhancedConfigStructures(client *goubus.Client) []TestResult {
 	} else {
 		fmt.Printf("✗ Failed to delete new section: %v\n", err)
 	}
+
+	return results
+}
+
+func testClose(client *goubus.Client) []TestResult {
+	var results []TestResult
+
+	err := client.Close()
+	results = append(results, TestResult{
+		TestName: "Close Client",
+		Success:  err == nil,
+		Error:    err,
+		Data:     nil,
+	})
 
 	return results
 }

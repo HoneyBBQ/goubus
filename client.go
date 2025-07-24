@@ -24,3 +24,7 @@ func NewClient(caller types.Transport) *Client {
 func (c *Client) Caller() types.Transport {
 	return c.caller
 }
+
+func (c *Client) Close() error {
+	return c.caller.Close()
+}
