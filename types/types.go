@@ -107,11 +107,6 @@ type AddLeaseRequest struct {
 // NETWORK TYPES
 // =============================================================================
 
-// NetworkInterfaceDumpResult represents the full dump of network interfaces.
-type NetworkInterfaceDumpResult struct {
-	Interface []NetworkInterfaceInfo `json:"interface"`
-}
-
 // NetworkInterfaceInfo wraps network interface information with its name.
 type NetworkInterfaceInfo struct {
 	Interface        string `json:"interface"`

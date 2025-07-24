@@ -17,12 +17,6 @@ type NetworkManager struct {
 	client *Client
 }
 
-// Interfaces retrieves information about all network interfaces.
-// This is equivalent to 'ubus call network.interface dump'.
-func (nm *NetworkManager) Interfaces() (*types.NetworkInterfaceDumpResult, error) {
-	return api.DumpNetworkInterfaces(nm.client.caller)
-}
-
 // Restart restarts the network service.
 func (nm *NetworkManager) Restart() error {
 	return api.RestartNetwork(nm.client.caller)
@@ -66,6 +60,12 @@ type InterfaceManager struct {
 type DeviceManager struct {
 	client  *Client
 	section string
+}
+
+// Interfaces retrieves information about all network interfaces.
+// This is equivalent to 'ubus call network.interface dump'.
+func (nm *InterfaceManager) Dump() ([]types.NetworkInterfaceInfo, error) {
+	return api.DumpNetworkInterfaces(nm.client.caller)
 }
 
 // Up brings the interface up.

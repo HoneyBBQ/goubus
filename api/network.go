@@ -57,17 +57,22 @@ func ReloadNetwork(caller types.Transport) error {
 // NETWORK INTERFACE OPERATIONS
 // =============================================================================
 
+// NetworkInterfaceDumpResult represents the full dump of network interfaces.
+type NetworkInterfaceDumpResult struct {
+	Interface []types.NetworkInterfaceInfo `json:"interface"`
+}
+
 // DumpNetworkInterfaces retrieves information about all network interfaces.
-func DumpNetworkInterfaces(caller types.Transport) (*types.NetworkInterfaceDumpResult, error) {
+func DumpNetworkInterfaces(caller types.Transport) ([]types.NetworkInterfaceInfo, error) {
 	resp, err := caller.Call(ServiceNetworkInterface, NetworkInterfaceMethodDump, nil)
 	if err != nil {
 		return nil, err
 	}
-	ubusData := &types.NetworkInterfaceDumpResult{}
+	ubusData := &NetworkInterfaceDumpResult{}
 	if err := resp.Unmarshal(ubusData); err != nil {
 		return nil, err
 	}
-	return ubusData, nil
+	return ubusData.Interface, nil
 }
 
 // GetNetworkInterfaceStatus retrieves the status of a specific network interface.
