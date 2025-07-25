@@ -28,6 +28,8 @@ const (
 	NetworkDeviceMethodSetState = "set_state"
 	NetworkDeviceMethodStpInit  = "stp_init"
 
+	NetworkWirelessMethodUp     = "up"
+	NetworkWirelessMethodDown   = "down"
 	NetworkWirelessMethodStatus = "status"
 )
 
@@ -95,7 +97,7 @@ func GetNetworkInterfaceStatus(caller types.Transport, name string) (*types.Netw
 	}
 
 	// Search for the interface in the dump results
-	for _, iface := range dump.Interface {
+	for _, iface := range dump {
 		if iface.Interface == name {
 			return &iface.NetworkInterface, nil
 		}
@@ -188,6 +190,16 @@ func InitNetworkDeviceStp(caller types.Transport, deviceName string) error {
 // =============================================================================
 // NETWORK WIRELESS OPERATIONS
 // =============================================================================
+
+func UpNetworkWireless(caller types.Transport) error {
+	_, err := caller.Call(ServiceNetworkWireless, NetworkWirelessMethodUp, nil)
+	return err
+}
+
+func DownNetworkWireless(caller types.Transport) error {
+	_, err := caller.Call(ServiceNetworkWireless, NetworkWirelessMethodDown, nil)
+	return err
+}
 
 // WirelessStatus represents the status of wireless interfaces.
 type WirelessStatusResponse struct {

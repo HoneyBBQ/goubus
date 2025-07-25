@@ -27,7 +27,7 @@ func (nm *NetworkManager) Reload() error {
 	return api.ReloadNetwork(nm.client.caller)
 }
 
-// Interface selects a specific interface section (e.g., 'lan', 'wan') for configuration.
+// Interface selects a specific interface (e.g., 'lan', 'wan') for operations.
 func (nm *NetworkManager) Interface(sectionName string) *InterfaceManager {
 	return &InterfaceManager{
 		client:  nm.client,
@@ -35,7 +35,7 @@ func (nm *NetworkManager) Interface(sectionName string) *InterfaceManager {
 	}
 }
 
-// Device selects a specific device section for configuration.
+// Device selects a specific device (e.g., 'eth0', 'wlan0') for operations.
 func (nm *NetworkManager) Device(sectionName string) *DeviceManager {
 	return &DeviceManager{
 		client:  nm.client,
@@ -121,6 +121,16 @@ func (dm *DeviceManager) StpInit() error {
 // NetworkWirelessManager provides methods for 'network.wireless' operations.
 type NetworkWirelessManager struct {
 	client *Client
+}
+
+// Up brings the wireless interface up.
+func (nwm *NetworkWirelessManager) Up() error {
+	return api.UpNetworkWireless(nwm.client.caller)
+}
+
+// Down takes the wireless interface down.
+func (nwm *NetworkWirelessManager) Down() error {
+	return api.DownNetworkWireless(nwm.client.caller)
 }
 
 // Status retrieves the live status of all wireless radios and their interfaces.

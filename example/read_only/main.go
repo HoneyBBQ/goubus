@@ -208,7 +208,7 @@ func testNetworkInfo(client *goubus.Client) []TestResult {
 	var results []TestResult
 
 	// Test getting all network interface information
-	dump, err := client.Network().Interfaces()
+	dump, err := client.Network().Interface("").Dump()
 	results = append(results, TestResult{
 		TestName: "Network Interface Dump",
 		Success:  err == nil,
@@ -216,11 +216,11 @@ func testNetworkInfo(client *goubus.Client) []TestResult {
 		Data:     dump,
 	})
 	if err == nil {
-		fmt.Printf("✓ Network interface dump successful, interface count: %d\n", len(dump.Interface))
+		fmt.Printf("✓ Network interface dump successful, interface count: %d\n", len(dump))
 
 		// Print detailed information for all interfaces
 		fmt.Println("  All network interface details:")
-		for i, iface := range dump.Interface {
+		for i, iface := range dump {
 			fmt.Printf("    Interface %d: %s\n", i+1, iface.Interface)
 			fmt.Printf("      Status: UP=%t, Available=%t, Autostart=%t\n", iface.Up, iface.Available, iface.Autostart)
 			fmt.Printf("      Protocol: %s, Device: %s\n", iface.Proto, iface.Device)
@@ -257,7 +257,7 @@ func testNetworkInfo(client *goubus.Client) []TestResult {
 
 	// Dynamically get all interface names and test each one
 	var interfaceNames []string
-	for _, iface := range dump.Interface {
+	for _, iface := range dump {
 		interfaceNames = append(interfaceNames, iface.Interface)
 	}
 
