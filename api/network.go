@@ -39,8 +39,9 @@ const (
 	NetworkDeviceParamName         = "name"
 	NetworkDeviceParamDevice       = "device"
 	NetworkDeviceParamAlias        = "alias"
-	NetworkDeviceParamUp           = "up"
-	NetworkDeviceParamState        = "state"
+	NetworkDeviceParamDefer        = "defer"
+	NetworkDeviceParamAuthStatus   = "auth_status"
+	NetworkDeviceParamAuthVlans    = "auth_vlans"
 )
 
 // RestartNetwork restarts the network service.
@@ -143,18 +144,18 @@ func RemoveNetworkInterfaceDevice(caller types.Transport, name, device string) e
 // =============================================================================
 
 // GetNetworkDeviceStatus retrieves the status of a specific network device.
-func GetNetworkDeviceStatus(caller types.Transport, name string) (*types.NetworkDevice, error) {
+func GetNetworkDeviceStatus(caller types.Transport, name string) (map[string]types.NetworkDevice, error) {
 	params := map[string]any{NetworkDeviceParamName: name}
 	resp, err := caller.Call(ServiceNetworkDevice, NetworkDeviceMethodStatus, params)
 	if err != nil {
 		return nil, err
 	}
 
-	var ubusData types.NetworkDevice
+	var ubusData map[string]types.NetworkDevice
 	if err := resp.Unmarshal(&ubusData); err != nil {
 		return nil, errdefs.Wrapf(err, "failed to unmarshal network device status")
 	}
-	return &ubusData, nil
+	return ubusData, nil
 
 }
 
@@ -169,21 +170,20 @@ func SetNetworkDeviceAlias(caller types.Transport, deviceName string, aliases []
 }
 
 // SetNetworkDeviceState sets the state of a network device.
-func SetNetworkDeviceState(caller types.Transport, name string, up bool) error {
+func SetNetworkDeviceState(caller types.Transport, name string, _defer bool, authStatus bool, authVlans []string) error {
 	params := map[string]any{
-		NetworkDeviceParamName: name,
-		NetworkDeviceParamUp:   up,
+		NetworkDeviceParamName:       name,
+		NetworkDeviceParamDefer:      _defer,
+		NetworkDeviceParamAuthStatus: authStatus,
+		NetworkDeviceParamAuthVlans:  authVlans,
 	}
 	_, err := caller.Call(ServiceNetworkDevice, NetworkDeviceMethodSetState, params)
 	return err
 }
 
 // InitNetworkDeviceStp initializes STP on a bridge device.
-func InitNetworkDeviceStp(caller types.Transport, deviceName string) error {
-	params := map[string]any{
-		NetworkDeviceParamDevice: deviceName,
-	}
-	_, err := caller.Call(ServiceNetworkDevice, NetworkDeviceMethodStpInit, params)
+func InitNetworkDeviceStp(caller types.Transport) error {
+	_, err := caller.Call(ServiceNetworkDevice, NetworkDeviceMethodStpInit, nil)
 	return err
 }
 

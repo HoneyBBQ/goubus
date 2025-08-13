@@ -36,10 +36,9 @@ func (nm *NetworkManager) Interface(sectionName string) *InterfaceManager {
 }
 
 // Device selects a specific device (e.g., 'eth0', 'wlan0') for operations.
-func (nm *NetworkManager) Device(sectionName string) *DeviceManager {
+func (nm *NetworkManager) Device() *DeviceManager {
 	return &DeviceManager{
-		client:  nm.client,
-		section: sectionName,
+		client: nm.client,
 	}
 }
 
@@ -52,12 +51,6 @@ func (nm *NetworkManager) Wireless() *NetworkWirelessManager {
 
 // InterfaceManager provides methods to configure a specific network interface.
 type InterfaceManager struct {
-	client  *Client
-	section string
-}
-
-// DeviceManager provides methods to configure a specific network device section.
-type DeviceManager struct {
 	client  *Client
 	section string
 }
@@ -98,24 +91,29 @@ func (im *InterfaceManager) Status() (*types.NetworkInterface, error) {
 	return api.GetNetworkInterfaceStatus(im.client.caller, im.section)
 }
 
+// DeviceManager provides methods to configure a specific network device section.
+type DeviceManager struct {
+	client *Client
+}
+
 // Status retrieves the live status information for the specific network device.
-func (dm *DeviceManager) Status() (*types.NetworkDevice, error) {
-	return api.GetNetworkDeviceStatus(dm.client.caller, dm.section)
+func (dm *DeviceManager) Status(name string) (map[string]types.NetworkDevice, error) {
+	return api.GetNetworkDeviceStatus(dm.client.caller, name)
 }
 
 // SetAlias sets aliases for the network device.
-func (dm *DeviceManager) SetAlias(aliases []string) error {
-	return api.SetNetworkDeviceAlias(dm.client.caller, dm.section, aliases)
+func (dm *DeviceManager) SetAlias(aliases []string, device string) error {
+	return api.SetNetworkDeviceAlias(dm.client.caller, device, aliases)
 }
 
 // SetState brings the network device up or down.
-func (dm *DeviceManager) SetState(up bool) error {
-	return api.SetNetworkDeviceState(dm.client.caller, dm.section, up)
+func (dm *DeviceManager) SetState(name string, _defer bool, authStatus bool, authVlans []string) error {
+	return api.SetNetworkDeviceState(dm.client.caller, name, _defer, authStatus, authVlans)
 }
 
 // StpInit initializes STP on the bridge device.
 func (dm *DeviceManager) StpInit() error {
-	return api.InitNetworkDeviceStp(dm.client.caller, dm.section)
+	return api.InitNetworkDeviceStp(dm.client.caller)
 }
 
 // NetworkWirelessManager provides methods for 'network.wireless' operations.
