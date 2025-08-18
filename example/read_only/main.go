@@ -101,36 +101,44 @@ func main() {
 		fmt.Printf("  (Index field is available when querying entire config)\n")
 	}
 
-	// 3. Test wireless related read-only interfaces
-	fmt.Println("\n=== 3. Wireless Information Test ===")
+	// 3. Test network related read-only device
+	fmt.Println("\n=== 3. Network Device Test ===")
+	results = append(results, testNetworkDevice(client)...)
+
+	// 4. Test wireless related read-only interfaces
+	fmt.Println("\n=== 4. Wireless Information Test ===")
 	results = append(results, testWirelessInfo(client)...)
 
-	// 4. Test DHCP related read-only interfaces
-	fmt.Println("\n=== 4. DHCP Information Test ===")
+	// 5. Test wireless related read-only interfaces
+	fmt.Println("\n=== 4. Wireless Information Test ===")
+	results = append(results, testWirelessInfo(client)...)
+
+	// 6. Test DHCP related read-only interfaces
+	fmt.Println("\n=== 6. DHCP Information Test ===")
 	results = append(results, testDHCPInfo(client)...)
 
-	// 5. Test file system related read-only interfaces
-	fmt.Println("\n=== 5. File System Test ===")
+	// 7. Test file system related read-only interfaces
+	fmt.Println("\n=== 7. File System Test ===")
 	results = append(results, testFileSystemInfo(client)...)
 
-	// 6. Test log related read-only interfaces
-	fmt.Println("\n=== 6. Log System Test ===")
+	// 8. Test log related read-only interfaces
+	fmt.Println("\n=== 8. Log System Test ===")
 	results = append(results, testLogInfo(client)...)
 
-	// 7. Test service related read-only interfaces
-	fmt.Println("\n=== 7. Service Status Test ===")
+	// 9. Test service related read-only interfaces
+	fmt.Println("\n=== 9. Service Status Test ===")
 	results = append(results, testServiceInfo(client)...)
 
-	// 8. Test LUCI related read-only interfaces
-	fmt.Println("\n=== 8. LUCI Information Test ===")
+	// 10. Test LUCI related read-only interfaces
+	fmt.Println("\n=== 10. LUCI Information Test ===")
 	results = append(results, testLuciInfo(client)...)
 
-	// 9. Test enhanced UCI configuration structures with new serialization features
-	fmt.Println("\n=== 9. Enhanced UCI Configuration Structures Test ===")
+	// 11. Test enhanced UCI configuration structures with new serialization features
+	fmt.Println("\n=== 11. Enhanced UCI Configuration Structures Test ===")
 	results = append(results, testEnhancedConfigStructures(client)...)
 
-	// 10. Test close client
-	fmt.Println("\n=== 10. Close Client Test ===")
+	// 12. Test close client
+	fmt.Println("\n=== 12. Close Client Test ===")
 	results = append(results, testClose(client)...)
 
 	// Print test summary
@@ -630,6 +638,31 @@ func testNetworkInfo(client *goubus.Client) []TestResult {
 		}
 	}
 
+	return results
+}
+
+// Test network device related information
+func testNetworkDevice(client *goubus.Client) []TestResult {
+	var results []TestResult
+
+	// Test getting all network device information
+	dump, err := client.Network().Device().Status("")
+	results = append(results, TestResult{
+		TestName: "Network Device Dump",
+		Success:  err == nil,
+		Error:    err,
+		Data:     dump,
+	})
+	if err != nil {
+		fmt.Printf("✗ Network device status retrieval failed: %v. Skipping further network device tests.\n", err)
+		return results
+	}
+
+	for name, device := range dump {
+		fmt.Printf("Network device: %s\n", name)
+		fmt.Printf("  Type: %s\n", device.Type)
+		fmt.Printf("  Up: %t\n", device.Up)
+	}
 	return results
 }
 

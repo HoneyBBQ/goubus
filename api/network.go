@@ -145,7 +145,10 @@ func RemoveNetworkInterfaceDevice(caller types.Transport, name, device string) e
 
 // GetNetworkDeviceStatus retrieves the status of a specific network device.
 func GetNetworkDeviceStatus(caller types.Transport, name string) (map[string]types.NetworkDevice, error) {
-	params := map[string]any{NetworkDeviceParamName: name}
+	params := map[string]any{}
+	if name != "" {
+		params[NetworkDeviceParamName] = name
+	}
 	resp, err := caller.Call(ServiceNetworkDevice, NetworkDeviceMethodStatus, params)
 	if err != nil {
 		return nil, err

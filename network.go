@@ -97,6 +97,7 @@ type DeviceManager struct {
 }
 
 // Status retrieves the live status information for the specific network device.
+// Param "name" can empty("")
 func (dm *DeviceManager) Status(name string) (map[string]types.NetworkDevice, error) {
 	return api.GetNetworkDeviceStatus(dm.client.caller, name)
 }
