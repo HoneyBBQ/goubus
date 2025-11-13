@@ -127,7 +127,7 @@ import (
 
 func main() {
     // 创建 Unix socket 客户端
-    // 空字符串使用默认路径: /var/run/ubus.sock
+    // 空字符串使用默认路径: /tmp/run/ubus/ubus.sock
     socketClient, err := transport.NewSocketClient("")
     if err != nil {
         log.Fatalf("无法连接到 ubus socket: %v", err)
@@ -158,7 +158,7 @@ func main() {
 | **认证** | 需要（用户名/密码） | 不需要 |
 | **网络** | 需要网络访问 | 直接本地访问 |
 | **性能** | 有网络开销 | 零开销 |
-| **默认路径** | `http://host/ubus` | `/var/run/ubus.sock` |
+| **默认路径** | `http://host/ubus` | `/tmp/run/ubus/ubus.sock` |
 
 ## API 使用示例
 

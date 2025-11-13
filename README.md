@@ -129,7 +129,7 @@ import (
 
 func main() {
     // Create a Unix socket client
-    // Empty string uses default path: /var/run/ubus.sock
+    // Empty string uses default path: /tmp/run/ubus/ubus.sock
     socketClient, err := transport.NewSocketClient("")
     if err != nil {
         log.Fatalf("Unable to connect to ubus socket: %v", err)
@@ -160,7 +160,7 @@ func main() {
 | **Authentication** | Required (username/password) | Not required |
 | **Network** | Requires network access | Direct local access |
 | **Performance** | Network overhead | Zero overhead |
-| **Default Path** | `http://host/ubus` | `/var/run/ubus.sock` |
+| **Default Path** | `http://host/ubus` | `/tmp/run/ubus/ubus.sock` |
 
 ## API Usage Examples
 
