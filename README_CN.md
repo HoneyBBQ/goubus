@@ -91,17 +91,23 @@ func main() {
     }
     client := goubus.NewClient(rpcClient)
 
-    // 获取系统信息
+    // 获取系统运行时信息
     systemInfo, err := client.System().Info()
     if err != nil {
         log.Fatalf("无法获取系统信息: %v", err)
     }
 
-    fmt.Printf("设备型号: %s\n", systemInfo.Release.BoardName)
     fmt.Printf("系统运行时间: %d 秒\n", systemInfo.Uptime)
     fmt.Printf("内存使用: %d MB / %d MB\n",
         (systemInfo.Memory.Total-systemInfo.Memory.Free)/1024/1024,
         systemInfo.Memory.Total/1024/1024)
+
+    // 获取硬件板信息
+    boardInfo, err := client.System().Board()
+    if err != nil {
+        log.Fatalf("无法获取板信息: %v", err)
+    }
+    fmt.Printf("设备型号: %s\n", boardInfo.Release.BoardName)
 }
 ```
 
@@ -134,8 +140,13 @@ func main() {
         log.Fatalf("无法获取系统信息: %v", err)
     }
 
-    fmt.Printf("设备型号: %s\n", systemInfo.Release.BoardName)
     fmt.Printf("系统运行时间: %d 秒\n", systemInfo.Uptime)
+    
+    boardInfo, err := client.System().Board()
+    if err != nil {
+        log.Fatalf("无法获取板信息: %v", err)
+    }
+    fmt.Printf("设备型号: %s\n", boardInfo.Release.BoardName)
 }
 ```
 
@@ -172,15 +183,15 @@ err = client.System().Reboot()
 ```go
 // 获取所有网络接口的摘要信息
 dump, err := client.Network().Interface("").Dump()
-for _, iface := range dump.Interface {
+for _, iface := range dump {
     fmt.Printf("接口: %s, 协议: %s, 状态: %t\n", iface.Interface, iface.Proto, iface.Up)
 }
 
 // 获取 'lan' 接口的详细状态
 // .Interface("lan") 返回一个 InterfaceManager
 lanStatus, err := client.Network().Interface("lan").Status()
-if err == nil && len(lanStatus.Ipv4Address) > 0 {
-    fmt.Printf("LAN IP 地址: %s\n", lanStatus.Ipv4Address[0].Address)
+if err == nil && len(lanStatus.IPv4Address) > 0 {
+    fmt.Printf("LAN IP 地址: %s\n", lanStatus.IPv4Address[0].Address)
 }
 
 // 控制接口状态
@@ -219,7 +230,7 @@ wanSection := client.Uci().Package("network").Section("wan")
 
 // 2. 创建一个 NetworkInterface 结构体来接收配置
 var wanConfig config.NetworkInterface
-err = wanSection.Get(&wanConfig)
+err := wanSection.Get(&wanConfig)
 if err != nil {
     log.Fatalf("获取 WAN 配置失败: %v", err)
 }
@@ -281,9 +292,9 @@ assocList, err := client.IwInfo().AssocList(devices[0])
 // 目前 goubus 提供了添加静态租约的接口
 // 获取租约列表通常通过 luci 接口或解析租约文件
 err := client.DHCP().AddLease(types.AddLeaseRequest{
-    MAC:      "00:11:22:33:44:55",
-    IP:       "192.168.1.100",
-    Hostname: "my-device",
+    Mac:  "00:11:22:33:44:55",
+    Ip:   "192.168.1.100",
+    Name: "my-device",
 })
 ```
 
@@ -337,7 +348,12 @@ for name, service := range services {
 // 读取最近 50 条系统日志
 logs, err := client.Log().Read(50, false, true)
 for _, entry := range logs.Log {
-    fmt.Printf("[%s] %s: %s\n", entry.Time.Format("2006-01-02 15:04:05"), entry.Source, entry.Text)
+    t := time.Unix(int64(entry.Time), 0)
+    fmt.Printf("[%s] 源:%d 优先级:%d %s\n", 
+        t.Format("2006-01-02 15:04:05"), 
+        entry.Source, 
+        entry.Priority,
+        entry.Text)
 }
 ```
 
@@ -364,8 +380,8 @@ devices, err := client.Luci().GetNetworkDevices()
 // 获取 DHCP 租约信息
 leases, err := client.Luci().GetDHCPLeases()
 if err == nil {
-    for _, lease := range leases.IPv4 {
-        fmt.Printf("客户端 %s (%s) -> %s\n", lease.Hostname, lease.MAC, lease.IP)
+    for _, lease := range leases.IPv4Leases {
+        fmt.Printf("客户端 %s (%s) -> %s\n", lease.Hostname, lease.Macaddr, lease.IPAddr)
     }
 }
 ```

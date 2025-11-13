@@ -12,8 +12,8 @@ A Go client library for OpenWrt's ubus (micro bus) system. Supports both HTTP JS
 
 - [goubus: Go Client Library for OpenWrt ubus](#goubus-go-client-library-for-openwrt-ubus)
   - [Table of Contents](#table-of-contents)
-  - [Core Features](#core-features)
-  - [Architecture Overview](#architecture-overview)
+  - [Features](#features)
+  - [Architecture](#architecture)
   - [Installation](#installation)
   - [Quick Start](#quick-start)
     - [Remote Access (HTTP JSON-RPC)](#remote-access-http-json-rpc)
@@ -22,8 +22,8 @@ A Go client library for OpenWrt's ubus (micro bus) system. Supports both HTTP JS
     - [**1. System Management**](#1-system-management)
     - [**2. Network Status \& Control**](#2-network-status--control)
     - [**3. UCI Configuration Management**](#3-uci-configuration-management)
-      - [Fluent Chained API](#fluent-chained-api)
-      - [Type-Safe Configuration Models](#type-safe-configuration-models)
+      - [Chained API](#chained-api)
+      - [Configuration Models](#configuration-models)
       - [Example: Modifying Network Configuration](#example-modifying-network-configuration)
     - [**4. Wireless (IwInfo \& Network.Wireless)**](#4-wireless-iwinfo--networkwireless)
     - [**5. DHCP Service**](#5-dhcp-service)
@@ -38,12 +38,9 @@ A Go client library for OpenWrt's ubus (micro bus) system. Supports both HTTP JS
       - [**Example 2: Comprehensive System Administrator Access**](#example-2-comprehensive-system-administrator-access)
       - [**Assign ACL Roles to Users**](#assign-acl-roles-to-users)
       - [**Apply Changes**](#apply-changes)
-  - [Contributing](#contributing)
   - [License](#license)
   - [Acknowledgments](#acknowledgments)
-    - [Inspiration](#inspiration)
-    - [Special Thanks](#special-thanks)
-  - [Related Projects](#related-projects)
+  - [Related Resources](#related-resources)
 
 ## Features
 
@@ -96,17 +93,23 @@ func main() {
     }
     client := goubus.NewClient(rpcClient)
 
-    // Fetch system information
+    // Fetch system runtime information
     systemInfo, err := client.System().Info()
     if err != nil {
         log.Fatalf("Failed to get system info: %v", err)
     }
 
-    fmt.Printf("Device Model: %s\n", systemInfo.Release.BoardName)
     fmt.Printf("System Uptime: %d seconds\n", systemInfo.Uptime)
     fmt.Printf("Memory Usage: %d MB / %d MB\n",
         (systemInfo.Memory.Total-systemInfo.Memory.Free)/1024/1024,
         systemInfo.Memory.Total/1024/1024)
+
+    // Fetch board hardware information
+    boardInfo, err := client.System().Board()
+    if err != nil {
+        log.Fatalf("Failed to get board info: %v", err)
+    }
+    fmt.Printf("Device Model: %s\n", boardInfo.Release.BoardName)
 }
 ```
 
@@ -139,8 +142,13 @@ func main() {
         log.Fatalf("Failed to get system info: %v", err)
     }
 
-    fmt.Printf("Device Model: %s\n", systemInfo.Release.BoardName)
     fmt.Printf("System Uptime: %d seconds\n", systemInfo.Uptime)
+    
+    boardInfo, err := client.System().Board()
+    if err != nil {
+        log.Fatalf("Failed to get board info: %v", err)
+    }
+    fmt.Printf("Device Model: %s\n", boardInfo.Release.BoardName)
 }
 ```
 
@@ -177,15 +185,15 @@ Use `client.Network()` to get the `NetworkManager`. The API design mimics the hi
 ```go
 // Get a summary of all network interfaces
 dump, err := client.Network().Interface("").Dump()
-for _, iface := range dump.Interface {
+for _, iface := range dump {
     fmt.Printf("Interface: %s, Protocol: %s, Up: %t\n", iface.Interface, iface.Proto, iface.Up)
 }
 
 // Get the detailed status of the 'lan' interface.
 // .Interface("lan") returns an InterfaceManager.
 lanStatus, err := client.Network().Interface("lan").Status()
-if err == nil && len(lanStatus.Ipv4Address) > 0 {
-    fmt.Printf("LAN IP Address: %s\n", lanStatus.Ipv4Address[0].Address)
+if err == nil && len(lanStatus.IPv4Address) > 0 {
+    fmt.Printf("LAN IP Address: %s\n", lanStatus.IPv4Address[0].Address)
 }
 
 // Control interface state
@@ -286,9 +294,9 @@ Use `client.DHCP()` to get the `DHCPManager`.
 // goubus currently provides an interface for adding static leases.
 // Fetching the lease list is typically done via the LuCI interface or by parsing the lease file.
 err := client.DHCP().AddLease(types.AddLeaseRequest{
-    MAC:      "00:11:22:33:44:55",
-    IP:       "192.168.1.100",
-    Hostname: "my-device",
+    Mac:  "00:11:22:33:44:55",
+    Ip:   "192.168.1.100",
+    Name: "my-device",
 })
 ```
 
@@ -342,7 +350,12 @@ Use `client.Log()` to get the `LogManager` for reading from and writing to the s
 // Read the last 50 system log entries
 logs, err := client.Log().Read(50, false, true)
 for _, entry := range logs.Log {
-    fmt.Printf("[%s] %s: %s\n", entry.Time.Format("2006-01-02 15:04:05"), entry.Source, entry.Text)
+    t := time.Unix(int64(entry.Time), 0)
+    fmt.Printf("[%s] Source:%d Priority:%d %s\n", 
+        t.Format("2006-01-02 15:04:05"), 
+        entry.Source, 
+        entry.Priority,
+        entry.Text)
 }
 ```
 
@@ -369,8 +382,8 @@ devices, err := client.Luci().GetNetworkDevices()
 // Get DHCP lease information
 leases, err := client.Luci().GetDHCPLeases()
 if err == nil {
-    for _, lease := range leases.IPv4 {
-        fmt.Printf("Client %s (%s) -> %s\n", lease.Hostname, lease.MAC, lease.IP)
+    for _, lease := range leases.IPv4Leases {
+        fmt.Printf("Client %s (%s) -> %s\n", lease.Hostname, lease.Macaddr, lease.IPAddr)
     }
 }
 ```
