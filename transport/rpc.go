@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/honeybbq/goubus/errdefs"
@@ -39,6 +41,7 @@ type RpcClient struct {
 	username string
 	password string
 	id       int
+	debug    atomic.Bool
 
 	// Session management
 	sessionData SessionData
@@ -63,6 +66,17 @@ func NewRpcClient(host, username, password string) (*RpcClient, error) {
 	}
 
 	return client, nil
+}
+
+// SetDebug toggles verbose request/response logging.
+func (rc *RpcClient) SetDebug(debug bool) {
+	rc.debug.Store(debug)
+}
+
+func (rc *RpcClient) debugf(format string, args ...any) {
+	if rc.debug.Load() {
+		fmt.Printf("[rpc] "+format+"\n", args...)
+	}
 }
 
 // Call performs a JSON-RPC call with automatic session management.
@@ -192,6 +206,8 @@ func (rc *RpcClient) rawCall(sessionID, service, method string, data any) (types
 		method,
 		dataJSON)
 
+	rc.debugf("Request: id=%d service=%s method=%s body=%s", rc.id, service, method, requestBody)
+
 	resp, err := http.Post(
 		"http://"+rc.host+ubusEndpointPath,
 		contentTypeJSON,
@@ -202,8 +218,14 @@ func (rc *RpcClient) rawCall(sessionID, service, method string, data any) (types
 	}
 	defer resp.Body.Close()
 
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errdefs.Wrapf(errdefs.ErrInvalidResponse, "read response: %v", err)
+	}
+	rc.debugf("Response: status=%s body=%s", resp.Status, previewText(bodyBytes, 512))
+
 	ubusResp := &UbusResponse{}
-	if err := json.NewDecoder(resp.Body).Decode(ubusResp); err != nil {
+	if err := json.Unmarshal(bodyBytes, ubusResp); err != nil {
 		return nil, errdefs.Wrapf(errdefs.ErrInvalidResponse, "json decode error: %v", err)
 	}
 
@@ -220,6 +242,16 @@ func (rc *RpcClient) rawCall(sessionID, service, method string, data any) (types
 	}
 	// Check for ubus application level error (handled by Unmarshal)
 	return UbusResult(result), nil
+}
+
+func previewText(b []byte, max int) string {
+	if len(b) == 0 {
+		return ""
+	}
+	if len(b) > max {
+		return string(b[:max]) + "..."
+	}
+	return string(b)
 }
 
 // UbusJsonRpcError represents the error structure in a JSON-RPC response.

@@ -32,8 +32,10 @@ const (
 // ReadFile reads the contents of a file on the remote system.
 func ReadFile(caller types.Transport, path string, base64 bool) (*types.FileRead, error) {
 	readData := map[string]any{
-		FileParamPath:   path,
-		FileParamBase64: base64,
+		FileParamPath: path,
+	}
+	if base64 {
+		readData[FileParamBase64] = true
 	}
 	resp, err := caller.Call(ServiceFile, FileMethodRead, readData)
 	if err != nil {
@@ -52,11 +54,17 @@ func ReadFile(caller types.Transport, path string, base64 bool) (*types.FileRead
 // WriteFile writes data to a file on the remote system.
 func WriteFile(caller types.Transport, path, data string, append bool, mode int, base64 bool) error {
 	writeData := map[string]any{
-		FileParamPath:   path,
-		FileParamData:   data,
-		FileParamAppend: append,
-		FileParamMode:   mode,
-		FileParamBase64: base64,
+		FileParamPath: path,
+		FileParamData: data,
+	}
+	if append {
+		writeData[FileParamAppend] = true
+	}
+	if mode != 0 {
+		writeData[FileParamMode] = mode
+	}
+	if base64 {
+		writeData[FileParamBase64] = true
 	}
 	_, err := caller.Call(ServiceFile, FileMethodWrite, writeData)
 	return err

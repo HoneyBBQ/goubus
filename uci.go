@@ -46,7 +46,7 @@ func (um *UciManager) Configs() ([]string, error) {
 // This is a global operation, not tied to a specific config file.
 func (um *UciManager) Apply(rollback bool, timeout int) error {
 	req := types.UbusUciApplyRequest{
-		Rollback: rollback,
+		Rollback: types.Bool(rollback),
 		Timeout:  timeout,
 	}
 	return api.ApplyUci(um.client.caller, req)

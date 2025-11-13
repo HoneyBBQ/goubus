@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"github.com/honeybbq/goubus"
 	"github.com/honeybbq/goubus/errdefs"
 	"github.com/honeybbq/goubus/transport"
+	"github.com/honeybbq/goubus/types"
 	"github.com/honeybbq/goubus/uci/config"
 )
 
@@ -35,7 +37,30 @@ type TestResult struct {
 	Data     any
 }
 
+func suppressStdout() (func(), error) {
+	devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+	if err != nil {
+		return nil, err
+	}
+	original := os.Stdout
+	os.Stdout = devNull
+	return func() {
+		os.Stdout = original
+		_ = devNull.Close()
+	}, nil
+}
+
 func main() {
+	verbose := flag.Bool("v", false, "enable verbose transport logging")
+	flag.Parse()
+
+	var restoreStdout func()
+	if !*verbose {
+		if restore, err := suppressStdout(); err == nil {
+			restoreStdout = restore
+		}
+	}
+
 	// Configure connection parameters - modify according to your setup
 	testCfg := TestConfig{
 		Host:     os.Getenv("OPENWRT_HOST"),     // OpenWrt router IP address
@@ -43,21 +68,39 @@ func main() {
 		Password: os.Getenv("OPENWRT_PASSWORD"), // Password
 	}
 
-	if testCfg.Host == "" || testCfg.Username == "" || testCfg.Password == "" {
-		log.Fatalf("OPENWRT_HOST, OPENWRT_USERNAME, OPENWRT_PASSWORD are not set")
-	}
-
 	fmt.Println("=== goubus Project Comprehensive Test ===")
-	fmt.Printf("Connecting to: %s\n", testCfg.Host)
-	fmt.Println()
 
-	rpcClient, err := transport.NewRpcClient(testCfg.Host, testCfg.Username, testCfg.Password)
-	if err != nil {
-		log.Fatalf("Unable to connect to device: %v", err)
+	var (
+		caller         types.Transport
+		transportLabel string
+		err            error
+	)
+
+	if testCfg.Host != "" && testCfg.Username != "" && testCfg.Password != "" {
+		fmt.Println("使用环境变量配置，尝试通过 JSON-RPC 连接设备...")
+		rpcClient, rpcErr := transport.NewRpcClient(testCfg.Host, testCfg.Username, testCfg.Password)
+		if rpcErr != nil {
+			log.Fatalf("Unable to connect via JSON-RPC: %v", rpcErr)
+		}
+		rpcClient.SetDebug(*verbose)
+		caller = rpcClient
+		transportLabel = fmt.Sprintf("JSON-RPC http://%s", testCfg.Host)
+	} else {
+		socketPath := os.Getenv("UBUS_SOCKET_PATH")
+		fmt.Println("Remote environment variables not detected, falling back to ubus Unix socket ...")
+		socketClient, err := transport.NewSocketClient(socketPath)
+		if err != nil {
+			log.Fatalf("Unable to connect via ubus socket /tmp/run/ubus/ubus.sock: %v", err)
+		}
+		socketClient.SetDebug(*verbose)
+		caller = socketClient
+		transportLabel = "unix socket"
 	}
+
+	fmt.Printf("Active transport: %s\n\n", transportLabel)
 
 	// Create client connection
-	client := goubus.NewClient(rpcClient)
+	client := goubus.NewClient(caller)
 
 	var results []TestResult
 
@@ -137,10 +180,18 @@ func main() {
 	fmt.Println("\n=== 11. Enhanced UCI Configuration Structures Test ===")
 	results = append(results, testEnhancedConfigStructures(client)...)
 
+	// Revert UCI changes to ensure clean state for next run
+	if err := client.Uci().Package("network").Revert(); err != nil {
+		fmt.Printf("Warning: failed to revert network config: %v\n", err)
+	}
+
 	// 12. Test close client
 	fmt.Println("\n=== 12. Close Client Test ===")
 	results = append(results, testClose(client)...)
 
+	if restoreStdout != nil {
+		restoreStdout()
+	}
 	// Print test summary
 	printTestSummary(results)
 }

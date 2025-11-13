@@ -392,7 +392,7 @@ func ParseUciMetadata(data map[string]string) types.UciMetadata {
 	}
 	if anonStr, ok := data[UciMetaAnonymous]; ok {
 		if anon, err := strconv.ParseBool(anonStr); err == nil {
-			meta.Anonymous = anon
+			meta.Anonymous = types.Bool(anon)
 		}
 	}
 

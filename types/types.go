@@ -115,11 +115,11 @@ type NetworkInterfaceInfo struct {
 
 // NetworkInterface represents detailed network interface information.
 type NetworkInterface struct {
-	Up                   bool                         `json:"up"`
-	Pending              bool                         `json:"pending"`
-	Available            bool                         `json:"available"`
-	Autostart            bool                         `json:"autostart"`
-	Dynamic              bool                         `json:"dynamic"`
+	Up                   Bool                         `json:"up"`
+	Pending              Bool                         `json:"pending"`
+	Available            Bool                         `json:"available"`
+	Autostart            Bool                         `json:"autostart"`
+	Dynamic              Bool                         `json:"dynamic"`
 	Uptime               int                          `json:"uptime"`
 	L3Device             string                       `json:"l3_device"`
 	Proto                string                       `json:"proto"`
@@ -129,7 +129,7 @@ type NetworkInterface struct {
 	DNSServer            []string                     `json:"dns-server"`
 	DNSSearch            []string                     `json:"dns-search"`
 	DNSMetric            int                          `json:"dns_metric"`
-	Delegation           bool                         `json:"delegation"`
+	Delegation           Bool                         `json:"delegation"`
 	Delegates            []string                     `json:"delegates"`
 	Zone                 string                       `json:"zone"`
 	IPv4Address          []NetworkInterfaceAddress    `json:"ipv4-address"`
@@ -174,7 +174,7 @@ type NetworkInterfaceIPv6Prefix struct {
 type NetworkInterfaceNeighbor struct {
 	Address string `json:"address"`
 	MAC     string `json:"mac"`
-	Router  bool   `json:"router"`
+	Router  Bool   `json:"router"`
 	State   int    `json:"state"`
 }
 
@@ -192,29 +192,29 @@ type NetworkInterfaceData struct {
 
 // NetworkDevice represents a network device status.
 type NetworkDevice struct {
-	External               bool                      `json:"external"`
-	Present                bool                      `json:"present"`
+	External               Bool                      `json:"external"`
+	Present                Bool                      `json:"present"`
 	Type                   string                    `json:"type"`
-	Up                     bool                      `json:"up"`
-	Carrier                bool                      `json:"carrier"`
-	AuthStatus             bool                      `json:"auth_status"`
+	Up                     Bool                      `json:"up"`
+	Carrier                Bool                      `json:"carrier"`
+	AuthStatus             Bool                      `json:"auth_status"`
 	LinkAdvertising        []string                  `json:"link-advertising"`
 	LinkPartnerAdvertising []string                  `json:"link-partner-advertising"`
 	LinkSupported          []string                  `json:"link-supported"`
 	Speed                  string                    `json:"speed"`
-	Autoneg                bool                      `json:"autoneg"`
+	Autoneg                Bool                      `json:"autoneg"`
 	FlowControl            *NetworkDeviceFlowControl `json:"flow-control,omitempty"`
-	HwTcOffload            bool                      `json:"hw-tc-offload"`
+	HwTcOffload            Bool                      `json:"hw-tc-offload"`
 	Devtype                string                    `json:"devtype"`
 	MTU                    int                       `json:"mtu"`
 	MTU6                   int                       `json:"mtu6"`
 	MacAddr                string                    `json:"macaddr"`
 	TxqueueLen             int                       `json:"txqueuelen"`
-	IPv6                   bool                      `json:"ipv6"`
-	IP6SegmentRouting      bool                      `json:"ip6segmentrouting"`
-	Promisc                bool                      `json:"promisc"`
+	IPv6                   Bool                      `json:"ipv6"`
+	IP6SegmentRouting      Bool                      `json:"ip6segmentrouting"`
+	Promisc                Bool                      `json:"promisc"`
 	RPFilter               int                       `json:"rpfilter"`
-	Acceptlocal            bool                      `json:"acceptlocal"`
+	Acceptlocal            Bool                      `json:"acceptlocal"`
 	Igmpversion            int                       `json:"igmpversion"`
 	Mldversion             int                       `json:"mldversion"`
 	Neigh4Reachabletime    int                       `json:"neigh4reachabletime"`
@@ -223,14 +223,14 @@ type NetworkDevice struct {
 	Neigh6Gcstaletime      int                       `json:"neigh6gcstaletime"`
 	Neigh4Locktime         int                       `json:"neigh4locktime"`
 	Dadtransmits           int                       `json:"dadtransmits"`
-	Multicast              bool                      `json:"multicast"`
-	Sendredirects          bool                      `json:"sendredirects"`
-	DropV4Unicastinfwd     bool                      `json:"drop_v4_unicast_in_l2_multicast"`
-	DropV6Unicastinfwd     bool                      `json:"drop_v6_unicast_in_l2_multicast"`
-	DropGratuitousARP      bool                      `json:"drop_gratuitous_arp"`
-	DropUnsolicitudNA      bool                      `json:"drop_unsolicited_na"`
-	ARPAccept              bool                      `json:"arp_accept"`
-	GRO                    bool                      `json:"gro"`
+	Multicast              Bool                      `json:"multicast"`
+	Sendredirects          Bool                      `json:"sendredirects"`
+	DropV4Unicastinfwd     Bool                      `json:"drop_v4_unicast_in_l2_multicast"`
+	DropV6Unicastinfwd     Bool                      `json:"drop_v6_unicast_in_l2_multicast"`
+	DropGratuitousARP      Bool                      `json:"drop_gratuitous_arp"`
+	DropUnsolicitudNA      Bool                      `json:"drop_unsolicited_na"`
+	ARPAccept              Bool                      `json:"arp_accept"`
+	GRO                    Bool                      `json:"gro"`
 	Statistics             NetworkDeviceStatistic    `json:"statistics"`
 }
 
@@ -263,7 +263,7 @@ type NetworkDeviceStatistic struct {
 
 // NetworkDeviceFlowControl represents flow control configuration.
 type NetworkDeviceFlowControl struct {
-	Autoneg                bool     `json:"autoneg"`
+	Autoneg                Bool     `json:"autoneg"`
 	Supported              []string `json:"supported"`
 	LinkAdvertising        []string `json:"link-advertising"`
 	LinkPartnerAdvertising []string `json:"link-partner-advertising"`
@@ -276,11 +276,11 @@ type NetworkDeviceFlowControl struct {
 
 // RadioStatus represents the status of a wireless radio.
 type RadioStatus struct {
-	Up               bool             `json:"up"`
-	Pending          bool             `json:"pending"`
-	Autostart        bool             `json:"autostart"`
-	Disabled         bool             `json:"disabled"`
-	RetrySetupFailed bool             `json:"retry_setup_failed"`
+	Up               Bool             `json:"up"`
+	Pending          Bool             `json:"pending"`
+	Autostart        Bool             `json:"autostart"`
+	Disabled         Bool             `json:"disabled"`
+	RetrySetupFailed Bool             `json:"retry_setup_failed"`
 	Config           RadioConfig      `json:"config"`
 	Interfaces       []RadioInterface `json:"interfaces"`
 }
@@ -292,7 +292,7 @@ type RadioConfig struct {
 	Channel        string `json:"channel"`
 	Phy            string `json:"phy"`
 	MacAddr        string `json:"macaddr"`
-	Disabled       bool   `json:"disabled"`
+	Disabled       Bool   `json:"disabled"`
 	Path           string `json:"path"`
 	Channels       []int  `json:"channels"`
 	Country        string `json:"country"`
@@ -304,7 +304,7 @@ type RadioConfig struct {
 	TXAntenna      int    `json:"txantenna"`
 	RXAntenna      int    `json:"rxantenna"`
 	Antenna        int    `json:"antenna"`
-	Diversity      bool   `json:"diversity"`
+	Diversity      Bool   `json:"diversity"`
 	Distance       int    `json:"distance"`
 	Frag           int    `json:"frag"`
 	RTS            int    `json:"rts"`
@@ -312,14 +312,14 @@ type RadioConfig struct {
 	BasicRate      int    `json:"basic_rate"`
 	SupportedRates int    `json:"supported_rates"`
 	RequireMode    string `json:"require_mode"`
-	LegacyRates    bool   `json:"legacy_rates"`
-	NoScan         bool   `json:"noscan"`
+	LegacyRates    Bool   `json:"legacy_rates"`
+	NoScan         Bool   `json:"noscan"`
 	LogLevel       int    `json:"log_level"`
-	ShortGI        bool   `json:"short_gi"`
-	Greenfield     bool   `json:"greenfield"`
+	ShortGI        Bool   `json:"short_gi"`
+	Greenfield     Bool   `json:"greenfield"`
 	TXQueueLen     int    `json:"txqueuelen"`
-	DFS            bool   `json:"dfs"`
-	CountryIE      bool   `json:"country_ie"`
+	DFS            Bool   `json:"dfs"`
+	CountryIE      Bool   `json:"country_ie"`
 	CellDensity    int    `json:"cell_density"`
 }
 
@@ -340,8 +340,8 @@ type RadioInterfaceConfig struct {
 	Encryption *string  `json:"encryption,omitempty"` // Encryption mode
 	Network    []string `json:"network,omitempty"`    // Network interface(s)
 	Device     *string  `json:"device,omitempty"`     // Radio device
-	Disabled   *bool    `json:"disabled,omitempty"`   // Interface disabled
-	Hidden     *bool    `json:"hidden,omitempty"`     // Hide SSID
+	Disabled   *Bool    `json:"disabled,omitempty"`   // Interface disabled
+	Hidden     *Bool    `json:"hidden,omitempty"`     // Hide SSID
 	Key        *string  `json:"key,omitempty"`        // Encryption key
 	BSSID      *string  `json:"bssid,omitempty"`      // BSSID
 }
@@ -377,7 +377,7 @@ type WirelessInfo struct {
 
 // WirelessEncryption represents wireless encryption information.
 type WirelessEncryption struct {
-	Enabled        bool     `json:"enabled"`
+	Enabled        Bool     `json:"enabled"`
 	Wpa            []int    `json:"wpa"`
 	Authentication []string `json:"authentication"`
 	Ciphers        []string `json:"ciphers"`
@@ -415,23 +415,23 @@ type WirelessAssoc struct {
 type WirelessAssocRate struct {
 	Rate    int  `json:"rate"`
 	Mcs     int  `json:"mcs"`
-	Is40Mhz bool `json:"40mhz"`
-	ShortGi bool `json:"short_gi"`
+	Is40Mhz Bool `json:"40mhz"`
+	ShortGi Bool `json:"short_gi"`
 }
 
 // WirelessFreq represents a wireless frequency/channel.
 type WirelessFreq struct {
 	Channel    int  `json:"channel"`
 	Mhz        int  `json:"mhz"`
-	Restricted bool `json:"restricted"`
-	Active     bool `json:"active"`
+	Restricted Bool `json:"restricted"`
+	Active     Bool `json:"active"`
 }
 
 // WirelessTxPower represents a wireless TX power level.
 type WirelessTxPower struct {
 	Dbm    int  `json:"dbm"`
 	Mw     int  `json:"mw"`
-	Active bool `json:"active"`
+	Active Bool `json:"active"`
 }
 
 // WirelessCountry represents a wireless country code.
@@ -439,7 +439,7 @@ type WirelessCountry struct {
 	Code    string `json:"code"`
 	Country string `json:"country"`
 	ISO3166 string `json:"iso3166"`
-	Active  bool   `json:"active"`
+	Active  Bool   `json:"active"`
 }
 
 // WirelessSurvey represents a channel survey result from `iwinfo survey`.
@@ -464,7 +464,7 @@ type ServiceInfo struct {
 
 // ServiceInstance represents a single running or configured instance of a service.
 type ServiceInstance struct {
-	Running      bool              `json:"running"`
+	Running      Bool              `json:"running"`
 	Pid          int               `json:"pid"`
 	Command      []string          `json:"command"`
 	TermTimeout  int               `json:"term_timeout"`
@@ -475,7 +475,7 @@ type ServiceInstance struct {
 	Mount        map[string]string `json:"mount,omitempty"`
 	Limits       *Limits           `json:"limits,omitempty"`
 	Data         json.RawMessage   `json:"data,omitempty"`
-	NoNewPrivs   bool              `json:"no_new_privs,omitempty"`
+	NoNewPrivs   Bool              `json:"no_new_privs,omitempty"`
 	Capabilities string            `json:"capabilities,omitempty"`
 	User         string            `json:"user,omitempty"`
 	Group        string            `json:"group,omitempty"`
@@ -491,15 +491,15 @@ type Respawn struct {
 // Jail holds the configuration for service sandboxing.
 type Jail struct {
 	Name      string `json:"name"`
-	Procfs    bool   `json:"procfs"`
-	Sysfs     bool   `json:"sysfs"`
-	Ubus      bool   `json:"ubus"`
-	Log       bool   `json:"log"`
-	Ronly     bool   `json:"ronly"`
-	Netns     bool   `json:"netns"`
-	Userns    bool   `json:"userns"`
-	Cgroupsns bool   `json:"cgroupsns"`
-	Console   bool   `json:"console"`
+	Procfs    Bool   `json:"procfs"`
+	Sysfs     Bool   `json:"sysfs"`
+	Ubus      Bool   `json:"ubus"`
+	Log       Bool   `json:"log"`
+	Ronly     Bool   `json:"ronly"`
+	Netns     Bool   `json:"netns"`
+	Userns    Bool   `json:"userns"`
+	Cgroupsns Bool   `json:"cgroupsns"`
+	Console   Bool   `json:"console"`
 }
 
 // Limits represents resource limits for a service instance.
@@ -516,8 +516,8 @@ type Limits struct {
 type RcList struct {
 	Start   int  `json:"start"`
 	Stop    int  `json:"stop,omitempty"`
-	Running bool `json:"running"`
-	Enabled bool `json:"enabled"`
+	Running Bool `json:"running"`
+	Enabled Bool `json:"enabled"`
 }
 
 // RcInitRequest represents parameters for controlling init scripts.
@@ -671,8 +671,8 @@ type LuciVersion struct {
 // LuciNetworkDevice represents detailed network device information from luci-rpc.
 type LuciNetworkDevice struct {
 	Name     string                 `json:"name"`
-	Wireless bool                   `json:"wireless"`
-	Up       bool                   `json:"up"`
+	Wireless Bool                   `json:"wireless"`
+	Up       Bool                   `json:"up"`
 	MTU      int                    `json:"mtu"`
 	QLen     int                    `json:"qlen"`
 	DevType  string                 `json:"devtype"`
@@ -682,10 +682,10 @@ type LuciNetworkDevice struct {
 	Type     int                    `json:"type,omitempty"`
 	IfIndex  int                    `json:"ifindex,omitempty"`
 	Master   string                 `json:"master,omitempty"`
-	Bridge   bool                   `json:"bridge,omitempty"`
+	Bridge   Bool                   `json:"bridge,omitempty"`
 	Ports    []string               `json:"ports,omitempty"`
 	ID       string                 `json:"id,omitempty"`
-	STP      bool                   `json:"stp,omitempty"`
+	STP      Bool                   `json:"stp,omitempty"`
 	Stats    LuciNetworkDeviceStats `json:"stats"`
 	Flags    LuciNetworkDeviceFlags `json:"flags"`
 	Link     LuciNetworkDeviceLink  `json:"link"`
@@ -714,20 +714,20 @@ type LuciNetworkDeviceStats struct {
 
 // LuciNetworkDeviceFlags represents network device flags.
 type LuciNetworkDeviceFlags struct {
-	Up           bool `json:"up"`
-	Broadcast    bool `json:"broadcast"`
-	Promisc      bool `json:"promisc"`
-	Loopback     bool `json:"loopback"`
-	NoARP        bool `json:"noarp"`
-	Multicast    bool `json:"multicast"`
-	PointToPoint bool `json:"pointtopoint"`
+	Up           Bool `json:"up"`
+	Broadcast    Bool `json:"broadcast"`
+	Promisc      Bool `json:"promisc"`
+	Loopback     Bool `json:"loopback"`
+	NoARP        Bool `json:"noarp"`
+	Multicast    Bool `json:"multicast"`
+	PointToPoint Bool `json:"pointtopoint"`
 }
 
 // LuciNetworkDeviceLink represents network device link information.
 type LuciNetworkDeviceLink struct {
 	Speed     int    `json:"speed,omitempty"`
 	Duplex    string `json:"duplex,omitempty"`
-	Carrier   bool   `json:"carrier"`
+	Carrier   Bool   `json:"carrier"`
 	Changes   int    `json:"changes"`
 	UpCount   int    `json:"up_count"`
 	DownCount int    `json:"down_count"`
@@ -789,9 +789,9 @@ type LuciBoardWLANInfo struct {
 
 // LuciBoardWLANBand represents wireless band capabilities.
 type LuciBoardWLANBand struct {
-	HT             bool     `json:"ht,omitempty"`
-	VHT            bool     `json:"vht,omitempty"`
-	HE             bool     `json:"he,omitempty"`
+	HT             Bool     `json:"ht,omitempty"`
+	VHT            Bool     `json:"vht,omitempty"`
+	HE             Bool     `json:"he,omitempty"`
 	MaxWidth       int      `json:"max_width"`
 	Modes          []string `json:"modes"`
 	DefaultChannel int      `json:"default_channel,omitempty"`
@@ -878,13 +878,13 @@ type UbusUciRevertRequest struct {
 
 // UbusUciApplyRequest represents a UCI apply request.
 type UbusUciApplyRequest struct {
-	Rollback bool `json:"rollback,omitempty"`
+	Rollback Bool `json:"rollback,omitempty"`
 	Timeout  int  `json:"timeout,omitempty"`
 }
 
 // UciMetadata holds the read-only metadata associated with a UCI section.
 type UciMetadata struct {
-	Anonymous bool   `json:".anonymous"`
+	Anonymous Bool   `json:".anonymous"`
 	Type      string `json:".type"`
 	Name      string `json:".name"`
 	// Index represents the position of this section in the UCI configuration.
