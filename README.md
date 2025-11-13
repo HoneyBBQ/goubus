@@ -1,4 +1,4 @@
-# goubus: An Elegant Go Client Library for OpenWrt ubus
+# goubus: Go Client Library for OpenWrt ubus
 
 [![Go Version](https://img.shields.io/badge/go-1.24-blue)](https://golang.org/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
@@ -6,74 +6,63 @@
 
 [Read this document in Chinese (中文文档)](README_CN.md)
 
-`goubus` is a comprehensive, idiomatic Go client library for OpenWrt's ubus (micro bus) system. It provides a type-safe, elegantly designed API that allows Go developers to seamlessly integrate network management, system monitoring, and device configuration into their applications.
+A Go client library for OpenWrt's ubus (micro bus) system. Supports both HTTP JSON-RPC and native Unix socket transports with type-safe APIs for system management, network configuration, and device control.
 
 ## Table of Contents
 
-- [goubus: An Elegant Go Client Library for OpenWrt ubus](#goubus-an-elegant-go-client-library-for-openwrt-ubus)
+- [goubus: Go Client Library for OpenWrt ubus](#goubus-go-client-library-for-openwrt-ubus)
   - [Table of Contents](#table-of-contents)
   - [Core Features](#core-features)
   - [Architecture Overview](#architecture-overview)
   - [Installation](#installation)
   - [Quick Start](#quick-start)
+    - [Remote Access (HTTP JSON-RPC)](#remote-access-http-json-rpc)
+    - [Local Access (Unix Socket)](#local-access-unix-socket)
   - [API Usage Examples](#api-usage-examples)
     - [**1. System Management**](#1-system-management)
-    - [**2. Network Status & Control**](#2-network-status--control)
+    - [**2. Network Status \& Control**](#2-network-status--control)
     - [**3. UCI Configuration Management**](#3-uci-configuration-management)
       - [Fluent Chained API](#fluent-chained-api)
       - [Type-Safe Configuration Models](#type-safe-configuration-models)
       - [Example: Modifying Network Configuration](#example-modifying-network-configuration)
-    - [**4. Wireless (IwInfo & Network.Wireless)**](#4-wireless-iwinfo--networkwireless)
+    - [**4. Wireless (IwInfo \& Network.Wireless)**](#4-wireless-iwinfo--networkwireless)
     - [**5. DHCP Service**](#5-dhcp-service)
-    - [**6. Files & Commands**](#6-files--commands)
-    - [**7. Service Management (RC & Service)**](#7-service-management-rc--service)
+    - [**6. Files \& Commands**](#6-files--commands)
+    - [**7. Service Management (RC \& Service)**](#7-service-management-rc--service)
     - [**8. Logging System**](#8-logging-system)
-    - [**9. Sessions & Permissions**](#9-sessions--permissions)
+    - [**9. Sessions \& Permissions**](#9-sessions--permissions)
     - [**10. LuCI Extension Interface**](#10-luci-extension-interface)
   - [Troubleshooting](#troubleshooting)
     - [Permission Issues](#permission-issues)
+      - [**Example 1: Complete Network Management Access**](#example-1-complete-network-management-access)
+      - [**Example 2: Comprehensive System Administrator Access**](#example-2-comprehensive-system-administrator-access)
+      - [**Assign ACL Roles to Users**](#assign-acl-roles-to-users)
+      - [**Apply Changes**](#apply-changes)
   - [Contributing](#contributing)
   - [License](#license)
+  - [Acknowledgments](#acknowledgments)
+    - [Inspiration](#inspiration)
+    - [Special Thanks](#special-thanks)
+  - [Related Projects](#related-projects)
 
-## Core Features
+## Features
 
-- **Elegant Fluent API**: Features a chained-call design for an intuitive, highly readable API.
-- **Complete Type Safety**: Defines clear Go structs for all ubus API requests and responses, eliminating the hassle of `map[string]interface{}`.
-- **Clean, Layered Architecture**: Separates the user interface, business logic, and transport layer, making the code easy to maintain, test, and extend.
-- **Powerful UCI Configuration**: Provides type-safe model binding and a fluent API to manipulate OpenWrt's UCI configuration system.
-- **Comprehensive API Coverage**: Broadly supports common ubus modules like `system`, `network`, `uci`, `iwinfo`, and `service`.
-- **Automatic Session Management**: Built-in authentication and session handling.
-- **Robust Error Handling**: Defines detailed error types for precise exception handling.
-- **Concurrency Safe**: The client can be safely used across multiple goroutines.
+- **Dual Transport**: HTTP JSON-RPC for remote access, Unix socket for local operations
+- **Type-Safe API**: Structured types for all ubus operations, no `map[string]interface{}`
+- **UCI Configuration**: Type-safe models for OpenWrt configuration management
+- **Module Coverage**: System, network, wireless, DHCP, services, files, and logging
+- **Session Management**: Automatic authentication for HTTP transport
+- **Error Handling**: Typed errors matching ubus status codes
+- **Concurrency Safe**: Thread-safe for multi-goroutine usage
 
-## Architecture Overview
+## Architecture
 
-`goubus` employs a clean, layered design to ensure high cohesion and low coupling:
-
-- **Top-Level API (`goubus` package)**: The user-facing entry point, providing a concise Fluent API. It uses a "Manager-Factory" pattern, e.g., `client.System()` returns a `SystemManager`.
-- **Internal Logic (`api` package)**: Encapsulates all direct interactions with the ubus RPC. It's responsible for building requests, calling the transport layer, and parsing/normalizing various complex data formats returned by ubus.
-- **Transport Layer (`transport` package)**: Handles low-level HTTP/RPC communication, authentication, and session token management.
-- **Data Types (`types` package)**: Defines request and response data structures for all ubus APIs, forming the core of type safety.
-- **UCI Abstraction (`uci` package)**: Offers powerful serialization/deserialization tools and the `ConfigModel` interface, enabling seamless two-way mapping between Go structs and UCI configurations.
-- **Utilities & Errors (`utils`, `errdefs` packages)**: Provides helper functions and unified error definitions.
-
-```mermaid
-graph TD
-    A[User Application] --> B(Top-Level API Layer<br/> goubus package);
-    B --> C(Internal Logic Layer<br/> api package);
-    C --> D(Transport Layer<br/> transport package);
-    D --> E[OpenWrt ubus];
-
-    subgraph "Core Abstractions"
-        F(Data Types<br/> types package)
-        G(UCI Models<br/> uci package)
-    end
-
-    B -- Uses --> F;
-    B -- Uses --> G;
-    C -- Uses --> F;
-    C -- Uses --> G;
-```
+- **`goubus`**: User-facing API with manager pattern (`client.System()`, `client.Network()`, etc.)
+- **`api`**: ubus call construction and response parsing
+- **`transport`**: HTTP JSON-RPC or Unix socket communication
+- **`types`**: Request/response structures for type safety
+- **`uci`**: Configuration serialization and model binding
+- **`errdefs`**: Error types matching ubus status codes
 
 ## Installation
 
@@ -83,7 +72,11 @@ go get github.com/honeybbq/goubus
 
 ## Quick Start
 
-The following example shows how to connect to an OpenWrt device and fetch system information:
+`goubus` supports two transport modes - choose the one that fits your scenario:
+
+### Remote Access (HTTP JSON-RPC)
+
+For remote management over network:
 
 ```go
 package main
@@ -96,16 +89,14 @@ import (
 )
 
 func main() {
-    // Create a client with authentication credentials.
+    // Create an HTTP client with authentication credentials
     rpcClient, err := transport.NewRpcClient("192.168.1.1", "root", "password")
     if err != nil {
         log.Fatalf("Failed to connect to device: %v", err)
     }
-
     client := goubus.NewClient(rpcClient)
 
-    // Get system information.
-    // client.System() returns a SystemManager.
+    // Fetch system information
     systemInfo, err := client.System().Info()
     if err != nil {
         log.Fatalf("Failed to get system info: %v", err)
@@ -118,6 +109,50 @@ func main() {
         systemInfo.Memory.Total/1024/1024)
 }
 ```
+
+### Local Access (Unix Socket)
+
+For on-device applications with direct socket access (no authentication required):
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+    "github.com/honeybbq/goubus"
+    "github.com/honeybbq/goubus/transport"
+)
+
+func main() {
+    // Create a Unix socket client
+    // Empty string uses default path: /var/run/ubus.sock
+    socketClient, err := transport.NewSocketClient("")
+    if err != nil {
+        log.Fatalf("Unable to connect to ubus socket: %v", err)
+    }
+    client := goubus.NewClient(socketClient)
+
+    // Same API as HTTP transport
+    systemInfo, err := client.System().Info()
+    if err != nil {
+        log.Fatalf("Failed to get system info: %v", err)
+    }
+
+    fmt.Printf("Device Model: %s\n", systemInfo.Release.BoardName)
+    fmt.Printf("System Uptime: %d seconds\n", systemInfo.Uptime)
+}
+```
+
+**Transport Comparison:**
+
+| Feature | HTTP (JSON-RPC) | Unix Socket |
+|---------|----------------|-------------|
+| **Use Case** | Remote management | On-device applications |
+| **Authentication** | Required (username/password) | Not required |
+| **Network** | Requires network access | Direct local access |
+| **Performance** | Network overhead | Zero overhead |
+| **Default Path** | `http://host/ubus` | `/var/run/ubus.sock` |
 
 ## API Usage Examples
 
@@ -164,20 +199,20 @@ err = client.Network().Reload()
 
 ### **3. UCI Configuration Management**
 
-The UCI management in `goubus` is a core highlight. The `UciManager`, obtained via `client.Uci()`, makes complex UCI operations extremely simple and safe.
+Manage OpenWrt configuration with type-safe Go structs.
 
-#### Fluent Chained API
+#### Chained API
 
-You can pinpoint any configuration option with a chained call, just like accessing fields in a Go struct.
+Access UCI configuration through method chaining:
 
-- `client.Uci()` -> `UciManager` (Entry point)
-- `.Package("network")` -> `UciPackageContext` (Select config file)
-- `.Section("wan")` -> `UciSectionContext` (Select section)
-- `.Option("proto")` -> `UciOptionContext` (Select option)
+- `client.Uci()` - Entry point
+- `.Package("network")` - Select config file
+- `.Section("wan")` - Select section
+- `.Option("proto")` - Select option
 
-#### Type-Safe Configuration Models
+#### Configuration Models
 
-`goubus` includes built-in, type-safe models for common UCI configurations (like `network`, `wireless`, `system`). You operate on these Go structs without worrying about underlying string conversions. All models implement the `goubus.ConfigModel` interface.
+Built-in models for common configurations: `network`, `wireless`, `system`, `dhcp`, `firewall`.
 
 #### Example: Modifying Network Configuration
 
@@ -447,36 +482,16 @@ After modifying the configuration, restart the `rpcd` service to apply the chang
 
 **📖 For more details, see the [OpenWrt ubus ACLs documentation](https://openwrt.org/docs/techref/ubus#acls)**
 
-## Contributing
-
-We warmly welcome contributions to `goubus`! Please check out [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
-
 ## License
 
-This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file for details.
+Apache License 2.0 - See [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
-### Inspiration
+Inspired by [Kubernetes client-go](https://github.com/kubernetes/client-go), [moby/moby](https://github.com/moby/moby), and [cdavid14/goubus](https://github.com/cdavid14/goubus).
 
-This project is inspired by the following projects:
+## Related Resources
 
-- **[Kubernetes SDK](https://github.com/kubernetes/client-go)**: For its clear API design and comprehensive client library approach.
-- **[moby/moby](https://github.com/moby/moby)**: For its architectural patterns and robust API structure.
-- **[cdavid14/goubus](https://github.com/cdavid14/goubus)**: For foundational concepts and initial implementation ideas for ubus integration.
-
-### Special Thanks
-
-- The OpenWrt development team for creating the powerful ubus system.
-- The Go community for its excellent tools and libraries.
-- All contributors who help improve this library.
-
-## Related Projects
-
-- [OpenWrt](https://openwrt.org/) - The Linux distribution for embedded devices.
-- [ubus](https://git.openwrt.org/project/ubus.git) - OpenWrt's micro bus architecture.
-- [libubus](https://git.openwrt.org/project/libubus.git) - The C library for ubus.
-
----
-
-For more information or if you need help, please feel free to open an [issue](https://github.com/honeybbq/goubus/issues).
+- [OpenWrt](https://openwrt.org/) - Linux distribution for embedded devices
+- [ubus](https://git.openwrt.org/project/ubus.git) - OpenWrt's micro bus system
+- [libubus](https://git.openwrt.org/project/libubus.git) - C library for ubus
