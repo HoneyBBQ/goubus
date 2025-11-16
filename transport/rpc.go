@@ -69,8 +69,9 @@ func NewRpcClient(host, username, password string) (*RpcClient, error) {
 }
 
 // SetDebug toggles verbose request/response logging.
-func (rc *RpcClient) SetDebug(debug bool) {
+func (rc *RpcClient) SetDebug(debug bool) *RpcClient {
 	rc.debug.Store(debug)
+	return rc
 }
 
 func (rc *RpcClient) debugf(format string, args ...any) {

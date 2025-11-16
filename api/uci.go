@@ -72,12 +72,12 @@ func GetUci(caller types.Transport, request types.UbusUciGetRequest) (*types.Ubu
 
 	valuesData, ok := responseMap[UciParamValues]
 	if !ok {
-		return &types.UbusUciGetResponse{Values: make(map[string]any)}, nil
+		return &ubusData, nil
 	}
 
 	valuesMap, ok := valuesData.(map[string]any)
 	if !ok {
-		return &types.UbusUciGetResponse{Values: make(map[string]any)}, nil
+		return &ubusData, nil
 	}
 
 	ubusData.Values = valuesMap
@@ -163,7 +163,7 @@ func AddToUciList(caller types.Transport, config, section, option, value string)
 			Config:  config,
 			Section: section,
 		},
-		Values: map[string]string{option: newValue},
+		Values: map[string]any{option: newValue},
 	}
 
 	return SetUci(caller, setRequest)
@@ -216,7 +216,7 @@ func DeleteFromUciList(caller types.Transport, config, section, option, value st
 			Config:  config,
 			Section: section,
 		},
-		Values: map[string]string{option: newValue},
+		Values: map[string]any{option: newValue},
 	}
 	return SetUci(caller, setRequest)
 }
@@ -376,23 +376,42 @@ func GetUciSectionsList(caller types.Transport, req types.UbusUciGetRequest) ([]
 }
 
 // ParseUciMetadata extracts metadata from UCI data.
-func ParseUciMetadata(data map[string]string) types.UciMetadata {
+func ParseUciMetadata(data map[string]any) types.UciMetadata {
 	meta := types.UciMetadata{}
 
 	if name, ok := data[UciMetaName]; ok {
-		meta.Name = name
-	}
-	if typ, ok := data[UciMetaType]; ok {
-		meta.Type = typ
-	}
-	if indexStr, ok := data[UciMetaIndex]; ok {
-		if index, err := strconv.Atoi(indexStr); err == nil {
-			meta.Index = &index
+		if str, ok := name.(string); ok {
+			meta.Name = str
 		}
 	}
-	if anonStr, ok := data[UciMetaAnonymous]; ok {
-		if anon, err := strconv.ParseBool(anonStr); err == nil {
-			meta.Anonymous = types.Bool(anon)
+	if typ, ok := data[UciMetaType]; ok {
+		if str, ok := typ.(string); ok {
+			meta.Type = str
+		}
+	}
+	if indexVal, ok := data[UciMetaIndex]; ok {
+		switch v := indexVal.(type) {
+		case string:
+			if index, err := strconv.Atoi(v); err == nil {
+				meta.Index = &index
+			}
+		case float64:
+			index := int(v)
+			meta.Index = &index
+		case json.Number:
+			if idx, err := strconv.Atoi(v.String()); err == nil {
+				meta.Index = &idx
+			}
+		}
+	}
+	if anonVal, ok := data[UciMetaAnonymous]; ok {
+		switch v := anonVal.(type) {
+		case string:
+			if anon, err := strconv.ParseBool(v); err == nil {
+				meta.Anonymous = types.Bool(anon)
+			}
+		case bool:
+			meta.Anonymous = types.Bool(v)
 		}
 	}
 

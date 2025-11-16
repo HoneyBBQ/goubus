@@ -814,7 +814,7 @@ type UbusUciRequestGeneric struct {
 // UbusUciRequest represents a UCI request with values.
 type UbusUciRequest struct {
 	UbusUciRequestGeneric
-	Values map[string]string `json:"values,omitempty"`
+	Values map[string]any `json:"values,omitempty"`
 }
 
 // UbusUciGetRequest represents a UCI get request.

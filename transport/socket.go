@@ -168,8 +168,9 @@ func previewJSON(v any, max int) string {
 }
 
 // SetDebug toggles verbose debug logging to stdout.
-func (c *SocketClient) SetDebug(debug bool) {
+func (c *SocketClient) SetDebug(debug bool) *SocketClient {
 	c.debug = debug
+	return c
 }
 
 func (c *SocketClient) debugf(format string, args ...any) {

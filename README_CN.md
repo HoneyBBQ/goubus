@@ -220,56 +220,35 @@ err = client.Network().Reload()
 
 ### **3. UCI 配置管理**
 
-使用类型安全的 Go 结构体管理 OpenWrt 配置。
+UCI 配置现在以轻量的 KV 形式呈现：
 
-#### 链式 API
-
-通过方法链访问 UCI 配置：
-
-- `client.Uci()` - 入口
-- `.Package("network")` - 选择配置文件
-- `.Section("wan")` - 选择配置节
-- `.Option("proto")` - 选择配置项
-
-#### 配置模型
-
-内置常用配置模型：`network`、`wireless`、`system`、`dhcp`、`firewall`。
-
-#### 示例：修改网络配置
+- `Section.Values` 是 `map[string][]string`，原生保留 list 语义。
+- 通过 `goubus.NewSectionValues()` 构造更新数据。
 
 ```go
-import "github.com/honeybbq/goubus/uci/config"
-
-// 1. 选择 'wan' 接口
-wanSection := client.Uci().Package("network").Section("wan")
-
-// 2. 创建一个 NetworkInterface 结构体来接收配置
-var wanConfig config.NetworkInterface
-err := wanSection.Get(&wanConfig)
+// 读取 wan 配置
+sec, err := client.Uci().Package("network").Section("wan").Get()
 if err != nil {
-    log.Fatalf("获取 WAN 配置失败: %v", err)
+    log.Fatalf("读取 WAN 配置失败: %v", err)
 }
-fmt.Printf("原始 WAN 协议: %s\n", wanConfig.Proto)
+proto, _ := sec.Values.First("proto")
+fmt.Printf("当前 WAN 协议: %s\n", proto)
 
-// 3. 修改配置
-wanConfig.Proto = "static"
-wanConfig.IPAddr = "192.168.100.2"
-wanConfig.Netmask = "255.255.255.0"
-wanConfig.Gateway = "192.168.100.1"
-wanConfig.DNS = []string{"8.8.8.8", "1.1.1.1"}
+// 构造待写入的 KV
+values := goubus.NewSectionValues()
+values.Set("proto", "static")
+values.Set("ipaddr", "192.168.100.2")
+values.Set("netmask", "255.255.255.0")
+values.Set("gateway", "192.168.100.1")
+values.Set("dns", "8.8.8.8", "1.1.1.1")
 
-// 4. 将修改后的结构体写回
-// Set 方法会自动将结构体序列化为 UCI 命令
-err = wanSection.Set(&wanConfig)
-if err != nil {
+if err := client.Uci().Package("network").Section("wan").SetValues(values); err != nil {
     log.Fatalf("设置 WAN 配置失败: %v", err)
 }
 
-// 5. 提交变更到 /etc/config/network
-err = client.Uci().Package("network").Commit()
-
-// 6. 应用变更 (通常通过重启服务)
-err = client.Network().Reload()
+// 可选：提交并重载
+_ = client.Uci().Package("network").Commit()
+_ = client.Network().Reload()
 ```
 
 ### **4. 无线网络 (IwInfo & Network.Wireless)**

@@ -222,56 +222,37 @@ err = client.Network().Reload()
 
 ### **3. UCI Configuration Management**
 
-Manage OpenWrt configuration with type-safe Go structs.
+UCI packages are now exposed as lightweight key/value structures:
 
-#### Chained API
-
-Access UCI configuration through method chaining:
-
-- `client.Uci()` - Entry point
-- `.Package("network")` - Select config file
-- `.Section("wan")` - Select section
-- `.Option("proto")` - Select option
-
-#### Configuration Models
-
-Built-in models for common configurations: `network`, `wireless`, `system`, `dhcp`, `firewall`.
-
-#### Example: Modifying Network Configuration
+- `client.Uci().Package("network").Section("lan").Get()` returns a `*goubus.Section`.
+- `Section.Values` stores `map[string][]string`, keeping list semantics intact.
+- Use `goubus.SectionValues` helpers to stage updates.
 
 ```go
-import "github.com/honeybbq/goubus/uci/config"
-
-// 1. Select the 'wan' interface
-wanSection := client.Uci().Package("network").Section("wan")
-
-// 2. Create a NetworkInterface struct to hold the configuration
-var wanConfig config.NetworkInterface
-err := wanSection.Get(&wanConfig)
+// Inspect a section
+sec, err := client.Uci().Package("network").Section("wan").Get()
 if err != nil {
-    log.Fatalf("Failed to get WAN config: %v", err)
+    log.Fatalf("Failed to read WAN section: %v", err)
 }
-fmt.Printf("Original WAN protocol: %s\n", wanConfig.Proto)
+proto, _ := sec.Values.First("proto")
+fmt.Printf("Original WAN protocol: %s\n", proto)
 
-// 3. Modify the configuration
-wanConfig.Proto = "static"
-wanConfig.IPAddr = "192.168.100.2"
-wanConfig.Netmask = "255.255.255.0"
-wanConfig.Gateway = "192.168.100.1"
-wanConfig.DNS = []string{"8.8.8.8", "1.1.1.1"}
+// Stage a change
+values := goubus.NewSectionValues()
+values.Set("proto", "static")
+values.Set("ipaddr", "192.168.100.2")
+values.Set("netmask", "255.255.255.0")
+values.Set("gateway", "192.168.100.1")
+values.Set("dns", "8.8.8.8", "1.1.1.1")
 
-// 4. Write the modified struct back.
-// The Set method automatically serializes the struct into UCI commands.
-err = wanSection.Set(&wanConfig)
+err = client.Uci().Package("network").Section("wan").SetValues(values)
 if err != nil {
-    log.Fatalf("Failed to set WAN config: %v", err)
+    log.Fatalf("Failed to stage WAN config: %v", err)
 }
 
-// 5. Commit the changes to /etc/config/network
-err = client.Uci().Package("network").Commit()
-
-// 6. Apply the changes (usually by reloading the service)
-err = client.Network().Reload()
+// Commit and reload if desired
+_ = client.Uci().Package("network").Commit()
+_ = client.Network().Reload()
 ```
 
 ### **4. Wireless (IwInfo & Network.Wireless)**

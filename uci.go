@@ -8,8 +8,199 @@ import (
 	"github.com/honeybbq/goubus/api"
 	"github.com/honeybbq/goubus/errdefs"
 	"github.com/honeybbq/goubus/types"
-	"github.com/honeybbq/goubus/uci"
 )
+
+// SectionValues represents raw UCI option data. Each key maps to one or more string values.
+type SectionValues map[string][]string
+
+// NewSectionValues creates an initialized SectionValues map.
+func NewSectionValues() SectionValues {
+	return make(SectionValues)
+}
+
+func (sv *SectionValues) ensure() {
+	if sv == nil {
+		return
+	}
+	if *sv == nil {
+		*sv = make(SectionValues)
+	}
+}
+
+// Set replaces the values associated with an option.
+func (sv *SectionValues) Set(option string, values ...string) {
+	if sv == nil {
+		return
+	}
+	sv.ensure()
+	copied := append([]string(nil), values...)
+	(*sv)[option] = copied
+}
+
+// SetScalar is a convenience for setting a single value.
+func (sv *SectionValues) SetScalar(option, value string) {
+	if value == "" {
+		sv.Set(option)
+		return
+	}
+	sv.Set(option, value)
+}
+
+// Append adds values to an option without overwriting existing ones.
+func (sv *SectionValues) Append(option string, values ...string) {
+	if sv == nil {
+		return
+	}
+	sv.ensure()
+	current := append([]string(nil), (*sv)[option]...)
+	current = append(current, values...)
+	(*sv)[option] = current
+}
+
+// Delete removes an option from the set.
+func (sv *SectionValues) Delete(option string) {
+	if sv == nil || *sv == nil {
+		return
+	}
+	delete(*sv, option)
+}
+
+// First returns the first value of an option.
+func (sv SectionValues) First(option string) (string, bool) {
+	values, ok := sv[option]
+	if !ok || len(values) == 0 {
+		return "", false
+	}
+	return values[0], true
+}
+
+// Clone returns a deep copy of the values.
+func (sv SectionValues) Clone() SectionValues {
+	if sv == nil {
+		return nil
+	}
+	cloned := make(SectionValues, len(sv))
+	for key, values := range sv {
+		cloned[key] = append([]string(nil), values...)
+	}
+	return cloned
+}
+
+// SectionValuesFromStrings converts string values into SectionValues.
+func SectionValuesFromStrings(values map[string]string) SectionValues {
+	if len(values) == 0 {
+		return nil
+	}
+	result := NewSectionValues()
+	for key, value := range values {
+		if value == "" {
+			result.Set(key)
+			continue
+		}
+		result.Set(key, value)
+	}
+	return result
+}
+
+// SectionValuesFromAny converts a map containing strings or slices into SectionValues.
+func SectionValuesFromAny(values map[string]any) SectionValues {
+	if len(values) == 0 {
+		return nil
+	}
+	result := NewSectionValues()
+	for key, raw := range values {
+		setSectionValueFromAny(&result, key, raw)
+	}
+	return result
+}
+
+func (sv SectionValues) toUbusValues() map[string]any {
+	if len(sv) == 0 {
+		return map[string]any{}
+	}
+	serialized := make(map[string]any, len(sv))
+	for key, values := range sv {
+		switch len(values) {
+		case 0:
+			serialized[key] = ""
+		case 1:
+			serialized[key] = values[0]
+		default:
+			list := append([]string(nil), values...)
+			serialized[key] = list
+		}
+	}
+	return serialized
+}
+
+// Section represents a parsed UCI section along with its metadata.
+type Section struct {
+	Name     string            `json:"name"`
+	Type     string            `json:"type"`
+	Values   SectionValues     `json:"values"`
+	Metadata types.UciMetadata `json:"metadata"`
+}
+
+// Get returns the values for a given option.
+func (s *Section) Get(option string) []string {
+	if s == nil || s.Values == nil {
+		return nil
+	}
+	values := s.Values[option]
+	return append([]string(nil), values...)
+}
+
+// GetFirst returns the first value for a given option.
+func (s *Section) GetFirst(option string) (string, bool) {
+	if s == nil {
+		return "", false
+	}
+	return s.Values.First(option)
+}
+
+func newSectionFromRaw(name string, raw map[string]any) *Section {
+	values := NewSectionValues()
+	for key, rawValue := range raw {
+		setSectionValueFromAny(&values, key, rawValue)
+	}
+
+	meta := api.ParseUciMetadata(raw)
+	if meta.Name == "" {
+		meta.Name = name
+	}
+
+	sectionType := meta.Type
+
+	return &Section{
+		Name:     name,
+		Type:     sectionType,
+		Values:   values,
+		Metadata: meta,
+	}
+}
+
+func setSectionValueFromAny(dst *SectionValues, key string, raw any) {
+	if dst == nil || strings.HasPrefix(key, ".") {
+		return
+	}
+
+	switch v := raw.(type) {
+	case nil:
+		dst.Delete(key)
+	case string:
+		dst.Set(key, v)
+	case []string:
+		dst.Set(key, v...)
+	case []any:
+		var entries []string
+		for _, item := range v {
+			entries = append(entries, fmt.Sprint(item))
+		}
+		dst.Set(key, entries...)
+	default:
+		dst.Set(key, fmt.Sprint(raw))
+	}
+}
 
 // UciManager is the entry point for all UCI-related operations.
 // It corresponds to the 'uci' ubus service.
@@ -84,27 +275,24 @@ func (pc *UciPackageContext) Section(name string) *UciSectionContext {
 }
 
 // GetAll retrieves all sections from a UCI package.
-// Returns a map where keys are section names and values contain section data.
-//
-// Note: Unlike individual section queries (Get method), this method returns
-// complete section information including the .index field in metadata.
-// If you need section index information, use this method instead of Get.
-//
-// Example:
-//
-//	sections, err := client.Uci().Package("network").GetAll()
-//	for sectionName, sectionData := range sections {
-//	    // sectionData will include .index field when parsed with config models
-//	}
 //
 // Corresponds to `ubus call uci get '{"config":"<package_name>"}'`.
-func (pc *UciPackageContext) GetAll() (map[string]map[string]any, error) {
+func (pc *UciPackageContext) GetAll() (map[string]*Section, error) {
 	req := types.UbusUciGetRequest{
 		UbusUciRequestGeneric: types.UbusUciRequestGeneric{
 			Config: pc.name,
 		},
 	}
-	return api.GetAllUci(pc.client.caller, req)
+	raw, err := api.GetAllUci(pc.client.caller, req)
+	if err != nil {
+		return nil, err
+	}
+
+	sections := make(map[string]*Section, len(raw))
+	for name, data := range raw {
+		sections[name] = newSectionFromRaw(name, data)
+	}
+	return sections, nil
 }
 
 // SectionsOfType returns the names of all sections of a given type.
@@ -114,29 +302,18 @@ func (pc *UciPackageContext) SectionsOfType(sectionType string) ([]string, error
 
 // Add creates a new section within the configuration file.
 // The `sectionType` parameter determines the type of section.
-// For example, "interface" for network interfaces, "device" for network devices.
-//
-// Returns the auto-generated name if the section is anonymous.
 //
 // Corresponds to `ubus call uci add '{"config":"<package_name>", "type":"<section_type>"}'`.
-func (pc *UciPackageContext) Add(sectionType, name string, config ConfigModel) error {
-	values, err := config.ToUCI()
-	if err != nil {
-		return err
-	}
-
-	// If model is empty (all zero values), start with an empty values map
-	if len(values) == 0 {
-		values = make(map[string]string)
-	}
-
+func (pc *UciPackageContext) Add(sectionType, name string, values SectionValues) error {
 	req := types.UbusUciRequest{
 		UbusUciRequestGeneric: types.UbusUciRequestGeneric{
 			Config: pc.name,
 			Name:   name,
 			Type:   sectionType,
 		},
-		Values: values,
+	}
+	if len(values) > 0 {
+		req.Values = values.toUbusValues()
 	}
 	return api.AddUci(pc.client.caller, req)
 }
@@ -163,7 +340,7 @@ func (pc *UciPackageContext) Changes() (*types.UbusUciChangesResponse, error) {
 }
 
 // Order sets the order of sections within the configuration file.
-// Corresponds to `ubus call uci order '{"config":"<package_name>", "sections":[...]}"`.
+// Corresponds to `ubus call uci order '{"config":"<package_name>", "sections":[...]}'.
 func (pc *UciPackageContext) Order(sections []string) error {
 	req := types.UbusUciOrderRequest{
 		Config:   pc.name,
@@ -199,11 +376,10 @@ func (sc *UciSectionContext) Option(name string) *UciOptionContext {
 	}
 }
 
-// Get retrieves all option values from the section and populates the provided model.
-// The model must implement the ConfigModel interface.
+// Get retrieves all option values from the section.
 //
 // Corresponds to `ubus call uci get '{"config":"<pkg>", "section":"<sec>"}'`.
-func (sc *UciSectionContext) Get(model ConfigModel) error {
+func (sc *UciSectionContext) Get() (*Section, error) {
 	req := types.UbusUciGetRequest{
 		UbusUciRequestGeneric: types.UbusUciRequestGeneric{
 			Config:  sc.packageName,
@@ -212,58 +388,29 @@ func (sc *UciSectionContext) Get(model ConfigModel) error {
 	}
 	resp, err := api.GetUci(sc.client.caller, req)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	// Convert response values to map[string]string
-	uciData := make(map[string]string)
-	for key, value := range resp.Values {
-		// Handle different types from JSON response
-		switch v := value.(type) {
-		case string:
-			uciData[key] = v
-		case []interface{}:
-			// Convert slice to space-separated string
-			var parts []string
-			for _, item := range v {
-				if str, ok := item.(string); ok {
-					parts = append(parts, str)
-				}
-			}
-			uciData[key] = strings.Join(parts, " ")
-		default:
-			// Convert other types to string
-			uciData[key] = fmt.Sprintf("%v", v)
-		}
-	}
-
-	// Use the model's FromUCI method to populate data and metadata
-	return model.FromUCI(uciData)
+	return newSectionFromRaw(sc.sectionName, resp.Values), nil
 }
 
-// Set updates multiple option values in the section from the provided model.
+// SetValues updates multiple option values in the section.
 // Corresponds to `ubus call uci set '{"config":"<pkg>", "section":"<sec>", "values":{...}}'`.
-func (sc *UciSectionContext) Set(model ConfigModel) error {
-	// Use UCI serialization to get values
-	values, err := model.ToUCI()
-	if err != nil {
-		return err
-	}
-
-	return sc.SetValues(values)
-}
-
-// SetValues updates multiple option values in the section from a map.
-// Corresponds to `ubus call uci set '{"config":"<pkg>", "section":"<sec>", "values":{...}}'`.
-func (sc *UciSectionContext) SetValues(values map[string]string) error {
+func (sc *UciSectionContext) SetValues(values SectionValues) error {
 	req := types.UbusUciRequest{
 		UbusUciRequestGeneric: types.UbusUciRequestGeneric{
 			Config:  sc.packageName,
 			Section: sc.sectionName,
 		},
-		Values: values,
+	}
+	if len(values) > 0 {
+		req.Values = values.toUbusValues()
 	}
 	return api.SetUci(sc.client.caller, req)
+}
+
+// SetStrings is a helper that accepts simple string values.
+func (sc *UciSectionContext) SetStrings(values map[string]string) error {
+	return sc.SetValues(SectionValuesFromStrings(values))
 }
 
 // Delete removes the entire section.
@@ -307,8 +454,6 @@ func (oc *UciOptionContext) Get() (string, error) {
 	}
 	resp, err := api.GetUci(oc.client.caller, req)
 	if err != nil {
-		// Since ubus returns 'not found' for non-existent options,
-		// we check for this specific error.
 		if errdefs.IsNotFound(err) {
 			return "", errdefs.Wrapf(err, "option '%s' not found in section '%s'", oc.optionName, oc.sectionName)
 		}
@@ -318,12 +463,13 @@ func (oc *UciOptionContext) Get() (string, error) {
 }
 
 // Set updates the value of the specific option.
-// This is a convenience for setting a single value.
 func (oc *UciOptionContext) Set(value string) error {
+	values := NewSectionValues()
+	values.Set(oc.optionName, value)
 	return oc.client.Uci().
 		Package(oc.packageName).
 		Section(oc.sectionName).
-		SetValues(map[string]string{oc.optionName: value})
+		SetValues(values)
 }
 
 // Delete removes the option from the section.
@@ -338,12 +484,7 @@ func (oc *UciOptionContext) Delete() error {
 }
 
 // AddToList adds a value to a list option.
-// This is a convenience method that simplifies adding to a list.
 func (oc *UciOptionContext) AddToList(value string) error {
-	// ubus uci add_list '{"config":"<pkg>", "section":"<sec>", "option":"<opt>", "value":"<val>"}'
-	// This is not a standard ubus method. `add_list` is often implemented in higher-level libraries.
-	// The standard way is to set the option with the new full list string.
-	// Let's implement this as a helper.
 	return api.AddToUciList(oc.client.caller, oc.packageName, oc.sectionName, oc.optionName, value)
 }
 
@@ -362,54 +503,4 @@ func (oc *UciOptionContext) Rename(newName string) error {
 		Name:    newName,
 	}
 	return api.RenameUci(oc.client.caller, req)
-}
-
-// ConfigModel defines the public interface that all UCI configuration
-// structures must implement to be managed by the UciManager.
-type ConfigModel interface {
-	// UCI serialization interfaces
-	uci.Serializable
-
-	// Metadata returns the read-only metadata associated with the UCI section.
-	Metadata() types.UciMetadata
-}
-
-// BaseConfig can be embedded in UCI configuration models to automatically
-// handle metadata and satisfy the ConfigModel interface's metadata methods.
-type BaseConfig struct {
-	metadata types.UciMetadata `uci:"-"` // Excluded from UCI serialization
-}
-
-// Metadata implements the public ConfigModel interface.
-func (b *BaseConfig) Metadata() types.UciMetadata {
-	return b.metadata
-}
-
-// ToUCI implements the UCISerializable interface.
-// This method should be overridden by embedding structs for custom serialization.
-func (b *BaseConfig) ToUCI() (map[string]string, error) {
-	return uci.Marshal(b)
-}
-
-// FromUCI implements the UCISerializable interface.
-// This method handles metadata extraction and delegates to UCI unmarshaling.
-func (b *BaseConfig) FromUCI(data map[string]string) error {
-	// Extract and set metadata
-	b.parseAndSetMetadata(data)
-
-	// Remove metadata from data for unmarshaling
-	cleanData := make(map[string]string)
-	for k, v := range data {
-		if !strings.HasPrefix(k, ".") {
-			cleanData[k] = v
-		}
-	}
-
-	// Unmarshal clean data
-	return uci.Unmarshal(cleanData, b)
-}
-
-// parseAndSetMetadata extracts metadata from UCI data and sets it on the BaseConfig
-func (b *BaseConfig) parseAndSetMetadata(data map[string]string) {
-	b.metadata = api.ParseUciMetadata(data)
 }

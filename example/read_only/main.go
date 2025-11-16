@@ -11,7 +11,6 @@ import (
 	"github.com/honeybbq/goubus/errdefs"
 	"github.com/honeybbq/goubus/transport"
 	"github.com/honeybbq/goubus/types"
-	"github.com/honeybbq/goubus/uci/config"
 )
 
 // min returns the smaller of two integers
@@ -82,8 +81,7 @@ func main() {
 		if rpcErr != nil {
 			log.Fatalf("Unable to connect via JSON-RPC: %v", rpcErr)
 		}
-		rpcClient.SetDebug(*verbose)
-		caller = rpcClient
+		caller = rpcClient.SetDebug(*verbose)
 		transportLabel = fmt.Sprintf("JSON-RPC http://%s", testCfg.Host)
 	} else {
 		socketPath := os.Getenv("UBUS_SOCKET_PATH")
@@ -92,8 +90,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("Unable to connect via ubus socket /tmp/run/ubus/ubus.sock: %v", err)
 		}
-		socketClient.SetDebug(*verbose)
-		caller = socketClient
+		caller = socketClient.SetDebug(*verbose)
 		transportLabel = "unix socket"
 	}
 
@@ -116,12 +113,11 @@ func main() {
 	fmt.Printf("Showing difference between single section query vs. full config query:\n\n")
 
 	// Single section query (no index)
-	var singleConfig config.NetworkInterfaceConfig
-	err = client.Uci().Package("network").Section("lan").Get(&singleConfig)
-	if err == nil {
+	lanSection, err := client.Uci().Package("network").Section("lan").Get()
+	if err == nil && lanSection != nil {
 		indexStr := "nil (single section query)"
-		if singleConfig.Metadata().Index != nil {
-			indexStr = fmt.Sprintf("%d", *singleConfig.Metadata().Index)
+		if lanSection.Metadata.Index != nil {
+			indexStr = fmt.Sprintf("%d", *lanSection.Metadata.Index)
 		}
 		fmt.Printf("Single section query - lan interface:\n")
 		fmt.Printf("  .index = %s\n", indexStr)
@@ -136,8 +132,8 @@ func main() {
 			if count >= 3 {
 				break
 			}
-			if indexVal, ok := sectionData[".index"]; ok {
-				fmt.Printf("  Section '%s': .index = %v\n", sectionName, indexVal)
+			if sectionData.Metadata.Index != nil {
+				fmt.Printf("  Section '%s': .index = %d\n", sectionName, *sectionData.Metadata.Index)
 			}
 			count++
 		}
@@ -392,300 +388,41 @@ func testNetworkInfo(client *goubus.Client) []TestResult {
 			fmt.Printf("✗ Interface %s status retrieval failed: %v\n", ifaceName, err)
 		}
 
-		// Test interface configuration
-		var configModel config.NetworkInterfaceConfig
-		err = client.Uci().Package("network").Section(ifaceName).Get(&configModel)
+		// Test interface configuration via raw section values
+		section, sectionErr := client.Uci().Package("network").Section(ifaceName).Get()
 		results = append(results, TestResult{
 			TestName: fmt.Sprintf("Interface %s Configuration", ifaceName),
-			Success:  err == nil,
-			Error:    err,
-			Data:     configModel,
+			Success:  sectionErr == nil,
+			Error:    sectionErr,
+			Data:     section,
 		})
-		if err == nil {
+		if sectionErr == nil && section != nil {
 			fmt.Printf("✓ Interface %s configuration retrieval successful\n", ifaceName)
+			meta := section.Metadata
 			indexStr := "nil (single section query)"
-			if configModel.Metadata().Index != nil {
-				indexStr = fmt.Sprintf("%d", *configModel.Metadata().Index)
+			if meta.Index != nil {
+				indexStr = fmt.Sprintf("%d", *meta.Index)
 			}
 			fmt.Printf("  Metadata: .anonymous=%t, .type=%s, .name=%s, .index=%s\n",
-				configModel.Metadata().Anonymous, configModel.Metadata().Type, configModel.Metadata().Name, indexStr)
-			fmt.Printf("  Configuration details:\n")
-			hasConfig := false
-			if configModel.Proto != "" {
-				fmt.Printf("    Protocol: %s\n", configModel.Proto)
-				hasConfig = true
-			}
-			if configModel.Device != "" {
-				fmt.Printf("    Device: %s\n", configModel.Device)
-				hasConfig = true
-			}
-			if configModel.Type != "" {
-				fmt.Printf("    Type: %s\n", configModel.Type)
-				hasConfig = true
-			}
-			// Static IP configuration
-			if configModel.StaticConfig != nil {
-				fmt.Printf("    Static configuration:\n")
-				fmt.Printf("      IP addresses: %v\n", configModel.StaticConfig.IPAddr)
-				if configModel.StaticConfig.Gateway != nil {
-					fmt.Printf("      Gateway: %s\n", *configModel.StaticConfig.Gateway)
-				}
-				if len(configModel.StaticConfig.DNS) > 0 {
-					fmt.Printf("      DNS: %v\n", configModel.StaticConfig.DNS)
-				}
-				if configModel.StaticConfig.Netmask != nil {
-					fmt.Printf("      Netmask: %s\n", *configModel.StaticConfig.Netmask)
-				}
-				if configModel.StaticConfig.Broadcast != nil {
-					fmt.Printf("      Broadcast: %s\n", *configModel.StaticConfig.Broadcast)
-				}
-				hasConfig = true
-			}
+				meta.Anonymous, meta.Type, meta.Name, indexStr)
 
-			// IPv6 configuration
-			if (configModel.IP6Assign != nil && *configModel.IP6Assign != 0) || len(configModel.IP6Addr) > 0 || len(configModel.IP6Prefix) > 0 {
-				fmt.Printf("    IPv6 configuration:\n")
-				if configModel.IP6Assign != nil && *configModel.IP6Assign != 0 {
-					fmt.Printf("      IP6Assign: %d\n", *configModel.IP6Assign)
+			printOption := func(key string) {
+				if val, ok := section.Values.First(key); ok {
+					fmt.Printf("    %s: %s\n", key, val)
 				}
-				if len(configModel.IP6Addr) > 0 {
-					fmt.Printf("      IP6Addr: %v\n", configModel.IP6Addr)
-				}
-				if configModel.IP6GW != nil && *configModel.IP6GW != "" {
-					fmt.Printf("      IP6Gateway: %s\n", *configModel.IP6GW)
-				}
-				if len(configModel.IP6Prefix) > 0 {
-					fmt.Printf("      IP6Prefix: %v\n", configModel.IP6Prefix)
-				}
-				if len(configModel.IP6Class) > 0 {
-					fmt.Printf("      IP6Class: %v\n", configModel.IP6Class)
-				}
-				if configModel.IP6Hint != nil && *configModel.IP6Hint != "" {
-					fmt.Printf("      IP6Hint: %s\n", *configModel.IP6Hint)
-				}
-				if configModel.SourceFilter != nil {
-					fmt.Printf("      SourceFilter: %t\n", *configModel.SourceFilter)
-				}
-				hasConfig = true
 			}
-
-			// DHCP configuration
-			if configModel.DHCPConfig != nil {
-				fmt.Printf("    DHCP configuration:\n")
-				if configModel.DHCPConfig.Hostname != nil && *configModel.DHCPConfig.Hostname != "" {
-					fmt.Printf("      Hostname: %s\n", *configModel.DHCPConfig.Hostname)
-				}
-				if configModel.DHCPConfig.ClientID != nil && *configModel.DHCPConfig.ClientID != "" {
-					fmt.Printf("      ClientID: %s\n", *configModel.DHCPConfig.ClientID)
-				}
-				if configModel.DHCPConfig.VendorClass != nil && *configModel.DHCPConfig.VendorClass != "" {
-					fmt.Printf("      VendorClass: %s\n", *configModel.DHCPConfig.VendorClass)
-				}
-				if configModel.DHCPConfig.DefaultRoute != nil {
-					fmt.Printf("      DefaultRoute: %t\n", *configModel.DHCPConfig.DefaultRoute)
-				}
-				hasConfig = true
+			fmt.Println("  Configuration details:")
+			printOption("proto")
+			printOption("device")
+			printOption("type")
+			if names := section.Values["ifname"]; len(names) > 0 {
+				fmt.Printf("    ifname: %v\n", names)
 			}
-
-			// PPP/PPPoE configuration
-			if configModel.PPPConfig != nil {
-				fmt.Printf("    PPPoE configuration:\n")
-				if configModel.PPPConfig.Username != nil {
-					fmt.Printf("      Username: %s\n", *configModel.PPPConfig.Username)
-				}
-				if configModel.PPPConfig.Password != nil {
-					fmt.Printf("      Password: %s\n", *configModel.PPPConfig.Password)
-				}
-				if configModel.PPPConfig.Service != nil {
-					fmt.Printf("      Service: %s\n", *configModel.PPPConfig.Service)
-				}
-				if configModel.PPPConfig.Server != nil && *configModel.PPPConfig.Server != "" {
-					fmt.Printf("      Server: %s\n", *configModel.PPPConfig.Server)
-				}
-				if configModel.PPPConfig.Keepalive != nil && *configModel.PPPConfig.Keepalive != 0 {
-					fmt.Printf("      Keepalive: %d seconds\n", *configModel.PPPConfig.Keepalive)
-				}
-				hasConfig = true
-			}
-
-			// Tunnel protocols (6in4, 6rd, 6to4, dslite, l2tp)
-			if configModel.TunnelConfig != nil && ((configModel.TunnelConfig.PeerAddr != nil && *configModel.TunnelConfig.PeerAddr != "") ||
-				(configModel.TunnelConfig.IP6Addr != nil && *configModel.TunnelConfig.IP6Addr != "") ||
-				(configModel.TunnelConfig.TunnelID != nil && *configModel.TunnelConfig.TunnelID != "")) {
-				fmt.Printf("    Tunnel configuration:\n")
-				if configModel.TunnelConfig.PeerAddr != nil && *configModel.TunnelConfig.PeerAddr != "" {
-					fmt.Printf("      PeerAddr: %s\n", *configModel.TunnelConfig.PeerAddr)
-				}
-				if configModel.TunnelConfig.IP6Addr != nil && *configModel.TunnelConfig.IP6Addr != "" {
-					fmt.Printf("      IP6Addr: %s\n", *configModel.TunnelConfig.IP6Addr)
-				}
-				if configModel.TunnelConfig.IP6Prefix != nil && *configModel.TunnelConfig.IP6Prefix != "" {
-					fmt.Printf("      IP6Prefix: %s\n", *configModel.TunnelConfig.IP6Prefix)
-				}
-				if configModel.TunnelConfig.TunnelID != nil && *configModel.TunnelConfig.TunnelID != "" {
-					fmt.Printf("      TunnelID (HE.net): %s\n", *configModel.TunnelConfig.TunnelID)
-				}
-				if configModel.TunnelConfig.Username != nil && *configModel.TunnelConfig.Username != "" {
-					fmt.Printf("      Username (HE.net): %s\n", *configModel.TunnelConfig.Username)
-				}
-				if configModel.TunnelConfig.Server != nil && *configModel.TunnelConfig.Server != "" {
-					fmt.Printf("      Server (L2TP): %s\n", *configModel.TunnelConfig.Server)
-				}
-				if configModel.TunnelConfig.IP6PrefixLen != nil && *configModel.TunnelConfig.IP6PrefixLen != 0 {
-					fmt.Printf("      IP6PrefixLen (6rd): %d\n", *configModel.TunnelConfig.IP6PrefixLen)
-				}
-				if configModel.TunnelConfig.TTL != nil && *configModel.TunnelConfig.TTL != 0 {
-					fmt.Printf("      TTL: %d\n", *configModel.TunnelConfig.TTL)
-				}
-				hasConfig = true
-			}
-
-			// WireGuard configuration
-			if configModel.WireGuardConfig != nil && ((configModel.WireGuardConfig.PrivateKey != nil && *configModel.WireGuardConfig.PrivateKey != "") ||
-				(configModel.WireGuardConfig.PublicKey != nil && *configModel.WireGuardConfig.PublicKey != "") ||
-				(configModel.WireGuardConfig.Endpoint != nil && *configModel.WireGuardConfig.Endpoint != "")) {
-				fmt.Printf("    WireGuard configuration:\n")
-				if configModel.WireGuardConfig.PrivateKey != nil && *configModel.WireGuardConfig.PrivateKey != "" {
-					key := *configModel.WireGuardConfig.PrivateKey
-					fmt.Printf("      PrivateKey: %s...\n", key[:min(16, len(key))])
-				}
-				if configModel.WireGuardConfig.PublicKey != nil && *configModel.WireGuardConfig.PublicKey != "" {
-					key := *configModel.WireGuardConfig.PublicKey
-					fmt.Printf("      PublicKey: %s...\n", key[:min(16, len(key))])
-				}
-				if configModel.WireGuardConfig.ListenPort != nil && *configModel.WireGuardConfig.ListenPort != 0 {
-					fmt.Printf("      ListenPort: %d\n", *configModel.WireGuardConfig.ListenPort)
-				}
-				if len(configModel.WireGuardConfig.Addresses) > 0 {
-					fmt.Printf("      Addresses: %v\n", configModel.WireGuardConfig.Addresses)
-				}
-				if configModel.WireGuardConfig.Endpoint != nil && *configModel.WireGuardConfig.Endpoint != "" {
-					fmt.Printf("      Endpoint: %s\n", *configModel.WireGuardConfig.Endpoint)
-				}
-				if len(configModel.WireGuardConfig.AllowedIPs) > 0 {
-					fmt.Printf("      AllowedIPs: %v\n", configModel.WireGuardConfig.AllowedIPs)
-				}
-				hasConfig = true
-			}
-
-			// Mobile network configuration (3G, QMI, NCM, WWAN)
-			if configModel.MobileConfig != nil {
-				fmt.Printf("    Mobile network configuration:\n")
-				if configModel.MobileConfig.Device != nil && *configModel.MobileConfig.Device != "" {
-					fmt.Printf("      Device: %s\n", *configModel.MobileConfig.Device)
-				}
-				if configModel.MobileConfig.APN != nil {
-					fmt.Printf("      APN: %s\n", *configModel.MobileConfig.APN)
-				}
-				if configModel.MobileConfig.PINCode != nil {
-					fmt.Printf("      PINCode: ****\n") // 隐藏PIN码
-				}
-				if configModel.MobileConfig.Username != nil {
-					fmt.Printf("      Username: %s\n", *configModel.MobileConfig.Username)
-				}
-				if configModel.MobileConfig.Auth != nil {
-					fmt.Printf("      Auth: %s\n", *configModel.MobileConfig.Auth)
-				}
-				if configModel.MobileConfig.Mode != nil {
-					fmt.Printf("      Mode: %s\n", *configModel.MobileConfig.Mode)
-				}
-				if configModel.MobileConfig.Profile != nil {
-					fmt.Printf("      Profile (QMI): %d\n", *configModel.MobileConfig.Profile)
-				}
-				hasConfig = true
-			}
-
-			// Virtual/Advanced protocols (GRE, VTI, VXLAN)
-			if configModel.VirtualConfig != nil {
-				fmt.Printf("    Virtual/Advanced configuration:\n")
-				if configModel.VirtualConfig.RemoteIP != nil {
-					fmt.Printf("      RemoteIP (GRE): %s\n", *configModel.VirtualConfig.RemoteIP)
-				}
-				if configModel.VirtualConfig.LocalIP != nil {
-					fmt.Printf("      LocalIP (GRE): %s\n", *configModel.VirtualConfig.LocalIP)
-				}
-				if configModel.VirtualConfig.Key != nil {
-					fmt.Printf("      Key (GRE): %d\n", *configModel.VirtualConfig.Key)
-				}
-				if configModel.VirtualConfig.VNI != nil {
-					fmt.Printf("      VNI (VXLAN): %d\n", *configModel.VirtualConfig.VNI)
-				}
-				if configModel.VirtualConfig.Port != nil {
-					fmt.Printf("      Port (VXLAN): %d\n", *configModel.VirtualConfig.Port)
-				}
-				if configModel.VirtualConfig.Group != nil {
-					fmt.Printf("      Group (VXLAN): %s\n", *configModel.VirtualConfig.Group)
-				}
-				if configModel.VirtualConfig.TunSrc != nil {
-					fmt.Printf("      TunSrc (VTI): %s\n", *configModel.VirtualConfig.TunSrc)
-				}
-				if configModel.VirtualConfig.TunDst != nil {
-					fmt.Printf("      TunDst (VTI): %s\n", *configModel.VirtualConfig.TunDst)
-				}
-				hasConfig = true
-			}
-
-			// Bridge configuration
-			if configModel.BridgeConfig != nil {
-				fmt.Printf("    Bridge configuration:\n")
-				if configModel.BridgeConfig.STP != nil {
-					fmt.Printf("      STP: %v\n", *configModel.BridgeConfig.STP)
-				}
-				if configModel.BridgeConfig.ForwardDelay != nil {
-					fmt.Printf("      ForwardDelay: %d\n", *configModel.BridgeConfig.ForwardDelay)
-				}
-				if configModel.BridgeConfig.IGMPSnooping != nil {
-					fmt.Printf("      IGMPSnooping: %v\n", *configModel.BridgeConfig.IGMPSnooping)
-				}
-				if configModel.BridgeConfig.Priority != nil {
-					fmt.Printf("      Priority: %d\n", *configModel.BridgeConfig.Priority)
-				}
-				hasConfig = true
-			}
-
-			// Advanced network options
-			if configModel.Zone != nil || len(configModel.ReqOpts) > 0 || len(configModel.SendOpts) > 0 {
-				fmt.Printf("    Advanced options:\n")
-				if configModel.Zone != nil {
-					fmt.Printf("      Firewall Zone: %v\n", *configModel.Zone)
-				}
-				if len(configModel.ReqOpts) > 0 {
-					fmt.Printf("      ReqOpts: %v\n", configModel.ReqOpts)
-				}
-				if len(configModel.SendOpts) > 0 {
-					fmt.Printf("      SendOpts: %v\n", configModel.SendOpts)
-				}
-				if configModel.DNSMetric != nil {
-					fmt.Printf("      DNSMetric: %d\n", *configModel.DNSMetric)
-				}
-				hasConfig = true
-			}
-
-			if len(configModel.IfName) > 0 {
-				fmt.Printf("    Interface names: %v\n", configModel.IfName)
-				hasConfig = true
-			}
-			if configModel.Disabled != nil {
-				fmt.Printf("    Disabled status: %v\n", *configModel.Disabled)
-				hasConfig = true
-			}
-			if configModel.Auto != nil {
-				fmt.Printf("    Auto start: %v\n", *configModel.Auto)
-				hasConfig = true
-			}
-			if configModel.Metric != nil {
-				fmt.Printf("    Metric: %d\n", *configModel.Metric)
-				hasConfig = true
-			}
-			if configModel.MTU != nil {
-				fmt.Printf("    MTU: %d\n", *configModel.MTU)
-				hasConfig = true
-			}
-			if !hasConfig {
-				fmt.Printf("    (No configuration information or empty configuration)\n")
+			if len(section.Values) == 0 {
+				fmt.Printf("    (empty configuration)\n")
 			}
 		} else {
-			fmt.Printf("✗ Interface %s configuration retrieval failed: %v\n", ifaceName, err)
+			fmt.Printf("✗ Interface %s configuration retrieval failed: %v\n", ifaceName, sectionErr)
 		}
 	}
 
@@ -757,22 +494,18 @@ func testWirelessInfo(client *goubus.Client) []TestResult {
 		fmt.Printf("\n--- Testing wireless device: %s ---\n", radioName)
 
 		// Test device configuration (UCI)
-		var configModel config.WifiDeviceConfig
-		err := client.Uci().Package("wireless").Section(radioName).Get(&configModel)
+		deviceSection, devErr := client.Uci().Package("wireless").Section(radioName).Get()
 		results = append(results, TestResult{
 			TestName: fmt.Sprintf("Wireless Device %s Configuration", radioName),
-			Success:  err == nil,
-			Error:    err,
-			Data:     configModel,
+			Success:  devErr == nil,
+			Error:    devErr,
+			Data:     deviceSection,
 		})
-		if err == nil {
+		if devErr == nil && deviceSection != nil {
 			fmt.Printf("✓ Wireless device %s configuration retrieval successful\n", radioName)
-			// Print some config details
-			if configModel.Type != "" && configModel.Channel != nil && configModel.Country != nil && configModel.HTMode != nil {
-				fmt.Printf("  Type: %s, Channel: %d, Country: %s, HTMode: %s\n", configModel.Type, *configModel.Channel, *configModel.Country, *configModel.HTMode)
-			}
-		} else {
-			fmt.Printf("✗ Wireless device %s configuration retrieval failed: %v\n", radioName, err)
+			printWirelessValues(deviceSection, "type", "channel", "country", "htmode")
+		} else if devErr != nil {
+			fmt.Printf("✗ Wireless device %s configuration retrieval failed: %v\n", radioName, devErr)
 		}
 
 		// Test device-specific iwinfo calls
@@ -835,16 +568,17 @@ func testWirelessInfo(client *goubus.Client) []TestResult {
 			fmt.Printf("\n--- Testing wireless interface: %s (on %s) ---\n", ifaceName, radioName)
 
 			// Test interface configuration (UCI)
-			var ifaceConfig config.WifiIfaceConfig
-			err := client.Uci().Package("wireless").Section(ifaceName).Get(&ifaceConfig)
+			ifaceSection, ifaceErr := client.Uci().Package("wireless").Section(ifaceName).Get()
 			results = append(results, TestResult{
 				TestName: fmt.Sprintf("Wireless Interface %s Configuration", ifaceName),
-				Success:  err == nil,
-				Error:    err,
-				Data:     ifaceConfig,
+				Success:  ifaceErr == nil,
+				Error:    ifaceErr,
+				Data:     ifaceSection,
 			})
-			if err != nil {
-				fmt.Printf("✗ Wireless interface %s configuration retrieval failed: %v\n", ifaceName, err)
+			if ifaceErr != nil {
+				fmt.Printf("✗ Wireless interface %s configuration retrieval failed: %v\n", ifaceName, ifaceErr)
+			} else if ifaceSection != nil {
+				printWirelessValues(ifaceSection, "mode", "ssid", "encryption", "network")
 			}
 
 			// Check if the interface is up before running info/scan tests
@@ -947,6 +681,18 @@ func testWirelessInfo(client *goubus.Client) []TestResult {
 		}
 	}
 	return results
+}
+
+func printWirelessValues(section *goubus.Section, keys ...string) {
+	if section == nil {
+		return
+	}
+
+	for _, key := range keys {
+		if val, ok := section.Values.First(key); ok {
+			fmt.Printf("  %s: %s\n", key, val)
+		}
+	}
 }
 
 // Test DHCP related information
@@ -1172,9 +918,9 @@ func testEnhancedConfigStructures(client *goubus.Client) []TestResult {
 	if err == nil {
 		fmt.Printf("✓ Retrieved network package, section count: %d\n", len(networkPkg))
 		for sectionName, sectionData := range networkPkg {
-			fmt.Printf("  Section '%s':\n", sectionName)
-			for key, value := range sectionData {
-				fmt.Printf("    Key: %s, Value: %v\n", key, value)
+			fmt.Printf("  Section '%s' (type=%s):\n", sectionName, sectionData.Type)
+			for key, value := range sectionData.Values {
+				fmt.Printf("    %s: %v\n", key, value)
 			}
 		}
 	} else {
@@ -1182,43 +928,32 @@ func testEnhancedConfigStructures(client *goubus.Client) []TestResult {
 	}
 
 	// Test getting a specific section
-	var lanSection config.NetworkInterfaceConfig
-	err = client.Uci().Package("network").Section("lan").Get(&lanSection)
+	lanSection, lanErr := client.Uci().Package("network").Section("lan").Get()
 	results = append(results, TestResult{
 		TestName: "Get LAN Section",
-		Success:  err == nil,
-		Error:    err,
+		Success:  lanErr == nil,
+		Error:    lanErr,
 		Data:     lanSection,
 	})
-	if err == nil {
+	if lanErr == nil && lanSection != nil {
 		fmt.Printf("✓ Retrieved LAN section\n")
 		indexStr := "nil (single section query)"
-		if lanSection.Metadata().Index != nil {
-			indexStr = fmt.Sprintf("%d", *lanSection.Metadata().Index)
+		if lanSection.Metadata.Index != nil {
+			indexStr = fmt.Sprintf("%d", *lanSection.Metadata.Index)
 		}
 		fmt.Printf("  Metadata: .anonymous=%t, .type=%s, .name=%s, .index=%s\n",
-			lanSection.Metadata().Anonymous, lanSection.Metadata().Type, lanSection.Metadata().Name, indexStr)
-		fmt.Printf("  Configuration summary:\n")
-		if lanSection.Proto != "" {
-			fmt.Printf("    Protocol: %s\n", lanSection.Proto)
+			lanSection.Metadata.Anonymous, lanSection.Metadata.Type, lanSection.Metadata.Name, indexStr)
+		if proto, ok := lanSection.Values.First("proto"); ok {
+			fmt.Printf("    Protocol: %s\n", proto)
 		}
-		if lanSection.Device != "" {
-			fmt.Printf("    Device: %s\n", lanSection.Device)
+		if device, ok := lanSection.Values.First("device"); ok {
+			fmt.Printf("    Device: %s\n", device)
 		}
-		if len(lanSection.IfName) > 0 {
-			fmt.Printf("    Interface names: %v\n", lanSection.IfName)
+		if ifnames := lanSection.Values["ifname"]; len(ifnames) > 0 {
+			fmt.Printf("    Interface names: %v\n", ifnames)
 		}
-		if lanSection.Disabled != nil {
-			fmt.Printf("    Disabled: %v\n", *lanSection.Disabled)
-		}
-		if lanSection.Auto != nil {
-			fmt.Printf("    Auto start: %v\n", *lanSection.Auto)
-		}
-		if lanSection.IP6Assign != nil && *lanSection.IP6Assign != 0 {
-			fmt.Printf("    IPv6 assign: %d\n", *lanSection.IP6Assign)
-		}
-	} else {
-		fmt.Printf("✗ Failed to retrieve LAN section: %v\n", err)
+	} else if lanErr != nil {
+		fmt.Printf("✗ Failed to retrieve LAN section: %v\n", lanErr)
 	}
 
 	// Test getting a specific option
@@ -1294,7 +1029,10 @@ func testEnhancedConfigStructures(client *goubus.Client) []TestResult {
 	}
 
 	// Test adding a new section
-	err = client.Uci().Package("network").Add("interface", "new_section", &config.NetworkInterfaceConfig{})
+	newValues := goubus.NewSectionValues()
+	newValues.Set("proto", "static")
+	newValues.Set("ipaddr", "192.168.200.1")
+	err = client.Uci().Package("network").Add("interface", "new_section", newValues)
 	results = append(results, TestResult{
 		TestName: "Add New Section",
 		Success:  err == nil,
@@ -1308,40 +1046,29 @@ func testEnhancedConfigStructures(client *goubus.Client) []TestResult {
 	}
 
 	// Test getting the new section
-	var newSection config.NetworkInterfaceConfig
-	err = client.Uci().Package("network").Section("new_section").Get(&newSection)
+	newSection, newErr := client.Uci().Package("network").Section("new_section").Get()
 	results = append(results, TestResult{
 		TestName: "Get New Section",
-		Success:  err == nil,
-		Error:    err,
+		Success:  newErr == nil,
+		Error:    newErr,
 		Data:     newSection,
 	})
-	if err == nil {
+	if newErr == nil && newSection != nil {
 		fmt.Printf("✓ Retrieved new section\n")
 		indexStr := "nil (single section query)"
-		if newSection.Metadata().Index != nil {
-			indexStr = fmt.Sprintf("%d", *newSection.Metadata().Index)
+		if newSection.Metadata.Index != nil {
+			indexStr = fmt.Sprintf("%d", *newSection.Metadata.Index)
 		}
 		fmt.Printf("  Metadata: .anonymous=%t, .type=%s, .name=%s, .index=%s\n",
-			newSection.Metadata().Anonymous, newSection.Metadata().Type, newSection.Metadata().Name, indexStr)
-		fmt.Printf("  Configuration summary:\n")
-		if newSection.Proto != "" {
-			fmt.Printf("    Protocol: %s\n", newSection.Proto)
+			newSection.Metadata.Anonymous, newSection.Metadata.Type, newSection.Metadata.Name, indexStr)
+		if proto, ok := newSection.Values.First("proto"); ok {
+			fmt.Printf("    Protocol: %s\n", proto)
 		}
-		if newSection.Device != "" {
-			fmt.Printf("    Device: %s\n", newSection.Device)
+		if ip := newSection.Values["ipaddr"]; len(ip) > 0 {
+			fmt.Printf("    IP addresses: %v\n", ip)
 		}
-		if len(newSection.IfName) > 0 {
-			fmt.Printf("    Interface names: %v\n", newSection.IfName)
-		}
-		if newSection.Disabled != nil {
-			fmt.Printf("    Disabled: %v\n", *newSection.Disabled)
-		}
-		if newSection.Auto != nil {
-			fmt.Printf("    Auto start: %v\n", *newSection.Auto)
-		}
-	} else {
-		fmt.Printf("✗ Failed to retrieve new section: %v\n", err)
+	} else if newErr != nil {
+		fmt.Printf("✗ Failed to retrieve new section: %v\n", newErr)
 	}
 
 	// Test deleting the new section
