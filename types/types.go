@@ -235,30 +235,31 @@ type NetworkDevice struct {
 }
 
 // NetworkDeviceStatistic represents network device statistics.
+// Uses int64 to support large traffic values that may exceed int32 range.
 type NetworkDeviceStatistic struct {
-	Collisions        int `json:"collisions"`
-	RxFrameErrors     int `json:"rx_frame_errors"`
-	TxAbortedErrors   int `json:"tx_aborted_errors"`
-	TxCarrierErrors   int `json:"tx_carrier_errors"`
-	TxCompressed      int `json:"tx_compressed"`
-	TxFifoErrors      int `json:"tx_fifo_errors"`
-	TxHeartbeatErrors int `json:"tx_heartbeat_errors"`
-	TxWindowErrors    int `json:"tx_window_errors"`
-	RxCompressed      int `json:"rx_compressed"`
-	RxCrcErrors       int `json:"rx_crc_errors"`
-	RxFifoErrors      int `json:"rx_fifo_errors"`
-	RxLengthErrors    int `json:"rx_length_errors"`
-	RxMissedErrors    int `json:"rx_missed_errors"`
-	RxOverErrors      int `json:"rx_over_errors"`
-	Multicast         int `json:"multicast"`
-	RxBytes           int `json:"rx_bytes"`
-	RxDropped         int `json:"rx_dropped"`
-	RxErrors          int `json:"rx_errors"`
-	RxPackets         int `json:"rx_packets"`
-	TxBytes           int `json:"tx_bytes"`
-	TxDropped         int `json:"tx_dropped"`
-	TxErrors          int `json:"tx_errors"`
-	TxPackets         int `json:"tx_packets"`
+	Collisions        int64 `json:"collisions"`
+	RxFrameErrors     int64 `json:"rx_frame_errors"`
+	TxAbortedErrors   int64 `json:"tx_aborted_errors"`
+	TxCarrierErrors   int64 `json:"tx_carrier_errors"`
+	TxCompressed      int64 `json:"tx_compressed"`
+	TxFifoErrors      int64 `json:"tx_fifo_errors"`
+	TxHeartbeatErrors int64 `json:"tx_heartbeat_errors"`
+	TxWindowErrors    int64 `json:"tx_window_errors"`
+	RxCompressed      int64 `json:"rx_compressed"`
+	RxCrcErrors       int64 `json:"rx_crc_errors"`
+	RxFifoErrors      int64 `json:"rx_fifo_errors"`
+	RxLengthErrors    int64 `json:"rx_length_errors"`
+	RxMissedErrors    int64 `json:"rx_missed_errors"`
+	RxOverErrors      int64 `json:"rx_over_errors"`
+	Multicast         int64 `json:"multicast"`
+	RxBytes           int64 `json:"rx_bytes"`
+	RxDropped         int64 `json:"rx_dropped"`
+	RxErrors          int64 `json:"rx_errors"`
+	RxPackets         int64 `json:"rx_packets"`
+	TxBytes           int64 `json:"tx_bytes"`
+	TxDropped         int64 `json:"tx_dropped"`
+	TxErrors          int64 `json:"tx_errors"`
+	TxPackets         int64 `json:"tx_packets"`
 }
 
 // NetworkDeviceFlowControl represents flow control configuration.

@@ -143,7 +143,9 @@ func RemoveNetworkInterfaceDevice(caller types.Transport, name, device string) e
 // NETWORK DEVICE OPERATIONS
 // =============================================================================
 
-// GetNetworkDeviceStatus retrieves the status of a specific network device.
+// GetNetworkDeviceStatus retrieves the status of network devices.
+// If name is empty, returns all devices as a map.
+// If name is specified, returns a map with single device entry.
 func GetNetworkDeviceStatus(caller types.Transport, name string) (map[string]types.NetworkDevice, error) {
 	params := map[string]any{}
 	if name != "" {
@@ -154,12 +156,24 @@ func GetNetworkDeviceStatus(caller types.Transport, name string) (map[string]typ
 		return nil, err
 	}
 
+	// ubus returns different formats depending on whether name parameter is specified:
+	// - with name: returns a single device object {...}
+	// - without name: returns device map {"br-lan": {...}, "eth0": {...}}
+	if name != "" {
+		// When device name is specified, returns a single device object
+		var device types.NetworkDevice
+		if err := resp.Unmarshal(&device); err != nil {
+			return nil, errdefs.Wrapf(err, "failed to unmarshal network device status")
+		}
+		return map[string]types.NetworkDevice{name: device}, nil
+	}
+
+	// When device name is not specified, returns a map of all devices
 	var ubusData map[string]types.NetworkDevice
 	if err := resp.Unmarshal(&ubusData); err != nil {
 		return nil, errdefs.Wrapf(err, "failed to unmarshal network device status")
 	}
 	return ubusData, nil
-
 }
 
 // SetNetworkDeviceAlias sets aliases for a network device.

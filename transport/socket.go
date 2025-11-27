@@ -23,7 +23,7 @@ import (
 const (
 	defaultSocketPath   = "/tmp/run/ubus/ubus.sock"
 	defaultDialTimeout  = 3 * time.Second
-	defaultReadTimeout  = 10 * time.Second
+	defaultReadTimeout  = 60 * time.Second // iwinfo scan and similar operations may take longer
 	defaultWriteTimeout = 3 * time.Second
 )
 
@@ -1043,6 +1043,12 @@ func decodeString(payload []byte) string {
 	if len(payload) == 0 {
 		return ""
 	}
+	// Skip possible leading zero bytes (64-bit alignment padding).
+	// But don't skip too many since empty strings also start with 0.
+	// Only skip complete 4-byte zero blocks.
+	for len(payload) >= 8 && bytes.Equal(payload[:4], []byte{0, 0, 0, 0}) {
+		payload = payload[4:]
+	}
 	n := bytes.IndexByte(payload, stringTerminator)
 	if n == -1 {
 		return string(payload)
@@ -1051,6 +1057,16 @@ func decodeString(payload []byte) string {
 }
 
 func parseBlobmsgContainer(payload []byte, expectedType uint8) (any, error) {
+	if len(payload) == 0 {
+		if expectedType == blobmsgTypeArray {
+			return []any{}, nil
+		}
+		return map[string]any{}, nil
+	}
+	// Skip possible leading zero bytes (64-bit alignment padding).
+	for len(payload) >= 4 && binary.BigEndian.Uint32(payload[:4]) == 0 {
+		payload = payload[4:]
+	}
 	if len(payload) == 0 {
 		if expectedType == blobmsgTypeArray {
 			return []any{}, nil
@@ -1135,22 +1151,37 @@ func parseBlobmsgValue(blobType uint32, data []byte) (any, error) {
 		if len(data) < 8 {
 			return int64(0), nil
 		}
+		// Some platforms may send aligned data (e.g. 12 bytes), value is in the last 8 bytes.
+		if len(data) > 8 {
+			offset := len(data) - 8
+			return int64(binary.BigEndian.Uint64(data[offset:])), nil
+		}
 		return int64(binary.BigEndian.Uint64(data[:8])), nil
 	case blobmsgTypeInt32:
 		if len(data) < 4 {
-			return int32(0), nil
+			return int64(0), nil
 		}
-		return int32(binary.BigEndian.Uint32(data[:4])), nil
+		// Return int64 to avoid overflow for large values (traffic stats may exceed int32 range).
+		// Some platforms (e.g. ARM64) may send 8-byte aligned data, value is in the last 4 bytes.
+		if len(data) >= 8 {
+			return int64(binary.BigEndian.Uint32(data[4:8])), nil
+		}
+		return int64(binary.BigEndian.Uint32(data[:4])), nil
 	case blobmsgTypeInt16:
 		if len(data) < 2 {
-			return int16(0), nil
+			return int64(0), nil
 		}
-		return int16(binary.BigEndian.Uint16(data[:2])), nil
+		// Some platforms may send aligned data, value is in the last 2 bytes.
+		if len(data) >= 8 {
+			return int64(binary.BigEndian.Uint16(data[6:8])), nil
+		}
+		return int64(binary.BigEndian.Uint16(data[len(data)-2:])), nil
 	case blobmsgTypeInt8:
 		if len(data) == 0 {
-			return int8(0), nil
+			return int64(0), nil
 		}
-		return int8(data[0]), nil
+		// Some platforms may send aligned data, value is in the last byte.
+		return int64(data[len(data)-1]), nil
 	case blobmsgTypeDouble:
 		if len(data) < 8 {
 			return float64(0), nil

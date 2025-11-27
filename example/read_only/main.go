@@ -76,7 +76,7 @@ func main() {
 	)
 
 	if testCfg.Host != "" && testCfg.Username != "" && testCfg.Password != "" {
-		fmt.Println("使用环境变量配置，尝试通过 JSON-RPC 连接设备...")
+		fmt.Println("Using environment variables config, attempting to connect via JSON-RPC...")
 		rpcClient, rpcErr := transport.NewRpcClient(testCfg.Host, testCfg.Username, testCfg.Password)
 		if rpcErr != nil {
 			log.Fatalf("Unable to connect via JSON-RPC: %v", rpcErr)
@@ -606,7 +606,7 @@ func testWirelessInfo(client *goubus.Client) []TestResult {
 				if info != nil {
 					channelInfo := fmt.Sprintf("%d", info.Channel)
 					if info.Channel == 0 {
-						// 从wireless status获取频道配置信息来提供更好的说明
+						// Get channel config from wireless status for better description
 						radioStatus := status[radioName]
 						if radioStatus.Config.Channel == "auto" || radioStatus.Config.Channel == "" {
 							channelInfo = "0 (auto-selected, configured as 'auto')"
