@@ -56,7 +56,6 @@ OpenWrt ubus 系统的 Go 客户端库。支持 HTTP JSON-RPC 和原生 Unix soc
 - **`api`**：ubus 调用构造和响应解析
 - **`transport`**：HTTP JSON-RPC 或 Unix socket 通信
 - **`types`**：请求/响应结构，类型安全核心
-- **`uci`**：配置序列化和模型绑定
 - **`errdefs`**：错误类型对应 ubus 状态码
 
 ## 安装

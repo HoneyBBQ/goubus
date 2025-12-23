@@ -58,7 +58,6 @@ A Go client library for OpenWrt's ubus (micro bus) system. Supports both HTTP JS
 - **`api`**: ubus call construction and response parsing
 - **`transport`**: HTTP JSON-RPC or Unix socket communication
 - **`types`**: Request/response structures for type safety
-- **`uci`**: Configuration serialization and model binding
 - **`errdefs`**: Error types matching ubus status codes
 
 ## Installation
