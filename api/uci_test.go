@@ -148,12 +148,13 @@ func TestAddToUciListAppendsValue(t *testing.T) {
 	if !ok {
 		t.Fatalf("set call data has type %T, want types.UbusUciRequest", setCall.data)
 	}
-	value, ok := req.Values["dns"].(string)
+	value, ok := req.Values["dns"].([]string)
 	if !ok {
-		t.Fatalf("dns value has type %T, want string", req.Values["dns"])
+		t.Fatalf("dns value has type %T, want []string", req.Values["dns"])
 	}
-	if value != "foo bar" {
-		t.Errorf("dns value = %q, want %q", value, "foo bar")
+	want := []string{"foo", "bar"}
+	if !reflect.DeepEqual(value, want) {
+		t.Errorf("dns value = %#v, want %#v", value, want)
 	}
 }
 
@@ -171,9 +172,13 @@ func TestAddToUciListCreatesListWhenMissing(t *testing.T) {
 
 	setCall := mt.calls[1]
 	req := setCall.data.(types.UbusUciRequest)
-	value := req.Values["dns"].(string)
-	if value != "1.1.1.1" {
-		t.Errorf("dns value = %q, want %q", value, "1.1.1.1")
+	value, ok := req.Values["dns"].([]string)
+	if !ok {
+		t.Fatalf("dns value has type %T, want []string", req.Values["dns"])
+	}
+	want := []string{"1.1.1.1"}
+	if !reflect.DeepEqual(value, want) {
+		t.Errorf("dns value = %#v, want %#v", value, want)
 	}
 }
 
@@ -256,9 +261,13 @@ func TestDeleteFromUciListRemovesValue(t *testing.T) {
 	if !ok {
 		t.Fatalf("call data type %T, want types.UbusUciRequest", setCall.data)
 	}
-	value := req.Values["dns"].(string)
-	if value != "foo baz" {
-		t.Errorf("dns value = %q, want %q", value, "foo baz")
+	value, ok := req.Values["dns"].([]string)
+	if !ok {
+		t.Fatalf("dns value has type %T, want []string", req.Values["dns"])
+	}
+	want := []string{"foo", "baz"}
+	if !reflect.DeepEqual(value, want) {
+		t.Errorf("dns value = %#v, want %#v", value, want)
 	}
 }
 

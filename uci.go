@@ -2,6 +2,7 @@
 package goubus
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -11,30 +12,72 @@ import (
 )
 
 // SectionValues represents raw UCI option data. Each key maps to one or more string values.
-type SectionValues map[string][]string
+type SectionValues struct {
+	values map[string]sectionValue
+}
 
-// NewSectionValues creates an initialized SectionValues map.
+type sectionValueKind uint8
+
+const (
+	sectionValueKindScalar sectionValueKind = iota
+	sectionValueKindList
+)
+
+type sectionValue struct {
+	kind   sectionValueKind
+	values []string
+}
+
+// NewSectionValues creates an initialized SectionValues.
 func NewSectionValues() SectionValues {
-	return make(SectionValues)
+	return SectionValues{
+		values: make(map[string]sectionValue),
+	}
 }
 
 func (sv *SectionValues) ensure() {
+	if sv.values == nil {
+		sv.values = make(map[string]sectionValue)
+	}
+}
+
+func (sv SectionValues) MarshalJSON() ([]byte, error) {
+	return json.Marshal(sv.toUbusValues())
+}
+
+func (sv *SectionValues) UnmarshalJSON(data []byte) error {
 	if sv == nil {
-		return
+		return nil
 	}
-	if *sv == nil {
-		*sv = make(SectionValues)
+	if len(data) == 0 || string(data) == "null" {
+		*sv = NewSectionValues()
+		return nil
 	}
+	var values map[string]any
+	if err := json.Unmarshal(data, &values); err != nil {
+		return err
+	}
+	*sv = SectionValuesFromAny(values)
+	return nil
 }
 
 // Set replaces the values associated with an option.
 func (sv *SectionValues) Set(option string, values ...string) {
-	if sv == nil {
-		return
-	}
 	sv.ensure()
 	copied := append([]string(nil), values...)
-	(*sv)[option] = copied
+	kind := sectionValueKindScalar
+	if len(copied) > 1 {
+		kind = sectionValueKindList
+	}
+	sv.values[option] = sectionValue{kind: kind, values: copied}
+}
+
+// SetList replaces the values associated with an option and forces it to be serialized as a list.
+// Even if there's only one value, it will be serialized as an array.
+func (sv *SectionValues) SetList(option string, values ...string) {
+	sv.ensure()
+	copied := append([]string(nil), values...)
+	sv.values[option] = sectionValue{kind: sectionValueKindList, values: copied}
 }
 
 // SetScalar is a convenience for setting a single value.
@@ -48,40 +91,52 @@ func (sv *SectionValues) SetScalar(option, value string) {
 
 // Append adds values to an option without overwriting existing ones.
 func (sv *SectionValues) Append(option string, values ...string) {
-	if sv == nil {
+	sv.ensure()
+	if len(values) == 0 {
 		return
 	}
-	sv.ensure()
-	current := append([]string(nil), (*sv)[option]...)
-	current = append(current, values...)
-	(*sv)[option] = current
+
+	current, ok := sv.values[option]
+	if !ok {
+		sv.Set(option, values...)
+		return
+	}
+
+	merged := append([]string(nil), current.values...)
+	merged = append(merged, values...)
+
+	kind := current.kind
+	if kind == sectionValueKindScalar && len(merged) > 1 {
+		kind = sectionValueKindList
+	}
+	sv.values[option] = sectionValue{kind: kind, values: merged}
 }
 
 // Delete removes an option from the set.
 func (sv *SectionValues) Delete(option string) {
-	if sv == nil || *sv == nil {
+	if sv.values == nil {
 		return
 	}
-	delete(*sv, option)
+	delete(sv.values, option)
 }
 
 // First returns the first value of an option.
 func (sv SectionValues) First(option string) (string, bool) {
-	values, ok := sv[option]
-	if !ok || len(values) == 0 {
+	v, ok := sv.values[option]
+	if !ok || len(v.values) == 0 {
 		return "", false
 	}
-	return values[0], true
+	return v.values[0], true
 }
 
 // Clone returns a deep copy of the values.
 func (sv SectionValues) Clone() SectionValues {
-	if sv == nil {
-		return nil
-	}
-	cloned := make(SectionValues, len(sv))
-	for key, values := range sv {
-		cloned[key] = append([]string(nil), values...)
+	cloned := NewSectionValues()
+	for key, v := range sv.values {
+		cloned.values[key] = sectionValue{
+			kind:   v.kind,
+			values: append([]string(nil), v.values...),
+		}
 	}
 	return cloned
 }
@@ -89,7 +144,7 @@ func (sv SectionValues) Clone() SectionValues {
 // SectionValuesFromStrings converts string values into SectionValues.
 func SectionValuesFromStrings(values map[string]string) SectionValues {
 	if len(values) == 0 {
-		return nil
+		return NewSectionValues()
 	}
 	result := NewSectionValues()
 	for key, value := range values {
@@ -105,7 +160,7 @@ func SectionValuesFromStrings(values map[string]string) SectionValues {
 // SectionValuesFromAny converts a map containing strings or slices into SectionValues.
 func SectionValuesFromAny(values map[string]any) SectionValues {
 	if len(values) == 0 {
-		return nil
+		return NewSectionValues()
 	}
 	result := NewSectionValues()
 	for key, raw := range values {
@@ -115,19 +170,24 @@ func SectionValuesFromAny(values map[string]any) SectionValues {
 }
 
 func (sv SectionValues) toUbusValues() map[string]any {
-	if len(sv) == 0 {
+	if len(sv.values) == 0 {
 		return map[string]any{}
 	}
-	serialized := make(map[string]any, len(sv))
-	for key, values := range sv {
-		switch len(values) {
+	serialized := make(map[string]any, len(sv.values))
+	for key, v := range sv.values {
+		// List: always serialize as array (even with single value).
+		if v.kind == sectionValueKindList {
+			serialized[key] = append([]string(nil), v.values...)
+			continue
+		}
+		// Scalar: single value as string, multiple as array (for compatibility).
+		switch len(v.values) {
 		case 0:
 			serialized[key] = ""
 		case 1:
-			serialized[key] = values[0]
+			serialized[key] = v.values[0]
 		default:
-			list := append([]string(nil), values...)
-			serialized[key] = list
+			serialized[key] = append([]string(nil), v.values...)
 		}
 	}
 	return serialized
@@ -143,11 +203,39 @@ type Section struct {
 
 // Get returns the values for a given option.
 func (s *Section) Get(option string) []string {
-	if s == nil || s.Values == nil {
+	if s == nil {
 		return nil
 	}
-	values := s.Values[option]
-	return append([]string(nil), values...)
+	return s.Values.Get(option)
+}
+
+// Get returns the values for a given option.
+func (sv SectionValues) Get(option string) []string {
+	if sv.values == nil {
+		return nil
+	}
+	v, ok := sv.values[option]
+	if !ok {
+		return nil
+	}
+	return append([]string(nil), v.values...)
+}
+
+// All returns all values as a map (for backward compatibility).
+func (sv SectionValues) All() map[string][]string {
+	if sv.values == nil {
+		return nil
+	}
+	result := make(map[string][]string, len(sv.values))
+	for k, v := range sv.values {
+		result[k] = append([]string(nil), v.values...)
+	}
+	return result
+}
+
+// Len returns the number of options.
+func (sv SectionValues) Len() int {
+	return len(sv.values)
 }
 
 // GetFirst returns the first value for a given option.
@@ -190,13 +278,13 @@ func setSectionValueFromAny(dst *SectionValues, key string, raw any) {
 	case string:
 		dst.Set(key, v)
 	case []string:
-		dst.Set(key, v...)
+		dst.SetList(key, v...)
 	case []any:
 		var entries []string
 		for _, item := range v {
 			entries = append(entries, fmt.Sprint(item))
 		}
-		dst.Set(key, entries...)
+		dst.SetList(key, entries...)
 	default:
 		dst.Set(key, fmt.Sprint(raw))
 	}
@@ -312,7 +400,7 @@ func (pc *UciPackageContext) Add(sectionType, name string, values SectionValues)
 			Type:   sectionType,
 		},
 	}
-	if len(values) > 0 {
+	if values.Len() > 0 {
 		req.Values = values.toUbusValues()
 	}
 	return api.AddUci(pc.client.caller, req)
@@ -402,7 +490,7 @@ func (sc *UciSectionContext) SetValues(values SectionValues) error {
 			Section: sc.sectionName,
 		},
 	}
-	if len(values) > 0 {
+	if values.Len() > 0 {
 		req.Values = values.toUbusValues()
 	}
 	return api.SetUci(sc.client.caller, req)

@@ -415,10 +415,10 @@ func testNetworkInfo(client *goubus.Client) []TestResult {
 			printOption("proto")
 			printOption("device")
 			printOption("type")
-			if names := section.Values["ifname"]; len(names) > 0 {
+			if names := section.Values.Get("ifname"); len(names) > 0 {
 				fmt.Printf("    ifname: %v\n", names)
 			}
-			if len(section.Values) == 0 {
+			if section.Values.Len() == 0 {
 				fmt.Printf("    (empty configuration)\n")
 			}
 		} else {
@@ -919,7 +919,7 @@ func testEnhancedConfigStructures(client *goubus.Client) []TestResult {
 		fmt.Printf("✓ Retrieved network package, section count: %d\n", len(networkPkg))
 		for sectionName, sectionData := range networkPkg {
 			fmt.Printf("  Section '%s' (type=%s):\n", sectionName, sectionData.Type)
-			for key, value := range sectionData.Values {
+			for key, value := range sectionData.Values.All() {
 				fmt.Printf("    %s: %v\n", key, value)
 			}
 		}
@@ -949,7 +949,7 @@ func testEnhancedConfigStructures(client *goubus.Client) []TestResult {
 		if device, ok := lanSection.Values.First("device"); ok {
 			fmt.Printf("    Device: %s\n", device)
 		}
-		if ifnames := lanSection.Values["ifname"]; len(ifnames) > 0 {
+		if ifnames := lanSection.Values.Get("ifname"); len(ifnames) > 0 {
 			fmt.Printf("    Interface names: %v\n", ifnames)
 		}
 	} else if lanErr != nil {
@@ -1064,7 +1064,7 @@ func testEnhancedConfigStructures(client *goubus.Client) []TestResult {
 		if proto, ok := newSection.Values.First("proto"); ok {
 			fmt.Printf("    Protocol: %s\n", proto)
 		}
-		if ip := newSection.Values["ipaddr"]; len(ip) > 0 {
+		if ip := newSection.Values.Get("ipaddr"); len(ip) > 0 {
 			fmt.Printf("    IP addresses: %v\n", ip)
 		}
 	} else if newErr != nil {

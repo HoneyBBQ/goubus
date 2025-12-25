@@ -156,14 +156,13 @@ func AddToUciList(caller types.Transport, config, section, option, value string)
 	}
 
 	newList := append(currentList, value)
-	newValue := strings.Join(newList, " ")
 
 	setRequest := types.UbusUciRequest{
 		UbusUciRequestGeneric: types.UbusUciRequestGeneric{
 			Config:  config,
 			Section: section,
 		},
-		Values: map[string]any{option: newValue},
+		Values: map[string]any{option: newList},
 	}
 
 	return SetUci(caller, setRequest)
@@ -209,14 +208,22 @@ func DeleteFromUciList(caller types.Transport, config, section, option, value st
 		return nil // Value not in list, nothing to do.
 	}
 
-	// 3. Set the new list back
-	newValue := strings.Join(newList, " ")
+	// 3. If the list is now empty, delete the option; otherwise set the list back as an array.
+	if len(newList) == 0 {
+		delRequest := types.UbusUciRequestGeneric{
+			Config:  config,
+			Section: section,
+			Option:  option,
+		}
+		return DeleteUci(caller, delRequest)
+	}
+
 	setRequest := types.UbusUciRequest{
 		UbusUciRequestGeneric: types.UbusUciRequestGeneric{
 			Config:  config,
 			Section: section,
 		},
-		Values: map[string]any{option: newValue},
+		Values: map[string]any{option: newList},
 	}
 	return SetUci(caller, setRequest)
 }

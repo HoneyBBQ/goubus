@@ -78,7 +78,7 @@ func showSection(client *goubus.Client, pkg, section string) {
 	}
 
 	fmt.Printf("type=%s anonymous=%t\n", sec.Metadata.Type, bool(sec.Metadata.Anonymous))
-	for option, values := range sec.Values {
+	for option, values := range sec.Values.All() {
 		if len(values) == 1 {
 			fmt.Printf("  %s = %s\n", option, values[0])
 			continue
