@@ -1,0 +1,12 @@
+{
+	"br-lan": [
+		{
+			"duid": "0001000129a...",
+			"iaid": "123",
+			"hostname": "test-host",
+			"assigned": 12345,
+			"length": 3600,
+			"ipv6": "2001:db8::1"
+		}
+	]
+}

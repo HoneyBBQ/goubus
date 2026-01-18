@@ -1,0 +1,225 @@
+{
+	"interface": [
+		{
+			"interface": "lan",
+			"up": true,
+			"pending": false,
+			"available": true,
+			"autostart": true,
+			"dynamic": false,
+			"uptime": 12420,
+			"l3_device": "br-lan",
+			"proto": "static",
+			"device": "br-lan",
+			"updated": [
+				"addresses"
+			],
+			"metric": 0,
+			"dns_metric": 0,
+			"delegation": true,
+			"ipv4-address": [
+				{
+					"address": "192.168.233.1",
+					"mask": 24
+				}
+			],
+			"ipv6-address": [
+				
+			],
+			"ipv6-prefix": [
+				
+			],
+			"ipv6-prefix-assignment": [
+				{
+					"address": "fd5f:638a:c21e::",
+					"mask": 60,
+					"local-address": {
+						"address": "fd5f:638a:c21e::1",
+						"mask": 60
+					}
+				}
+			],
+			"route": [
+				
+			],
+			"dns-server": [
+				"8.8.8.8",
+				"8.8.4.4"
+			],
+			"dns-search": [
+				
+			],
+			"neighbors": [
+				
+			],
+			"inactive": {
+				"ipv4-address": [
+					
+				],
+				"ipv6-address": [
+					
+				],
+				"route": [
+					
+				],
+				"dns-server": [
+					
+				],
+				"dns-search": [
+					
+				],
+				"neighbors": [
+					
+				]
+			},
+			"data": {
+				
+			}
+		},
+		{
+			"interface": "loopback",
+			"up": true,
+			"pending": false,
+			"available": true,
+			"autostart": true,
+			"dynamic": false,
+			"uptime": 12420,
+			"l3_device": "lo",
+			"proto": "static",
+			"device": "lo",
+			"updated": [
+				"addresses"
+			],
+			"metric": 0,
+			"dns_metric": 0,
+			"delegation": true,
+			"ipv4-address": [
+				{
+					"address": "127.0.0.1",
+					"mask": 8
+				}
+			],
+			"ipv6-address": [
+				
+			],
+			"ipv6-prefix": [
+				
+			],
+			"ipv6-prefix-assignment": [
+				
+			],
+			"route": [
+				
+			],
+			"dns-server": [
+				"8.8.8.8",
+				"8.8.4.4"
+			],
+			"dns-search": [
+				
+			],
+			"neighbors": [
+				
+			],
+			"inactive": {
+				"ipv4-address": [
+					
+				],
+				"ipv6-address": [
+					
+				],
+				"route": [
+					
+				],
+				"dns-server": [
+					
+				],
+				"dns-search": [
+					
+				],
+				"neighbors": [
+					
+				]
+			},
+			"data": {
+				
+			}
+		},
+		{
+			"interface": "wan",
+			"up": false,
+			"pending": false,
+			"available": true,
+			"autostart": true,
+			"dynamic": false,
+			"proto": "dhcp",
+			"device": "eth1",
+			"data": {
+				
+			}
+		},
+		{
+			"interface": "wan6",
+			"up": false,
+			"pending": false,
+			"available": true,
+			"autostart": true,
+			"dynamic": false,
+			"proto": "dhcpv6",
+			"device": "eth1",
+			"data": {
+				
+			}
+		},
+		{
+			"interface": "wg0",
+			"up": false,
+			"pending": false,
+			"available": false,
+			"autostart": true,
+			"dynamic": false,
+			"proto": "wireguard",
+			"data": {
+				
+			},
+			"errors": [
+				{
+					"subsystem": "interface",
+					"code": "NO_DEVICE"
+				}
+			]
+		},
+		{
+			"interface": "wwan",
+			"up": false,
+			"pending": false,
+			"available": false,
+			"autostart": true,
+			"dynamic": false,
+			"proto": "dhcp",
+			"device": "wwan",
+			"data": {
+				
+			},
+			"errors": [
+				{
+					"subsystem": "interface",
+					"code": "NO_DEVICE"
+				}
+			]
+		},
+		{
+			"interface": "wwan2",
+			"up": false,
+			"pending": false,
+			"available": true,
+			"autostart": true,
+			"dynamic": false,
+			"proto": "dhcp",
+			"device": "phy1-sta0",
+			"data": {
+				
+			}
+		}
+	]
+}

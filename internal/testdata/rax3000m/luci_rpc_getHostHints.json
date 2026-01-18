@@ -1,0 +1,29 @@
+{
+	"22:D3:75:23:7C:55": {
+		"ipaddrs": [
+			"192.168.233.122"
+		],
+		"ip6addrs": [
+			"fe80::20d3:75ff:fe23:7c55"
+		],
+		"name": "Xiaomi-15-Pro.lan"
+	},
+	"48:9E:BD:33:71:DC": {
+		"ipaddrs": [
+			"192.168.233.195"
+		],
+		"ip6addrs": [
+			"fe80::f399:d8b3:7df5:1a57"
+		],
+		"name": "BBQWorkstation.lan"
+	},
+	"C8:75:F4:74:C6:94": {
+		"ipaddrs": [
+			"192.168.233.1"
+		],
+		"ip6addrs": [
+			"fe80::ca75:f4ff:fe74:c694"
+		],
+		"name": "OpenWrt.lan"
+	}
+}

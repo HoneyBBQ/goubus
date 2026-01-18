@@ -1,0 +1,11 @@
+{
+	"interfaces": {
+		"br-lan": [
+			{
+				"prefix": "fd33:bf38:54d5::1",
+				"length": 60,
+				"stale": false
+			}
+		]
+	}
+}

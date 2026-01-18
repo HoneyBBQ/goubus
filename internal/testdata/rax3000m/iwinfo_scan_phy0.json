@@ -1,0 +1,157 @@
+{
+	"results": [
+		{
+			"ssid": "F204",
+			"bssid": "00:AD:D5:EF:0F:49",
+			"mode": "Master",
+			"band": 2,
+			"channel": 1,
+			"mhz": 2412,
+			"signal": -78,
+			"quality": 32,
+			"quality_max": 70,
+			"ht_operation": {
+				"primary_channel": 1,
+				"secondary_channel_offset": "no secondary",
+				"channel_width": 2040
+			},
+			"vht_operation": {
+				"channel_width": 40,
+				"center_freq_1": 1,
+				"center_freq_2": 0
+			},
+			"encryption": {
+				"enabled": true,
+				"wpa": [
+					2
+				],
+				"authentication": [
+					"psk"
+				],
+				"ciphers": [
+					"ccmp"
+				]
+			}
+		},
+		{
+			"ssid": "360WiFi-2021",
+			"bssid": "C8:5B:A0:8E:C9:CB",
+			"mode": "Master",
+			"band": 2,
+			"channel": 1,
+			"mhz": 2412,
+			"signal": -79,
+			"quality": 31,
+			"quality_max": 70,
+			"ht_operation": {
+				"primary_channel": 1,
+				"secondary_channel_offset": "no secondary",
+				"channel_width": 2040
+			},
+			"encryption": {
+				"enabled": true,
+				"wpa": [
+					1,
+					2
+				],
+				"authentication": [
+					"psk"
+				],
+				"ciphers": [
+					"ccmp"
+				]
+			}
+		},
+		{
+			"ssid": "ChinaNet-FNDS",
+			"bssid": "14:D8:64:D1:E4:27",
+			"mode": "Master",
+			"band": 2,
+			"channel": 1,
+			"mhz": 2412,
+			"signal": -78,
+			"quality": 32,
+			"quality_max": 70,
+			"ht_operation": {
+				"primary_channel": 1,
+				"secondary_channel_offset": "above",
+				"channel_width": 2040
+			},
+			"encryption": {
+				"enabled": true,
+				"wpa": [
+					1,
+					2
+				],
+				"authentication": [
+					"psk"
+				],
+				"ciphers": [
+					"ccmp"
+				]
+			}
+		},
+		{
+			"ssid": "Bryant",
+			"bssid": "F8:6F:B0:10:7E:7A",
+			"mode": "Master",
+			"band": 2,
+			"channel": 1,
+			"mhz": 2412,
+			"signal": -77,
+			"quality": 33,
+			"quality_max": 70,
+			"ht_operation": {
+				"primary_channel": 1,
+				"secondary_channel_offset": "above",
+				"channel_width": 2040
+			},
+			"encryption": {
+				"enabled": true,
+				"wpa": [
+					1,
+					2
+				],
+				"authentication": [
+					"psk"
+				],
+				"ciphers": [
+					"ccmp"
+				]
+			}
+		},
+		{
+			"ssid": "马马",
+			"bssid": "56:C4:80:60:A6:60",
+			"mode": "Master",
+			"band": 2,
+			"channel": 1,
+			"mhz": 2412,
+			"signal": -75,
+			"quality": 35,
+			"quality_max": 70,
+			"ht_operation": {
+				"primary_channel": 1,
+				"secondary_channel_offset": "no secondary",
+				"channel_width": 20
+			},
+			"vht_operation": {
+				"channel_width": 40,
+				"center_freq_1": 1,
+				"center_freq_2": 0
+			},
+			"encryption": {
+				"enabled": true,
+				"wpa": [
+					2
+				],
+				"authentication": [
+					"psk"
+				],
+				"ciphers": [
+					"ccmp"
+				]
+			}
+		}
+	]
+}

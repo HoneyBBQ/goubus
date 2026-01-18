@@ -1,0 +1,112 @@
+{
+	"boot": {
+		"index": 10,
+		"stop": 90,
+		"enabled": true
+	},
+	"cron": {
+		"index": 50,
+		"stop": null,
+		"enabled": true
+	},
+	"dnsmasq": {
+		"index": 19,
+		"stop": null,
+		"enabled": true
+	},
+	"done": {
+		"index": 95,
+		"stop": null,
+		"enabled": true
+	},
+	"dropbear": {
+		"index": 19,
+		"stop": 50,
+		"enabled": true
+	},
+	"firewall": {
+		"index": 19,
+		"stop": null,
+		"enabled": true
+	},
+	"gpio_switch": {
+		"index": 94,
+		"stop": 10,
+		"enabled": true
+	},
+	"led": {
+		"index": 96,
+		"stop": null,
+		"enabled": true
+	},
+	"log": {
+		"index": 12,
+		"stop": 89,
+		"enabled": true
+	},
+	"network": {
+		"index": 20,
+		"stop": 90,
+		"enabled": true
+	},
+	"odhcpd": {
+		"index": 35,
+		"stop": 85,
+		"enabled": true
+	},
+	"packet_steering": {
+		"index": 25,
+		"stop": null,
+		"enabled": true
+	},
+	"rpcd": {
+		"index": 12,
+		"stop": null,
+		"enabled": true
+	},
+	"sysctl": {
+		"index": 11,
+		"stop": null,
+		"enabled": true
+	},
+	"sysfixtime": {
+		"index": 0,
+		"stop": 90,
+		"enabled": true
+	},
+	"sysntpd": {
+		"index": 98,
+		"stop": null,
+		"enabled": true
+	},
+	"system": {
+		"index": 10,
+		"stop": null,
+		"enabled": true
+	},
+	"ucitrack": {
+		"index": 80,
+		"stop": null,
+		"enabled": true
+	},
+	"uhttpd": {
+		"index": 50,
+		"stop": null,
+		"enabled": true
+	},
+	"umount": {
+		"index": null,
+		"stop": 90,
+		"enabled": true
+	},
+	"urandom_seed": {
+		"index": 99,
+		"stop": null,
+		"enabled": true
+	},
+	"urngd": {
+		"index": 0,
+		"stop": null,
+		"enabled": true
+	}
+}

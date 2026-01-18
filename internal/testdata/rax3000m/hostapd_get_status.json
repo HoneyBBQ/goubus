@@ -1,0 +1,30 @@
+{
+	"driver": "nl80211",
+	"status": "ENABLED",
+	"bssid": "c8:75:f4:74:c6:92",
+	"ssid": "OpenWrt",
+	"freq": 2412,
+	"channel": 1,
+	"op_class": 81,
+	"beacon_interval": 100,
+	"bss_color": 52,
+	"phy": "phy0",
+	"rrm": {
+		"neighbor_report_tx": 0
+	},
+	"wnm": {
+		"bss_transition_query_rx": 0,
+		"bss_transition_request_tx": 0,
+		"bss_transition_response_rx": 0
+	},
+	"airtime": {
+		"time": 119966,
+		"time_busy": 12986,
+		"utilization": 24
+	},
+	"dfs": {
+		"cac_seconds": 0,
+		"cac_active": false,
+		"cac_seconds_left": 0
+	}
+}

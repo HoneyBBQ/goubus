@@ -1,0 +1,21 @@
+{
+	"machine": "aarch64",
+	"seccomp": true,
+	"cgroup": [
+		"cpuset",
+		"cpu",
+		"io",
+		"memory",
+		"pids",
+		"rdma"
+	],
+	"namespaces": [
+		"cgroup",
+		"ipc",
+		"mnt",
+		"net",
+		"pid",
+		"user",
+		"uts"
+	]
+}

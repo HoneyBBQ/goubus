@@ -1,0 +1,19 @@
+{
+	"dhcp_leases": [
+		{
+			"expires": 34558,
+			"hostname": "Xiaomi-15-Pro",
+			"macaddr": "22:D3:75:23:7C:55",
+			"ipaddr": "192.168.233.122"
+		},
+		{
+			"expires": 30791,
+			"hostname": "BBQWorkstation",
+			"macaddr": "48:9E:BD:33:71:DC",
+			"ipaddr": "192.168.233.195"
+		}
+	],
+	"dhcp6_leases": [
+		
+	]
+}

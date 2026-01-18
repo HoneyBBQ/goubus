@@ -1,0 +1,339 @@
+{
+	"br-lan": {
+		"external": false,
+		"present": true,
+		"type": "bridge",
+		"up": true,
+		"carrier": true,
+		"auth_status": false,
+		"link-advertising": [
+			
+		],
+		"link-partner-advertising": [
+			
+		],
+		"link-supported": [
+			
+		],
+		"speed": "10000F",
+		"autoneg": false,
+		"flow-control": {
+			"autoneg": true,
+			"supported": [
+				
+			],
+			"link-advertising": [
+				
+			],
+			"link-partner-advertising": [
+				
+			],
+			"negotiated": [
+				
+			]
+		},
+		"hw-tc-offload": false,
+		"devtype": "bridge",
+		"bridge-members": [
+			"eth1"
+		],
+		"bridge-attributes": {
+			"stp": false,
+			"forward_delay": 8,
+			"priority": 32767,
+			"ageing_time": 0,
+			"hello_time": 1,
+			"max_age": 10,
+			"igmp_snooping": false,
+			"bridge_empty": false,
+			"multicast_querier": false,
+			"hash_max": 512,
+			"robustness": 2,
+			"query_interval": 12500,
+			"query_response_interval": 1000,
+			"last_member_interval": 100,
+			"vlan_filtering": false,
+			"stp_kernel": false
+		},
+		"mtu": 1500,
+		"mtu6": 1500,
+		"macaddr": "00:15:5d:e9:02:10",
+		"txqueuelen": 1000,
+		"ipv6": true,
+		"ip6segmentrouting": false,
+		"promisc": false,
+		"rpfilter": 0,
+		"acceptlocal": false,
+		"igmpversion": 0,
+		"mldversion": 0,
+		"neigh4reachabletime": 30000,
+		"neigh6reachabletime": 30000,
+		"neigh4gcstaletime": 60,
+		"neigh6gcstaletime": 60,
+		"neigh4locktime": 100,
+		"dadtransmits": 1,
+		"multicast": true,
+		"sendredirects": true,
+		"drop_v4_unicast_in_l2_multicast": false,
+		"drop_v6_unicast_in_l2_multicast": false,
+		"drop_gratuitous_arp": false,
+		"drop_unsolicited_na": false,
+		"arp_accept": false,
+		"gro": true,
+		"statistics": {
+			"collisions": 0,
+			"rx_frame_errors": 0,
+			"tx_compressed": 0,
+			"multicast": 0,
+			"rx_length_errors": 0,
+			"tx_dropped": 0,
+			"rx_bytes": 0,
+			"rx_missed_errors": 0,
+			"tx_errors": 0,
+			"rx_compressed": 0,
+			"rx_over_errors": 0,
+			"tx_fifo_errors": 0,
+			"rx_crc_errors": 0,
+			"rx_packets": 0,
+			"tx_heartbeat_errors": 0,
+			"rx_dropped": 0,
+			"tx_aborted_errors": 0,
+			"tx_packets": 364,
+			"rx_errors": 0,
+			"tx_bytes": 53384,
+			"tx_window_errors": 0,
+			"rx_fifo_errors": 0,
+			"tx_carrier_errors": 0
+		}
+	},
+	"eth0": {
+		"external": false,
+		"present": true,
+		"type": "Network device",
+		"up": true,
+		"carrier": true,
+		"auth_status": false,
+		"link-advertising": [
+			
+		],
+		"link-partner-advertising": [
+			
+		],
+		"link-supported": [
+			
+		],
+		"speed": "10000F",
+		"autoneg": false,
+		"flow-control": {
+			"autoneg": true,
+			"supported": [
+				
+			],
+			"link-advertising": [
+				
+			],
+			"link-partner-advertising": [
+				
+			],
+			"negotiated": [
+				
+			]
+		},
+		"hw-tc-offload": false,
+		"devtype": "ethernet",
+		"mtu": 1500,
+		"mtu6": 1500,
+		"macaddr": "00:15:5d:e9:02:0d",
+		"txqueuelen": 1000,
+		"ipv6": true,
+		"ip6segmentrouting": false,
+		"promisc": false,
+		"rpfilter": 0,
+		"acceptlocal": false,
+		"igmpversion": 0,
+		"mldversion": 0,
+		"neigh4reachabletime": 30000,
+		"neigh6reachabletime": 30000,
+		"neigh4gcstaletime": 60,
+		"neigh6gcstaletime": 60,
+		"neigh4locktime": 100,
+		"dadtransmits": 1,
+		"multicast": true,
+		"sendredirects": true,
+		"drop_v4_unicast_in_l2_multicast": false,
+		"drop_v6_unicast_in_l2_multicast": false,
+		"drop_gratuitous_arp": false,
+		"drop_unsolicited_na": false,
+		"arp_accept": false,
+		"gro": true,
+		"statistics": {
+			"collisions": 0,
+			"rx_frame_errors": 0,
+			"tx_compressed": 0,
+			"multicast": 16621,
+			"rx_length_errors": 0,
+			"tx_dropped": 0,
+			"rx_bytes": 89774508,
+			"rx_missed_errors": 0,
+			"tx_errors": 0,
+			"rx_compressed": 0,
+			"rx_over_errors": 0,
+			"tx_fifo_errors": 0,
+			"rx_crc_errors": 0,
+			"rx_packets": 76854,
+			"tx_heartbeat_errors": 0,
+			"rx_dropped": 0,
+			"tx_aborted_errors": 0,
+			"tx_packets": 6551,
+			"rx_errors": 0,
+			"tx_bytes": 686588,
+			"tx_window_errors": 0,
+			"rx_fifo_errors": 0,
+			"tx_carrier_errors": 0
+		}
+	},
+	"eth1": {
+		"external": false,
+		"present": true,
+		"type": "Network device",
+		"up": true,
+		"carrier": true,
+		"auth_status": false,
+		"link-advertising": [
+			
+		],
+		"link-partner-advertising": [
+			
+		],
+		"link-supported": [
+			
+		],
+		"speed": "10000F",
+		"autoneg": false,
+		"flow-control": {
+			"autoneg": true,
+			"supported": [
+				
+			],
+			"link-advertising": [
+				
+			],
+			"link-partner-advertising": [
+				
+			],
+			"negotiated": [
+				
+			]
+		},
+		"hw-tc-offload": false,
+		"devtype": "ethernet",
+		"mtu": 1500,
+		"mtu6": 1500,
+		"macaddr": "00:15:5d:e9:02:10",
+		"txqueuelen": 1000,
+		"ipv6": false,
+		"ip6segmentrouting": false,
+		"promisc": false,
+		"rpfilter": 0,
+		"acceptlocal": false,
+		"igmpversion": 0,
+		"mldversion": 0,
+		"neigh4reachabletime": 30000,
+		"neigh6reachabletime": 30000,
+		"neigh4gcstaletime": 60,
+		"neigh6gcstaletime": 60,
+		"neigh4locktime": 100,
+		"dadtransmits": 1,
+		"multicast": true,
+		"sendredirects": true,
+		"drop_v4_unicast_in_l2_multicast": false,
+		"drop_v6_unicast_in_l2_multicast": false,
+		"drop_gratuitous_arp": false,
+		"drop_unsolicited_na": false,
+		"arp_accept": false,
+		"gro": true,
+		"statistics": {
+			"collisions": 0,
+			"rx_frame_errors": 0,
+			"tx_compressed": 0,
+			"multicast": 0,
+			"rx_length_errors": 0,
+			"tx_dropped": 0,
+			"rx_bytes": 0,
+			"rx_missed_errors": 0,
+			"tx_errors": 0,
+			"rx_compressed": 0,
+			"rx_over_errors": 0,
+			"tx_fifo_errors": 0,
+			"rx_crc_errors": 0,
+			"rx_packets": 0,
+			"tx_heartbeat_errors": 0,
+			"rx_dropped": 0,
+			"tx_aborted_errors": 0,
+			"tx_packets": 359,
+			"rx_errors": 0,
+			"tx_bytes": 52706,
+			"tx_window_errors": 0,
+			"rx_fifo_errors": 0,
+			"tx_carrier_errors": 0
+		}
+	},
+	"lo": {
+		"external": false,
+		"present": true,
+		"type": "Network device",
+		"up": true,
+		"carrier": true,
+		"auth_status": false,
+		"mtu": 65536,
+		"mtu6": 65536,
+		"macaddr": "00:00:00:00:00:00",
+		"txqueuelen": 1000,
+		"ipv6": true,
+		"ip6segmentrouting": false,
+		"promisc": false,
+		"rpfilter": 0,
+		"acceptlocal": false,
+		"igmpversion": 0,
+		"mldversion": 0,
+		"neigh4reachabletime": 30000,
+		"neigh6reachabletime": 30000,
+		"neigh4gcstaletime": 60,
+		"neigh6gcstaletime": 60,
+		"neigh4locktime": 100,
+		"dadtransmits": 1,
+		"multicast": false,
+		"sendredirects": true,
+		"drop_v4_unicast_in_l2_multicast": false,
+		"drop_v6_unicast_in_l2_multicast": false,
+		"drop_gratuitous_arp": false,
+		"drop_unsolicited_na": false,
+		"arp_accept": false,
+		"gro": true,
+		"statistics": {
+			"collisions": 0,
+			"rx_frame_errors": 0,
+			"tx_compressed": 0,
+			"multicast": 0,
+			"rx_length_errors": 0,
+			"tx_dropped": 0,
+			"rx_bytes": 30888,
+			"rx_missed_errors": 0,
+			"tx_errors": 0,
+			"rx_compressed": 0,
+			"rx_over_errors": 0,
+			"tx_fifo_errors": 0,
+			"rx_crc_errors": 0,
+			"rx_packets": 338,
+			"tx_heartbeat_errors": 0,
+			"rx_dropped": 0,
+			"tx_aborted_errors": 0,
+			"tx_packets": 338,
+			"rx_errors": 0,
+			"tx_bytes": 30888,
+			"tx_window_errors": 0,
+			"rx_fifo_errors": 0,
+			"tx_carrier_errors": 0
+		}
+	}
+}

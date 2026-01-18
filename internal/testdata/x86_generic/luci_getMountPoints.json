@@ -1,0 +1,39 @@
+{
+	"result": [
+		{
+			"device": "/dev/root",
+			"mount": "/",
+			"size": 103108608,
+			"avail": 37031936,
+			"free": 39211008
+		},
+		{
+			"device": "tmpfs",
+			"mount": "/tmp",
+			"size": 4172533760,
+			"avail": 4172054528,
+			"free": 4172054528
+		},
+		{
+			"device": "/dev/sda1",
+			"mount": "/boot",
+			"size": 16726016,
+			"avail": 10158080,
+			"free": 10158080
+		},
+		{
+			"device": "/dev/sda1",
+			"mount": "/boot",
+			"size": 16726016,
+			"avail": 10158080,
+			"free": 10158080
+		},
+		{
+			"device": "tmpfs",
+			"mount": "/dev",
+			"size": 524288,
+			"avail": 524288,
+			"free": 524288
+		}
+	]
+}

@@ -1,0 +1,16 @@
+{
+	"model": {
+		"id": "microsoft-corporation-virtual-machine",
+		"name": "Microsoft Corporation Virtual Machine"
+	},
+	"network": {
+		"lan": {
+			"device": "eth0",
+			"protocol": "static"
+		},
+		"wan": {
+			"device": "eth1",
+			"protocol": "dhcp"
+		}
+	}
+}

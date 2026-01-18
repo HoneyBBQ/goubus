@@ -1,0 +1,14 @@
+{
+	"path": "/etc/config/network",
+	"type": "file",
+	"size": 1860,
+	"mode": 33152,
+	"atime": 1767146613,
+	"mtime": 1767146613,
+	"ctime": 1767146613,
+	"inode": 506,
+	"uid": 0,
+	"gid": 0,
+	"user": "root",
+	"group": "root"
+}

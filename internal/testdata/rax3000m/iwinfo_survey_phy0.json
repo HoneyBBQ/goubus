@@ -1,0 +1,130 @@
+{
+	"results": [
+		{
+			"mhz": 2412,
+			"noise": 165,
+			"active_time": 4197971,
+			"busy_time": 1022069,
+			"busy_time_ext": 0,
+			"rx_time": 984036,
+			"tx_time": 17791
+		},
+		{
+			"mhz": 2417,
+			"noise": 176,
+			"active_time": 119,
+			"busy_time": 13,
+			"busy_time_ext": 0,
+			"rx_time": 12,
+			"tx_time": 0
+		},
+		{
+			"mhz": 2422,
+			"noise": 176,
+			"active_time": 125,
+			"busy_time": 54,
+			"busy_time_ext": 0,
+			"rx_time": 12,
+			"tx_time": 0
+		},
+		{
+			"mhz": 2427,
+			"noise": 178,
+			"active_time": 114,
+			"busy_time": 15,
+			"busy_time_ext": 0,
+			"rx_time": 1,
+			"tx_time": 0
+		},
+		{
+			"mhz": 2432,
+			"noise": 176,
+			"active_time": 119,
+			"busy_time": 12,
+			"busy_time_ext": 0,
+			"rx_time": 10,
+			"tx_time": 0
+		},
+		{
+			"mhz": 2437,
+			"noise": 204,
+			"active_time": 122,
+			"busy_time": 55,
+			"busy_time_ext": 0,
+			"rx_time": 23,
+			"tx_time": 0
+		},
+		{
+			"mhz": 2442,
+			"noise": 177,
+			"active_time": 117,
+			"busy_time": 37,
+			"busy_time_ext": 0,
+			"rx_time": 11,
+			"tx_time": 0
+		},
+		{
+			"mhz": 2447,
+			"noise": 184,
+			"active_time": 130,
+			"busy_time": 29,
+			"busy_time_ext": 0,
+			"rx_time": 25,
+			"tx_time": 0
+		},
+		{
+			"mhz": 2452,
+			"noise": 182,
+			"active_time": 64,
+			"busy_time": 0,
+			"busy_time_ext": 0,
+			"rx_time": 0,
+			"tx_time": 0
+		},
+		{
+			"mhz": 2457,
+			"noise": 0,
+			"active_time": 0,
+			"busy_time": 0,
+			"busy_time_ext": 0,
+			"rx_time": 0,
+			"tx_time": 0
+		},
+		{
+			"mhz": 2462,
+			"noise": 0,
+			"active_time": 0,
+			"busy_time": 0,
+			"busy_time_ext": 0,
+			"rx_time": 0,
+			"tx_time": 0
+		},
+		{
+			"mhz": 2467,
+			"noise": 0,
+			"active_time": 0,
+			"busy_time": 0,
+			"busy_time_ext": 0,
+			"rx_time": 0,
+			"tx_time": 0
+		},
+		{
+			"mhz": 2472,
+			"noise": 0,
+			"active_time": 0,
+			"busy_time": 0,
+			"busy_time_ext": 0,
+			"rx_time": 0,
+			"tx_time": 0
+		},
+		{
+			"mhz": 2484,
+			"noise": 0,
+			"active_time": 0,
+			"busy_time": 0,
+			"busy_time_ext": 0,
+			"rx_time": 0,
+			"tx_time": 0
+		}
+	]
+}

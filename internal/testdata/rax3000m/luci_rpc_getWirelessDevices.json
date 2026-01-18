@@ -1,0 +1,239 @@
+{
+	"radio0": {
+		"up": true,
+		"pending": false,
+		"autostart": true,
+		"disabled": false,
+		"retry_setup_failed": false,
+		"config": {
+			"type": "mac80211",
+			"band": "2g",
+			"cell_density": 0,
+			"channel": "1",
+			"htmode": "HE20",
+			"path": "platform/soc/18000000.wifi"
+		},
+		"interfaces": [
+			{
+				"section": "wifinet1",
+				"config": {
+					"network": [
+						"lan"
+					],
+					"device": [
+						"radio0"
+					],
+					"mode": "ap",
+					"encryption": "sae",
+					"key": "HoneyBBQ@93",
+					"ocv": 0,
+					"ssid": "OpenWrt",
+					"radios": [
+						
+					]
+				},
+				"ifname": "phy0-ap0",
+				"vlans": [
+					
+				],
+				"stations": [
+					
+				],
+				"iwinfo": {
+					"noise": -83,
+					"channel": 1,
+					"country": "00",
+					"phy": "phy0",
+					"txpower": 20,
+					"txpower_offset": 0,
+					"frequency": 2412,
+					"frequency_offset": 0,
+					"hwmodes": [
+						"b",
+						"g",
+						"n",
+						"ax"
+					],
+					"hwmodes_text": "ax/b/g/n",
+					"htmodes": [
+						"HT20",
+						"HT40",
+						"HE20",
+						"HE40"
+					],
+					"hardware": {
+						"id": [
+							0,
+							0,
+							0,
+							0
+						],
+						"name": "MediaTek MT7981"
+					},
+					"quality_max": 70,
+					"mode": "Master",
+					"bssid": "C8:75:F4:74:C6:92",
+					"encryption": {
+						"enabled": true,
+						"wpa": [
+							3
+						],
+						"authentication": [
+							"sae"
+						],
+						"ciphers": [
+							"ccmp"
+						]
+					}
+				}
+			}
+		],
+		"iwinfo": {
+			"noise": -82,
+			"channel": 1,
+			"country": "00",
+			"phy": "phy0",
+			"txpower": 20,
+			"txpower_offset": 0,
+			"frequency": 2412,
+			"frequency_offset": 0,
+			"hwmodes": [
+				"b",
+				"g",
+				"n",
+				"ax"
+			],
+			"hwmodes_text": "ax/b/g/n",
+			"htmodes": [
+				"HT20",
+				"HT40",
+				"HE20",
+				"HE40"
+			],
+			"hardware": {
+				"id": [
+					0,
+					0,
+					0,
+					0
+				],
+				"name": "MediaTek MT7981"
+			}
+		}
+	},
+	"radio1": {
+		"up": true,
+		"pending": false,
+		"autostart": true,
+		"disabled": false,
+		"retry_setup_failed": false,
+		"config": {
+			"type": "mac80211",
+			"band": "5g",
+			"cell_density": 0,
+			"channel": "44",
+			"htmode": "VHT80",
+			"path": "platform/soc/18000000.wifi+1"
+		},
+		"interfaces": [
+			{
+				"section": "wifinet0",
+				"config": {
+					"network": [
+						"wwan2",
+						"wwan"
+					],
+					"device": [
+						"radio1"
+					],
+					"mode": "sta",
+					"encryption": "sae",
+					"key": "HoneyBBQ@93",
+					"ocv": 0,
+					"ssid": "BBQ_5G",
+					"radios": [
+						
+					]
+				},
+				"ifname": "phy1-sta0",
+				"vlans": [
+					
+				],
+				"stations": [
+					
+				],
+				"iwinfo": {
+					"country": "00",
+					"phy": "phy1",
+					"txpower": 20,
+					"txpower_offset": 0,
+					"frequency_offset": 0,
+					"hwmodes": [
+						"n",
+						"ac",
+						"ax"
+					],
+					"hwmodes_text": "ac/ax/n",
+					"htmodes": [
+						"HT20",
+						"HT40",
+						"VHT20",
+						"VHT40",
+						"VHT80",
+						"VHT160",
+						"HE20",
+						"HE40",
+						"HE80",
+						"HE160"
+					],
+					"hardware": {
+						"id": [
+							0,
+							0,
+							0,
+							0
+						],
+						"name": "MediaTek MT7981"
+					},
+					"quality_max": 70,
+					"mode": "Client",
+					"bssid": "C8:75:F4:74:C6:93"
+				}
+			}
+		],
+		"iwinfo": {
+			"country": "00",
+			"phy": "phy1",
+			"txpower": 20,
+			"txpower_offset": 0,
+			"frequency_offset": 0,
+			"hwmodes": [
+				"n",
+				"ac",
+				"ax"
+			],
+			"hwmodes_text": "ac/ax/n",
+			"htmodes": [
+				"HT20",
+				"HT40",
+				"VHT20",
+				"VHT40",
+				"VHT80",
+				"VHT160",
+				"HE20",
+				"HE40",
+				"HE80",
+				"HE160"
+			],
+			"hardware": {
+				"id": [
+					0,
+					0,
+					0,
+					0
+				],
+				"name": "MediaTek MT7981"
+			}
+		}
+	}
+}

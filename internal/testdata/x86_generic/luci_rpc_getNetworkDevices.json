@@ -1,0 +1,214 @@
+{
+	"eth1": {
+		"name": "eth1",
+		"master": "br-lan",
+		"wireless": false,
+		"up": true,
+		"mtu": 1500,
+		"qlen": 1000,
+		"devtype": "ethernet",
+		"ipaddrs": [
+			
+		],
+		"ip6addrs": [
+			
+		],
+		"mac": "00:15:5D:E9:02:10",
+		"type": 1,
+		"ifindex": 4,
+		"stats": {
+			"rx_bytes": 0,
+			"tx_bytes": 52706,
+			"tx_errors": 0,
+			"rx_errors": 0,
+			"tx_packets": 359,
+			"rx_packets": 0,
+			"multicast": 0,
+			"collisions": 0,
+			"rx_dropped": 0,
+			"tx_dropped": 0
+		},
+		"flags": {
+			"up": true,
+			"broadcast": true,
+			"promisc": false,
+			"loopback": false,
+			"noarp": false,
+			"multicast": true,
+			"pointtopoint": false
+		},
+		"link": {
+			"speed": 10000,
+			"duplex": "full",
+			"carrier": true,
+			"changes": 9,
+			"up_count": 5,
+			"down_count": 4
+		}
+	},
+	"br-lan": {
+		"name": "br-lan",
+		"bridge": true,
+		"ports": [
+			"eth1"
+		],
+		"id": "7fff.00155de90210",
+		"stp": false,
+		"wireless": false,
+		"up": true,
+		"mtu": 1500,
+		"qlen": 1000,
+		"devtype": "bridge",
+		"ipaddrs": [
+			{
+				"address": "192.168.1.1",
+				"netmask": "255.255.255.0",
+				"broadcast": "192.168.1.255"
+			}
+		],
+		"ip6addrs": [
+			{
+				"address": "fd33:bf38:54d5::1",
+				"netmask": "ffff:ffff:ffff:fff0::"
+			},
+			{
+				"address": "fe80::215:5dff:fee9:210",
+				"netmask": "ffff:ffff:ffff:ffff::"
+			}
+		],
+		"mac": "00:15:5D:E9:02:10",
+		"type": 1,
+		"ifindex": 5,
+		"stats": {
+			"rx_bytes": 0,
+			"tx_bytes": 53384,
+			"tx_errors": 0,
+			"rx_errors": 0,
+			"tx_packets": 364,
+			"rx_packets": 0,
+			"multicast": 0,
+			"collisions": 0,
+			"rx_dropped": 0,
+			"tx_dropped": 0
+		},
+		"flags": {
+			"up": true,
+			"broadcast": true,
+			"promisc": false,
+			"loopback": false,
+			"noarp": false,
+			"multicast": true,
+			"pointtopoint": false
+		},
+		"link": {
+			"speed": 10000,
+			"duplex": "unknown",
+			"carrier": true,
+			"changes": 10,
+			"up_count": 5,
+			"down_count": 5
+		}
+	},
+	"eth0": {
+		"name": "eth0",
+		"wireless": false,
+		"up": true,
+		"mtu": 1500,
+		"qlen": 1000,
+		"devtype": "ethernet",
+		"ipaddrs": [
+			{
+				"address": "172.17.68.202",
+				"netmask": "255.255.240.0",
+				"broadcast": "172.17.79.255"
+			}
+		],
+		"ip6addrs": [
+			{
+				"address": "fe80::215:5dff:fee9:20d",
+				"netmask": "ffff:ffff:ffff:ffff::"
+			}
+		],
+		"mac": "00:15:5D:E9:02:0D",
+		"type": 1,
+		"ifindex": 2,
+		"stats": {
+			"rx_bytes": 89774562,
+			"tx_bytes": 686588,
+			"tx_errors": 0,
+			"rx_errors": 0,
+			"tx_packets": 6551,
+			"rx_packets": 76855,
+			"multicast": 16621,
+			"collisions": 0,
+			"rx_dropped": 0,
+			"tx_dropped": 0
+		},
+		"flags": {
+			"up": true,
+			"broadcast": true,
+			"promisc": false,
+			"loopback": false,
+			"noarp": false,
+			"multicast": true,
+			"pointtopoint": false
+		},
+		"link": {
+			"speed": 10000,
+			"duplex": "full",
+			"carrier": true,
+			"changes": 103,
+			"up_count": 52,
+			"down_count": 51
+		}
+	},
+	"lo": {
+		"name": "lo",
+		"wireless": false,
+		"up": true,
+		"mtu": 65536,
+		"qlen": 1000,
+		"devtype": "ethernet",
+		"ipaddrs": [
+			{
+				"address": "127.0.0.1",
+				"netmask": "255.0.0.0"
+			}
+		],
+		"ip6addrs": [
+			{
+				"address": "::1",
+				"netmask": "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"
+			}
+		],
+		"type": 772,
+		"ifindex": 1,
+		"stats": {
+			"rx_bytes": 30888,
+			"tx_bytes": 30888,
+			"tx_errors": 0,
+			"rx_errors": 0,
+			"tx_packets": 338,
+			"rx_packets": 338,
+			"multicast": 0,
+			"collisions": 0,
+			"rx_dropped": 0,
+			"tx_dropped": 0
+		},
+		"flags": {
+			"up": true,
+			"broadcast": false,
+			"promisc": false,
+			"loopback": true,
+			"noarp": false,
+			"multicast": false,
+			"pointtopoint": false
+		},
+		"link": {
+			"carrier": true,
+			"changes": 0,
+			"up_count": 0,
+			"down_count": 0
+		}
+	}
+}

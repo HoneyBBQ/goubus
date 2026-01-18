@@ -1,0 +1,54 @@
+{
+	"values": {
+		"radio0": {
+			".anonymous": false,
+			".type": "wifi-device",
+			".name": "radio0",
+			".index": 0,
+			"type": "mac80211",
+			"path": "platform/soc/18000000.wifi",
+			"band": "2g",
+			"channel": "1",
+			"htmode": "HE20",
+			"cell_density": "0"
+		},
+		"radio1": {
+			".anonymous": false,
+			".type": "wifi-device",
+			".name": "radio1",
+			".index": 1,
+			"type": "mac80211",
+			"path": "platform/soc/18000000.wifi+1",
+			"band": "5g",
+			"channel": "44",
+			"htmode": "VHT80",
+			"cell_density": "0"
+		},
+		"wifinet0": {
+			".anonymous": false,
+			".type": "wifi-iface",
+			".name": "wifinet0",
+			".index": 2,
+			"device": "radio1",
+			"mode": "sta",
+			"network": "wwan2 wwan",
+			"ssid": "BBQ_5G",
+			"encryption": "sae",
+			"key": "HoneyBBQ@93",
+			"ocv": "0"
+		},
+		"wifinet1": {
+			".anonymous": false,
+			".type": "wifi-iface",
+			".name": "wifinet1",
+			".index": 3,
+			"device": "radio0",
+			"mode": "ap",
+			"ssid": "OpenWrt",
+			"encryption": "sae",
+			"key": "HoneyBBQ@93",
+			"ocv": "0",
+			"network": "lan"
+		}
+	}
+}

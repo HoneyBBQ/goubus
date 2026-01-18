@@ -1,0 +1,15 @@
+{
+	"configs": [
+		"attendedsysupgrade",
+		"dhcp",
+		"firewall",
+		"luci",
+		"network",
+		"rpcd",
+		"system",
+		"ubihealthd",
+		"ubootenv",
+		"uhttpd",
+		"wireless"
+	]
+}

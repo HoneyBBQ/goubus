@@ -1,0 +1,15 @@
+{
+	"devices": [
+		
+	],
+	"ports": [
+		{
+			"port": "usb1-port1",
+			"device": null
+		},
+		{
+			"port": "usb2-port1",
+			"device": null
+		}
+	]
+}

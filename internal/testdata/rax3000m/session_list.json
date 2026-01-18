@@ -1,0 +1,24 @@
+{
+	"ubus_rpc_session": "00000000000000000000000000000000",
+	"timeout": 0,
+	"expires": 0,
+	"acls": {
+		"access-group": {
+			"unauthenticated": [
+				"read"
+			]
+		},
+		"ubus": {
+			"luci": [
+				"getFeatures"
+			],
+			"session": [
+				"access",
+				"login"
+			]
+		}
+	},
+	"data": {
+		
+	}
+}

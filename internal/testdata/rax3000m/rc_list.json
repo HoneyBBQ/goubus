@@ -1,0 +1,128 @@
+{
+	"boot": {
+		"start": 10,
+		"stop": 90,
+		"enabled": true
+	},
+	"bootcount": {
+		"start": 99,
+		"enabled": true
+	},
+	"cron": {
+		"start": 50,
+		"enabled": true,
+		"running": false
+	},
+	"dnsmasq": {
+		"start": 19,
+		"enabled": true,
+		"running": true
+	},
+	"done": {
+		"start": 95,
+		"enabled": true
+	},
+	"firewall": {
+		"start": 19,
+		"enabled": true,
+		"running": false
+	},
+	"gpio_switch": {
+		"start": 94,
+		"stop": 10,
+		"enabled": true,
+		"running": false
+	},
+	"led": {
+		"start": 96,
+		"enabled": true
+	},
+	"log": {
+		"start": 12,
+		"stop": 89,
+		"enabled": true,
+		"running": true
+	},
+	"network": {
+		"start": 20,
+		"stop": 90,
+		"enabled": true,
+		"running": true
+	},
+	"odhcpd": {
+		"start": 35,
+		"stop": 85,
+		"enabled": true,
+		"running": true
+	},
+	"packet_steering": {
+		"start": 25,
+		"enabled": true,
+		"running": false
+	},
+	"rpcd": {
+		"start": 12,
+		"enabled": true,
+		"running": true
+	},
+	"sysctl": {
+		"start": 11,
+		"enabled": true
+	},
+	"sysfixtime": {
+		"start": 0,
+		"stop": 90,
+		"enabled": true
+	},
+	"sysntpd": {
+		"start": 98,
+		"enabled": true,
+		"running": true
+	},
+	"system": {
+		"start": 10,
+		"enabled": true,
+		"running": false
+	},
+	"ubihealthd": {
+		"start": 99,
+		"enabled": true,
+		"running": true
+	},
+	"ucitrack": {
+		"start": 80,
+		"enabled": true,
+		"running": false
+	},
+	"uhttpd": {
+		"start": 50,
+		"enabled": true,
+		"running": true
+	},
+	"umount": {
+		"stop": 90,
+		"enabled": false
+	},
+	"urandom_seed": {
+		"start": 99,
+		"enabled": true,
+		"running": false
+	},
+	"urngd": {
+		"start": 0,
+		"enabled": true,
+		"running": true
+	},
+	"wpad": {
+		"start": 19,
+		"stop": 21,
+		"enabled": true,
+		"running": true
+	},
+	"sshd": {
+		"start": 50,
+		"stop": 50,
+		"enabled": true,
+		"running": true
+	}
+}

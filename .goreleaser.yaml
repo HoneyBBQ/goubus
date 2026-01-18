@@ -1,0 +1,46 @@
+# Goreleaser configuration for goubus
+version: 2
+
+project_name: goubus
+
+before:
+  hooks:
+    - go mod tidy
+
+# Since this is a Go library, we don't need to build binaries.
+# We use goreleaser mainly for automating the release process on GitHub.
+builds:
+  - skip: true
+
+archives:
+  - formats:
+      - binary
+
+checksum:
+  disable: true
+
+# Generate a changelog from conventional commits.
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+# Configure the GitHub release.
+release:
+  github:
+    owner: honeybbq
+    name: goubus
+  draft: false
+  prerelease: auto
+  mode: replace
+  name_template: "{{.Tag}}"
+  header: |
+    ## goubus {{.Tag}}
+    
+    Go client for OpenWrt ubus system.
+  footer: |
+    ---
+    Refer to [README.md](https://github.com/honeybbq/goubus/blob/main/README.md) for usage instructions.
+  skip_upload: true

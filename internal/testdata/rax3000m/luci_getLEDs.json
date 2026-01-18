@@ -1,0 +1,117 @@
+{
+	"blue:status": {
+		"triggers": [
+			"none",
+			"timer",
+			"heartbeat",
+			"default-on",
+			"netdev",
+			"pattern",
+			"phy0rx",
+			"phy0tx",
+			"phy0assoc",
+			"phy0radio",
+			"phy0tpt",
+			"phy1rx",
+			"phy1tx",
+			"phy1assoc",
+			"phy1radio",
+			"phy1tpt"
+		],
+		"active_trigger": "none",
+		"brightness": 0,
+		"max_brightness": 1
+	},
+	"green:status": {
+		"triggers": [
+			"none",
+			"timer",
+			"heartbeat",
+			"default-on",
+			"netdev",
+			"pattern",
+			"phy0rx",
+			"phy0tx",
+			"phy0assoc",
+			"phy0radio",
+			"phy0tpt",
+			"phy1rx",
+			"phy1tx",
+			"phy1assoc",
+			"phy1radio",
+			"phy1tpt"
+		],
+		"active_trigger": "none",
+		"brightness": 1,
+		"max_brightness": 1
+	},
+	"mt76-phy0": {
+		"triggers": [
+			"none",
+			"timer",
+			"heartbeat",
+			"default-on",
+			"netdev",
+			"pattern",
+			"phy0rx",
+			"phy0tx",
+			"phy0assoc",
+			"phy0radio",
+			"phy0tpt",
+			"phy1rx",
+			"phy1tx",
+			"phy1assoc",
+			"phy1radio",
+			"phy1tpt"
+		],
+		"active_trigger": "phy0tpt",
+		"brightness": 0,
+		"max_brightness": 255
+	},
+	"mt76-phy1": {
+		"triggers": [
+			"none",
+			"timer",
+			"heartbeat",
+			"default-on",
+			"netdev",
+			"pattern",
+			"phy0rx",
+			"phy0tx",
+			"phy0assoc",
+			"phy0radio",
+			"phy0tpt",
+			"phy1rx",
+			"phy1tx",
+			"phy1assoc",
+			"phy1radio",
+			"phy1tpt"
+		],
+		"active_trigger": "phy1tpt",
+		"brightness": 0,
+		"max_brightness": 255
+	},
+	"red:status": {
+		"triggers": [
+			"none",
+			"timer",
+			"heartbeat",
+			"default-on",
+			"netdev",
+			"pattern",
+			"phy0rx",
+			"phy0tx",
+			"phy0assoc",
+			"phy0radio",
+			"phy0tpt",
+			"phy1rx",
+			"phy1tx",
+			"phy1assoc",
+			"phy1radio",
+			"phy1tpt"
+		],
+		"active_trigger": "none",
+		"brightness": 0,
+		"max_brightness": 1
+	}
+}

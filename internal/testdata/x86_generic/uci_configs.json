@@ -1,0 +1,12 @@
+{
+	"configs": [
+		"dhcp",
+		"dropbear",
+		"firewall",
+		"luci",
+		"network",
+		"rpcd",
+		"system",
+		"uhttpd"
+	]
+}

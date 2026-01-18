@@ -1,0 +1,56 @@
+{
+	"results": [
+		{
+			"mac": "22:D3:75:23:7C:55",
+			"signal": -22,
+			"signal_avg": -23,
+			"noise": -91,
+			"inactive": 1320,
+			"connected_time": 425,
+			"thr": 202384,
+			"authorized": true,
+			"authenticated": true,
+			"preamble": "short",
+			"wme": true,
+			"mfp": true,
+			"tdls": false,
+			"mesh llid": 0,
+			"mesh plid": 0,
+			"mesh plink": "",
+			"mesh local PS": "",
+			"mesh peer PS": "",
+			"mesh non-peer PS": "",
+			"rx": {
+				"drop_misc": 2,
+				"packets": 510,
+				"bytes": 33375,
+				"ht": false,
+				"vht": false,
+				"he": true,
+				"eht": false,
+				"mhz": 20,
+				"rate": 286700,
+				"mcs": 11,
+				"nss": 2,
+				"he_gi": 0,
+				"he_dcm": 0
+			},
+			"tx": {
+				"failed": 44,
+				"retries": 43,
+				"packets": 102,
+				"bytes": 10723,
+				"ht": false,
+				"vht": false,
+				"he": true,
+				"eht": false,
+				"mhz": 20,
+				"rate": 229400,
+				"mcs": 9,
+				"nss": 2,
+				"he_gi": 0,
+				"he_dcm": 0
+			}
+		}
+	]
+}

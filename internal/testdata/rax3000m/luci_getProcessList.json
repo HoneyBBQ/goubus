@@ -1,0 +1,974 @@
+{
+	"result": [
+		{
+			"PID": "4014",
+			"PPID": "4012",
+			"USER": "root",
+			"STAT": "S  ",
+			"VSZ": "6884",
+			"%MEM": "1%",
+			"%CPU": "0%",
+			"COMMAND": "sshd-session: root@notty"
+		},
+		{
+			"PID": "4012",
+			"PPID": "1897",
+			"USER": "root",
+			"STAT": "S  ",
+			"VSZ": "6624",
+			"%MEM": "1%",
+			"%CPU": "0%",
+			"COMMAND": "sshd-session: root [priv]"
+		},
+		{
+			"PID": "1897",
+			"PPID": "1",
+			"USER": "root",
+			"STAT": "S  ",
+			"VSZ": "6068",
+			"%MEM": "1%",
+			"%CPU": "0%",
+			"COMMAND": "sshd: /usr/sbin/sshd -D [listener] 0 of 10-100 startups"
+		},
+		{
+			"PID": "1633",
+			"PPID": "1588",
+			"USER": "network",
+			"STAT": "S  ",
+			"VSZ": "5412",
+			"%MEM": "1%",
+			"%CPU": "0%",
+			"COMMAND": "/usr/sbin/wpa_supplicant -n -s -g /var/run/wpa_supplicant/global"
+		},
+		{
+			"PID": "1632",
+			"PPID": "1587",
+			"USER": "network",
+			"STAT": "S  ",
+			"VSZ": "5400",
+			"%MEM": "1%",
+			"%CPU": "0%",
+			"COMMAND": "/usr/sbin/hostapd -s -g /var/run/hostapd/global"
+		},
+		{
+			"PID": "1338",
+			"PPID": "1",
+			"USER": "root",
+			"STAT": "S  ",
+			"VSZ": "4244",
+			"%MEM": "1%",
+			"%CPU": "0%",
+			"COMMAND": "/sbin/rpcd -s /var/run/ubus/ubus.sock -t 30"
+		},
+		{
+			"PID": "1652",
+			"PPID": "1",
+			"USER": "root",
+			"STAT": "S  ",
+			"VSZ": "4212",
+			"%MEM": "1%",
+			"%CPU": "0%",
+			"COMMAND": "/sbin/netifd"
+		},
+		{
+			"PID": "2036",
+			"PPID": "1",
+			"USER": "root",
+			"STAT": "S  ",
+			"VSZ": "3076",
+			"%MEM": "1%",
+			"%CPU": "0%",
+			"COMMAND": "/usr/sbin/uhttpd -f -h /www -r OpenWrt -x /cgi-bin -u /ubus -t 60 -T 30 -k 20 -A 1 -n 3 -N 100 -R -p 0.0.0.0:80 -p [::]:80 -C /etc/uhttpd.crt -K /etc/uhttpd.key -s 0.0.0.0:443 -s [::]:443"
+		},
+		{
+			"PID": "1588",
+			"PPID": "1",
+			"USER": "root",
+			"STAT": "S  ",
+			"VSZ": "2832",
+			"%MEM": "1%",
+			"%CPU": "0%",
+			"COMMAND": "{wpa_supplicant} /sbin/ujail -t 5 -n wpa_supplicant -U network -G network -C /etc/capabilities/wpad.json -c -- /usr/sbin/wpa_supplicant -n -s -g /var/run/wpa_supplicant/global"
+		},
+		{
+			"PID": "2601",
+			"PPID": "1",
+			"USER": "root",
+			"STAT": "S  ",
+			"VSZ": "2832",
+			"%MEM": "1%",
+			"%CPU": "0%",
+			"COMMAND": "{ntpd} /sbin/ujail -t 5 -n ntpd -U ntp -G ntp -C /etc/capabilities/ntpd.json -c -u -r /bin/ubus -r /usr/bin/env -r /usr/bin/jshn -r /usr/sbin/ntpd-hotplug -r /usr/share/libubox/jshn.sh -- /usr/sbin/ntpd -n -N -S /usr/sbin/ntpd-hotplug -p 0.openwrt.pool.ntp.org -p 1.openwrt.pool.ntp.org -p 2.openwrt.pool.ntp.org -p 3.openwrt.pool.ntp.org"
+		},
+		{
+			"PID": "2768",
+			"PPID": "1",
+			"USER": "root",
+			"STAT": "S  ",
+			"VSZ": "2832",
+			"%MEM": "1%",
+			"%CPU": "0%",
+			"COMMAND": "{dnsmasq} /sbin/ujail -t 5 -n dnsmasq -u -l -r /bin/ubus -r /etc/TZ -r /etc/dnsmasq.conf -r /etc/ethers -r /etc/group -r /etc/hosts -r /etc/passwd -w /tmp/dhcp.leases -r /tmp/dnsmasq.cfg01411c.d -r /tmp/hosts -r /usr/bin/env -r /usr/bin/jshn -r /usr/lib/dnsmasq/dhcp-script.sh -r /usr/share/dnsmasq/dhcpbogushostname.conf -r /usr/share/dnsmasq/rfc6761.conf -r /usr/share/dnsmasq/trust-anchors.conf -r /us"
+		},
+		{
+			"PID": "1587",
+			"PPID": "1",
+			"USER": "root",
+			"STAT": "S  ",
+			"VSZ": "2832",
+			"%MEM": "1%",
+			"%CPU": "0%",
+			"COMMAND": "{hostapd} /sbin/ujail -t 5 -n hostapd -U network -G network -C /etc/capabilities/wpad.json -c -- /usr/sbin/hostapd -s -g /var/run/hostapd/global"
+		},
+		{
+			"PID": "1",
+			"PPID": "0",
+			"USER": "root",
+			"STAT": "S  ",
+			"VSZ": "2312",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "/sbin/procd"
+		},
+		{
+			"PID": "1284",
+			"PPID": "1",
+			"USER": "logd",
+			"STAT": "S  ",
+			"VSZ": "2056",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "/sbin/logd -S 128"
+		},
+		{
+			"PID": "1766",
+			"PPID": "1",
+			"USER": "root",
+			"STAT": "S  ",
+			"VSZ": "1844",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "/usr/sbin/odhcpd"
+		},
+		{
+			"PID": "2798",
+			"PPID": "2768",
+			"USER": "dnsmasq",
+			"STAT": "S  ",
+			"VSZ": "1648",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "/usr/sbin/dnsmasq -C /var/etc/dnsmasq.conf.cfg01411c -k -x /var/run/dnsmasq/dnsmasq.cfg01411c.pid"
+		},
+		{
+			"PID": "4064",
+			"PPID": "4015",
+			"USER": "root",
+			"STAT": "S  ",
+			"VSZ": "1596",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "ubus call luci getProcessList"
+		},
+		{
+			"PID": "882",
+			"PPID": "1",
+			"USER": "ubus",
+			"STAT": "S  ",
+			"VSZ": "1468",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "/sbin/ubusd"
+		},
+		{
+			"PID": "4015",
+			"PPID": "4014",
+			"USER": "root",
+			"STAT": "S  ",
+			"VSZ": "1332",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "ash -c  ubus call system board > /tmp/system_board.json; ubus call system info > /tmp/system_info.json; ubus call network.device status > /tmp/network_device_status.json; ubus call network.interface dump > /tmp/network_interface_dump.json; ubus call network.wireless status > /tmp/network_wireless_status.json; ubus call dhcp ipv4leases > /tmp/dhcp_ipv4leases.json; ubus call dhcp ipv6leases > /tmp/dhcp_"
+		},
+		{
+			"PID": "2648",
+			"PPID": "2601",
+			"USER": "ntp",
+			"STAT": "S  ",
+			"VSZ": "1328",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "/usr/sbin/ntpd -n -N -S /usr/sbin/ntpd-hotplug -p 0.openwrt.pool.ntp.org -p 1.openwrt.pool.ntp.org -p 2.openwrt.pool.ntp.org -p 3.openwrt.pool.ntp.org"
+		},
+		{
+			"PID": "918",
+			"PPID": "1",
+			"USER": "root",
+			"STAT": "S  ",
+			"VSZ": "1080",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "/sbin/urngd"
+		},
+		{
+			"PID": "2660",
+			"PPID": "1",
+			"USER": "root",
+			"STAT": "S  ",
+			"VSZ": "956",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "/usr/sbin/ubihealthd -f -d /dev/ubi0"
+		},
+		{
+			"PID": "883",
+			"PPID": "1",
+			"USER": "root",
+			"STAT": "S  ",
+			"VSZ": "924",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "/sbin/askfirst /usr/libexec/login.sh"
+		},
+		{
+			"PID": "1027",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[napi/phy0-7]"
+		},
+		{
+			"PID": "1029",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[napi/phy0-9]"
+		},
+		{
+			"PID": "3851",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/u8:3-ph]"
+		},
+		{
+			"PID": "1045",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[mt76-tx phy0]"
+		},
+		{
+			"PID": "1030",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[napi/phy0-10]"
+		},
+		{
+			"PID": "3860",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/u8:4-ev]"
+		},
+		{
+			"PID": "3914",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/u8:2-ev]"
+		},
+		{
+			"PID": "16",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[rcu_sched]"
+		},
+		{
+			"PID": "4003",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/u8:0-ev]"
+		},
+		{
+			"PID": "1032",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[napi/phy0-12]"
+		},
+		{
+			"PID": "11",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/0:1-eve]"
+		},
+		{
+			"PID": "208",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/1:1-mm_]"
+		},
+		{
+			"PID": "24",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/1:0-eve]"
+		},
+		{
+			"PID": "15",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[ksoftirqd/0]"
+		},
+		{
+			"PID": "38",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW<",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/1:1H-kb]"
+		},
+		{
+			"PID": "10",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW<",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/0:0H-kb]"
+		},
+		{
+			"PID": "406",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[napi/mtk_eth-6]"
+		},
+		{
+			"PID": "29",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kcompactd0]"
+		},
+		{
+			"PID": "405",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[napi/mtk_eth-5]"
+		},
+		{
+			"PID": "23",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[ksoftirqd/1]"
+		},
+		{
+			"PID": "358",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/0:4-pm]"
+		},
+		{
+			"PID": "207",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[hwrng]"
+		},
+		{
+			"PID": "48",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kswapd0]"
+		},
+		{
+			"PID": "447",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW<",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/R-dsa_o]"
+		},
+		{
+			"PID": "446",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW<",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/R-ipv6_]"
+		},
+		{
+			"PID": "448",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW<",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/R-kstrp]"
+		},
+		{
+			"PID": "261",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[ubi_bgt0d]"
+		},
+		{
+			"PID": "666",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[irq/15-gpio-key]"
+		},
+		{
+			"PID": "665",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[irq/16-gpio-key]"
+		},
+		{
+			"PID": "805",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[ubifs_bgt0_5]"
+		},
+		{
+			"PID": "705",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW<",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/0:2H]"
+		},
+		{
+			"PID": "440",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW<",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/R-mld]"
+		},
+		{
+			"PID": "633",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[irq/53-mt7530]"
+		},
+		{
+			"PID": "988",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[irq/83-10320000]"
+		},
+		{
+			"PID": "989",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW<",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/R-wq_ri]"
+		},
+		{
+			"PID": "990",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[irq/84-10320000]"
+		},
+		{
+			"PID": "991",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW<",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/R-wq_ri]"
+		},
+		{
+			"PID": "992",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[irq/85-10320000]"
+		},
+		{
+			"PID": "993",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW<",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/R-wq_ri]"
+		},
+		{
+			"PID": "994",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[irq/86-10320000]"
+		},
+		{
+			"PID": "995",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW<",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/R-wq_ri]"
+		},
+		{
+			"PID": "1015",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW<",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/R-cfg80]"
+		},
+		{
+			"PID": "39",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[watchdogd]"
+		},
+		{
+			"PID": "50",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW<",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/R-kthro]"
+		},
+		{
+			"PID": "36",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW<",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/R-ata_s]"
+		},
+		{
+			"PID": "34",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW<",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/R-blkcg]"
+		},
+		{
+			"PID": "37",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW<",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/R-devfr]"
+		},
+		{
+			"PID": "32",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW<",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/R-crypt]"
+		},
+		{
+			"PID": "30",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW<",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/R-pencr]"
+		},
+		{
+			"PID": "31",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW<",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/R-pdecr]"
+		},
+		{
+			"PID": "33",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW<",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/R-kbloc]"
+		},
+		{
+			"PID": "245",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[irq/73-1100a000]"
+		},
+		{
+			"PID": "26",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW<",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/R-inet_]"
+		},
+		{
+			"PID": "21",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[cpuhp/1]"
+		},
+		{
+			"PID": "19",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[migration/0]"
+		},
+		{
+			"PID": "18",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[rcu_exp_gp_kthr]"
+		},
+		{
+			"PID": "20",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[cpuhp/0]"
+		},
+		{
+			"PID": "22",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[migration/1]"
+		},
+		{
+			"PID": "27",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[oom_reaper]"
+		},
+		{
+			"PID": "13",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW<",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/R-mm_pe]"
+		},
+		{
+			"PID": "14",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[rcu_tasks_trace]"
+		},
+		{
+			"PID": "7",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW<",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/R-slub_]"
+		},
+		{
+			"PID": "6",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW<",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/R-sync_]"
+		},
+		{
+			"PID": "8",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW<",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/R-netns]"
+		},
+		{
+			"PID": "4",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW<",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/R-kvfre]"
+		},
+		{
+			"PID": "2",
+			"PPID": "0",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kthreadd]"
+		},
+		{
+			"PID": "3",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[pool_workqueue_]"
+		},
+		{
+			"PID": "5",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW<",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/R-rcu_g]"
+		},
+		{
+			"PID": "17",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[rcu_exp_par_gp_]"
+		},
+		{
+			"PID": "28",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW<",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/R-write]"
+		},
+		{
+			"PID": "247",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[spi0]"
+		},
+		{
+			"PID": "1019",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "IW<",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[kworker/1:2H]"
+		},
+		{
+			"PID": "1028",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[napi/phy0-8]"
+		},
+		{
+			"PID": "1031",
+			"PPID": "2",
+			"USER": "root",
+			"STAT": "SW ",
+			"VSZ": "0",
+			"%MEM": "0%",
+			"%CPU": "0%",
+			"COMMAND": "[napi/phy0-11]"
+		}
+	]
+}

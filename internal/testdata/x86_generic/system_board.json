@@ -1,0 +1,16 @@
+{
+	"kernel": "6.6.119",
+	"hostname": "OpenWrt",
+	"system": "11th Gen Intel(R) Core(TM) i7-11800H @ 2.30GHz",
+	"model": "Microsoft Corporation Virtual Machine",
+	"board_name": "microsoft-corporation-virtual-machine",
+	"rootfs_type": "ext4",
+	"release": {
+		"distribution": "OpenWrt",
+		"version": "24.10.5",
+		"revision": "r29087-d9c5716d1d",
+		"target": "x86/64",
+		"description": "OpenWrt 24.10.5 r29087-d9c5716d1d",
+		"builddate": "1766005702"
+	}
+}

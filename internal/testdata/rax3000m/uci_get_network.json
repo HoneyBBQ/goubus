@@ -1,0 +1,150 @@
+{
+	"values": {
+		"cfg010f15": {
+			".anonymous": true,
+			".type": "device",
+			".name": "cfg010f15",
+			".index": 0,
+			"name": "br-lan",
+			"type": "bridge",
+			"ports": [
+				"lan1",
+				"lan2",
+				"lan3"
+			]
+		},
+		"wwan2": {
+			".anonymous": false,
+			".type": "interface",
+			".name": "wwan2",
+			".index": 1,
+			"proto": "dhcp"
+		},
+		"globals": {
+			".anonymous": false,
+			".type": "globals",
+			".name": "globals",
+			".index": 2,
+			"ula_prefix": "fd5f:638a:c21e::/48"
+		},
+		"loopback": {
+			".anonymous": false,
+			".type": "interface",
+			".name": "loopback",
+			".index": 3,
+			"device": "lo",
+			"dns": "8.8.8.8 8.8.4.4",
+			"ipaddr": "127.0.0.1",
+			"netmask": "255.0.0.0",
+			"proto": "static"
+		},
+		"device_lan": {
+			".anonymous": false,
+			".type": "device",
+			".name": "device_lan",
+			".index": 4,
+			"name": "br-lan",
+			"ports": [
+				"lan1",
+				"lan2",
+				"lan3"
+			],
+			"type": "bridge"
+		},
+		"lan": {
+			".anonymous": false,
+			".type": "interface",
+			".name": "lan",
+			".index": 5,
+			"device": "br-lan",
+			"dns": "8.8.8.8 8.8.4.4",
+			"ip6assign": "60",
+			"ipaddr": "192.168.233.1",
+			"netmask": "255.255.255.0",
+			"proto": "static"
+		},
+		"wan": {
+			".anonymous": false,
+			".type": "interface",
+			".name": "wan",
+			".index": 6,
+			"device": "eth1",
+			"dns": "8.8.8.8 8.8.4.4",
+			"proto": "dhcp"
+		},
+		"wan6": {
+			".anonymous": false,
+			".type": "interface",
+			".name": "wan6",
+			".index": 7,
+			"device": "eth1",
+			"dns": "8.8.8.8 8.8.4.4",
+			"proto": "dhcpv6"
+		},
+		"wwan": {
+			".anonymous": false,
+			".type": "interface",
+			".name": "wwan",
+			".index": 8,
+			"device": "wwan",
+			"dns": "8.8.8.8 8.8.4.4",
+			"proto": "dhcp"
+		},
+		"wg0": {
+			".anonymous": false,
+			".type": "interface",
+			".name": "wg0",
+			".index": 9,
+			"addresses": [
+				"100.64.0.2/32"
+			],
+			"ip4table": "200",
+			"mtu": "1420",
+			"private_key": "gHWK/W4yyUXlsjQcnilinpDHPlOUagtOOizojXnO9XI=",
+			"proto": "wireguard"
+		},
+		"wgpeer_wg0": {
+			".anonymous": false,
+			".type": "wireguard_wg0",
+			".name": "wgpeer_wg0",
+			".index": 10,
+			"allowed_ips": [
+				"100.100.0.5/32",
+				"100.64.0.0/10",
+				"0.0.0.0/0"
+			],
+			"endpoint_host": "47.107.161.85",
+			"endpoint_port": "51820",
+			"persistent_keepalive": "25",
+			"public_key": "UKeCLIzRJ87tyZsl8pBRApqgkhPldzytwhB29tQCsXY=",
+			"route_allowed_ips": "1"
+		},
+		"sdwan_route_overlay_cidr": {
+			".anonymous": false,
+			".type": "route",
+			".name": "sdwan_route_overlay_cidr",
+			".index": 11,
+			"interface": "wg0",
+			"netmask": "255.192.0.0",
+			"target": "100.64.0.0"
+		},
+		"sdwan_route_relay_overlay": {
+			".anonymous": false,
+			".type": "route",
+			".name": "sdwan_route_relay_overlay",
+			".index": 12,
+			"interface": "wg0",
+			"netmask": "255.255.255.255",
+			"target": "100.100.0.5"
+		},
+		"lan_wg0": {
+			".anonymous": false,
+			".type": "rule",
+			".name": "lan_wg0",
+			".index": 13,
+			"in": "lan",
+			"lookup": "200",
+			"priority": "30000"
+		}
+	}
+}

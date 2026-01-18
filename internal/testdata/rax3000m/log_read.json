@@ -1,0 +1,12 @@
+{
+	"log": [
+		{
+			"text": "Wed Dec 31 02:06:45 2025 daemon.info dnsmasq-dhcp[1]: DHCPOFFER(br-lan) 192.168.233.122 22:d3:75:23:7c:55",
+			"time": 1735610805
+		},
+		{
+			"text": "Wed Dec 31 02:06:45 2025 daemon.info dnsmasq-dhcp[1]: DHCPREQUEST(br-lan) 192.168.233.122 22:d3:75:23:7c:55",
+			"time": 1735610805
+		}
+	]
+}

@@ -1,0 +1,11 @@
+{
+	"br-lan": [
+		{
+			"interface": "br-lan",
+			"address": "2001:db8::1",
+			"prefix": 64,
+			"valid": 3600,
+			"preferred": 1800
+		}
+	]
+}

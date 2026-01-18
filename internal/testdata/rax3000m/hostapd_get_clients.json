@@ -1,0 +1,14 @@
+{
+	"freq": 2412,
+	"clients": {
+		"AA:BB:CC:DD:EE:FF": {
+			"auth": true,
+			"assoc": true,
+			"authorized": true,
+			"preauth": false,
+			"wme": true,
+			"mfp": true,
+			"he": true
+		}
+	}
+}

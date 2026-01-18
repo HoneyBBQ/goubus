@@ -1,0 +1,39 @@
+{
+	"result": [
+		{
+			"device": "/dev/root",
+			"mount": "/rom",
+			"size": 5767168,
+			"avail": 0,
+			"free": 0
+		},
+		{
+			"device": "tmpfs",
+			"mount": "/tmp",
+			"size": 254320640,
+			"avail": 253935616,
+			"free": 253935616
+		},
+		{
+			"device": "/dev/ubi0_5",
+			"mount": "/overlay",
+			"size": 76918784,
+			"avail": 36302848,
+			"free": 40271872
+		},
+		{
+			"device": "overlayfs:/overlay",
+			"mount": "/",
+			"size": 76918784,
+			"avail": 36302848,
+			"free": 40271872
+		},
+		{
+			"device": "tmpfs",
+			"mount": "/dev",
+			"size": 524288,
+			"avail": 524288,
+			"free": 524288
+		}
+	]
+}

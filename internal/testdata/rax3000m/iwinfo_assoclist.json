@@ -1,0 +1,34 @@
+{
+	"results": [
+		{
+			"mac": "22:D3:75:23:7C:55",
+			"signal": -20,
+			"signal_avg": -28,
+			"noise": -82,
+			"inactive": 6630,
+			"connected_time": 304,
+			"rx": {
+				"packets": 489,
+				"bytes": 32595,
+				"ht": false,
+				"vht": false,
+				"he": true,
+				"rate": 286700,
+				"mcs": 11,
+				"nss": 2
+			},
+			"tx": {
+				"packets": 99,
+				"bytes": 10413,
+				"ht": false,
+				"vht": false,
+				"he": true,
+				"rate": 229400,
+				"mcs": 9,
+				"nss": 2
+			},
+			"authorized": true,
+			"authenticated": true
+		}
+	]
+}

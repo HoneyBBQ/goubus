@@ -1,0 +1,17 @@
+{
+	"kernel": "6.12.62",
+	"hostname": "OpenWrt",
+	"system": "ARMv8 Processor rev 4",
+	"model": "CMCC RAX3000M",
+	"board_name": "cmcc,rax3000m",
+	"rootfs_type": "squashfs",
+	"release": {
+		"distribution": "OpenWrt",
+		"version": "25.12.0-rc1",
+		"firmware_url": "https://downloads.openwrt.org/",
+		"revision": "r32353-9e9b05130c",
+		"target": "mediatek/filogic",
+		"description": "OpenWrt 25.12.0-rc1 r32353-9e9b05130c",
+		"builddate": "1766089549"
+	}
+}
