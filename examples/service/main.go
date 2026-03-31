@@ -45,7 +45,7 @@ func main() {
 		return
 	}
 
-	slog.Info("Service Summary", "total", len(services))
+	slog.Info("Service Summary", slog.Int("total", len(services)))
 
 	// 4. Check status of a common service (e.g., uhttpd)
 	if srv, ok := services["uhttpd"]; ok {

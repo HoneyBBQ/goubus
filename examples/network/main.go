@@ -48,7 +48,7 @@ func main() {
 		return
 	}
 
-	slog.Info("Network Summary", "count", len(ifaces))
+	slog.Info("Network Summary", slog.Int("count", len(ifaces)))
 
 	for _, iface := range ifaces {
 		slog.Info("Interface",
@@ -62,7 +62,7 @@ func main() {
 	if len(ifaces) > 0 {
 		lanStatus, errStatus := netSvc.Interface("lan").Status(ctx)
 		if errStatus == nil {
-			slog.Info("LAN Status", "uptime", lanStatus.Uptime)
+			slog.Info("LAN Status", slog.Int("uptime", lanStatus.Uptime))
 
 			if len(lanStatus.IPv4Address) > 0 {
 				slog.Info("LAN Address",

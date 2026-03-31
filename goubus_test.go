@@ -59,6 +59,7 @@ var callTestCases = []callTestCase{
 					if !ok {
 						return errMockUnexpectedTargetType
 					}
+
 					resp.Foo = "bar"
 
 					return nil

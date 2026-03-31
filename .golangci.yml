@@ -35,6 +35,14 @@ linters:
         - id
         - fn
 
+  exclusions:
+    rules:
+      # Example programs log ubus/RPC-derived fields for local debugging only.
+      - path: ^examples/
+        linters:
+          - gosec
+        text: G706
+
 run:
   timeout: 10m
   go: '1.25'

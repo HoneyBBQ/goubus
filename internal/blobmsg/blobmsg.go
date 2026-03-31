@@ -711,10 +711,14 @@ func EncodeIntegerValue(value int64) (uint8, []byte, error) {
 		return TypeInt32, buf.Bytes(), nil
 	}
 
-	data := make([]byte, Uint64Size)
-	binary.BigEndian.PutUint64(data, uint64(value))
+	var buf bytes.Buffer
 
-	return TypeInt64, data, nil
+	err := binary.Write(&buf, binary.BigEndian, value)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	return TypeInt64, buf.Bytes(), nil
 }
 
 func EncodeUnsignedValue(value uint64) (uint8, []byte, error) {
