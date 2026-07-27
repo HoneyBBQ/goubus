@@ -39,7 +39,6 @@ type SocketClient struct {
 	conn         net.Conn
 	logger       *slog.Logger
 	objectCache  map[string]uint32
-	sockPath     string
 	dialTimeout  time.Duration
 	readTimeout  time.Duration
 	writeTimeout time.Duration
@@ -96,7 +95,6 @@ func NewSocketClient(ctx context.Context, sockPath string, opts ...SocketOption)
 	}
 
 	client := &SocketClient{
-		sockPath:     sockPath,
 		seq:          1,
 		dialTimeout:  defaultDialTimeout,
 		readTimeout:  defaultReadTimeout,
@@ -111,7 +109,7 @@ func NewSocketClient(ctx context.Context, sockPath string, opts ...SocketOption)
 
 	dialer := net.Dialer{Timeout: client.dialTimeout}
 
-	conn, err := dialer.DialContext(ctx, "unix", client.sockPath)
+	conn, err := dialer.DialContext(ctx, "unix", sockPath)
 	if err != nil {
 		return nil, errdefs.Wrapf(errdefs.ErrConnectionFailed, "dial unix socket: %v", err)
 	}
@@ -119,6 +117,35 @@ func NewSocketClient(ctx context.Context, sockPath string, opts ...SocketOption)
 	client.conn = conn
 
 	err = client.exchangeHello()
+	if err != nil {
+		_ = conn.Close()
+
+		return nil, err
+	}
+
+	return client, nil
+}
+
+// NewSocketClientFromConn creates a new ubus socket client from an existing
+// socket connection and performs the HELLO handshake.  The given connection
+// will be managed by the new client, including being closed if the handshake
+// fails.
+func NewSocketClientFromConn(ctx context.Context, conn net.Conn, opts ...SocketOption) (*SocketClient, error) {
+	client := &SocketClient{
+		conn:         conn,
+		seq:          1,
+		dialTimeout:  defaultDialTimeout,
+		readTimeout:  defaultReadTimeout,
+		writeTimeout: defaultWriteTimeout,
+		objectCache:  make(map[string]uint32),
+		logger:       logging.Discard(),
+	}
+
+	for _, opt := range opts {
+		opt(client)
+	}
+
+	err := client.exchangeHello()
 	if err != nil {
 		_ = conn.Close()
 

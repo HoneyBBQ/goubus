@@ -67,6 +67,39 @@ func TestSocketClient_NewSocketClient(t *testing.T) {
 	}
 }
 
+func TestSocketClient_NewSocketClientFromConn(t *testing.T) {
+	const peerID = 0x456789ab
+
+	serverConn, clientConn := net.Pipe()
+
+	go func() {
+		// Send HELLO
+		header := &blobmsg.UbusMessageHeader{
+			Type: blobmsg.UbusMsgHello,
+			Peer: peerID,
+		}
+
+		var buf bytes.Buffer
+
+		_ = blobmsg.EncodeHeader(&buf, header)
+		_, _ = serverConn.Write(buf.Bytes())
+		_, _ = serverConn.Write([]byte{0, 0, 0, 4}) // Empty payload length 4
+	}()
+
+	client, err := goubus.NewSocketClientFromConn(t.Context(), clientConn)
+	if err != nil {
+		t.Fatalf("failed to create client: %v", err)
+	}
+
+	defer func() {
+		_ = client.Close()
+	}()
+
+	if client.PeerID() != peerID {
+		t.Errorf("expected peer ID 0x%x, got 0x%x", peerID, client.PeerID())
+	}
+}
+
 func TestSocketClient_Call(t *testing.T) {
 	sockPath := filepath.Join(t.TempDir(), "ubus.sock")
 
