@@ -11,6 +11,8 @@ import (
 	"github.com/honeybbq/goubus/v2/internal/testutil"
 )
 
+const responseResultKey = "result"
+
 type mockNetworkDialect struct{}
 
 func TestNetworkManagerDumpInterfaces(t *testing.T) {
@@ -37,7 +39,7 @@ func TestNetworkManagerDumpInterfaces(t *testing.T) {
 func TestNetworkManagerRestart(t *testing.T) {
 	ctx := context.Background()
 	mock := testutil.NewMockTransport()
-	mock.AddResponse("network", "restart", map[string]any{"result": 0})
+	mock.AddResponse("network", "restart", map[string]any{responseResultKey: 0})
 
 	mgr := network.New(mock, mockNetworkDialect{})
 
@@ -50,8 +52,8 @@ func TestNetworkManagerRestart(t *testing.T) {
 func TestNetworkManagerInterfaceUpDown(t *testing.T) {
 	ctx := context.Background()
 	mock := testutil.NewMockTransport()
-	mock.AddResponse("network.interface.lan", "up", map[string]any{"result": 0})
-	mock.AddResponse("network.interface.lan", "down", map[string]any{"result": 0})
+	mock.AddResponse("network.interface.lan", "up", map[string]any{responseResultKey: 0})
+	mock.AddResponse("network.interface.lan", "down", map[string]any{responseResultKey: 0})
 
 	mgr := network.New(mock, mockNetworkDialect{})
 

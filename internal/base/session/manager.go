@@ -10,6 +10,8 @@ import (
 	"github.com/honeybbq/goubus/v2"
 )
 
+const ubusRPCSessionKey = "ubus_rpc_session"
+
 // Manager provides an interface for managing ubus sessions.
 type Manager struct {
 	caller goubus.Transport
@@ -71,8 +73,8 @@ func (m *Manager) Access(ctx context.Context, req AccessRequest) (bool, error) {
 // Set sets session values.
 func (m *Manager) Set(ctx context.Context, session string, values map[string]any) error {
 	req := map[string]any{
-		"ubus_rpc_session": session,
-		"values":           values,
+		ubusRPCSessionKey: session,
+		"values":          values,
 	}
 	_, err := m.caller.Call(ctx, "session", "set", req)
 
@@ -82,8 +84,8 @@ func (m *Manager) Set(ctx context.Context, session string, values map[string]any
 // Get retrieves session values.
 func (m *Manager) Get(ctx context.Context, session string, keys []string) (map[string]any, error) {
 	req := map[string]any{
-		"ubus_rpc_session": session,
-		"keys":             keys,
+		ubusRPCSessionKey: session,
+		"keys":            keys,
 	}
 
 	res, err := goubus.Call[map[string]any](ctx, m.caller, "session", "get", req)
@@ -97,8 +99,8 @@ func (m *Manager) Get(ctx context.Context, session string, keys []string) (map[s
 // Unset unsets session values.
 func (m *Manager) Unset(ctx context.Context, session string, keys []string) error {
 	req := map[string]any{
-		"ubus_rpc_session": session,
-		"keys":             keys,
+		ubusRPCSessionKey: session,
+		"keys":            keys,
 	}
 	_, err := m.caller.Call(ctx, "session", "unset", req)
 
@@ -107,7 +109,7 @@ func (m *Manager) Unset(ctx context.Context, session string, keys []string) erro
 
 // Destroy destroys a session.
 func (m *Manager) Destroy(ctx context.Context, session string) error {
-	req := map[string]any{"ubus_rpc_session": session}
+	req := map[string]any{ubusRPCSessionKey: session}
 	_, err := m.caller.Call(ctx, "session", "destroy", req)
 
 	return err

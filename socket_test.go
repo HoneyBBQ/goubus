@@ -94,7 +94,7 @@ func TestSocketClient_Call(t *testing.T) {
 		_ = client.Close()
 	}()
 
-	res, err := client.Call(ctx, "system", "info", nil)
+	res, err := client.Call(ctx, testSystemService, testInfoMethod, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,13 +108,13 @@ func TestSocketClient_Call(t *testing.T) {
 		t.Fatal(errUnmarshal)
 	}
 
-	if info.Hostname != "OpenWrt" {
+	if info.Hostname != testHostname {
 		t.Errorf("expected OpenWrt, got %s", info.Hostname)
 	}
 
 	// Test cache: call again, should not trigger another lookup
 	// (We can check this by making mockUbusd fail on second lookup if we wanted)
-	_, err = client.Call(ctx, "system", "info", nil)
+	_, err = client.Call(ctx, testSystemService, testInfoMethod, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,10 +165,10 @@ func handleLookup(conn net.Conn, seq uint16, payload []byte) {
 		return
 	}
 
-	if path == "system" {
+	if path == testSystemService {
 		// Send Data
 		dataAttrs := map[uint32]any{
-			blobmsg.UbusAttrObjPath: "system",
+			blobmsg.UbusAttrObjPath: testSystemService,
 			blobmsg.UbusAttrObjID:   uint32(100),
 		}
 		dataBody, _ := blobmsg.CreateBlobMessage(dataAttrs, nil)
@@ -191,9 +191,9 @@ func handleInvoke(conn net.Conn, seq uint16, payload []byte) {
 		return
 	}
 
-	if objID == 100 && method == "info" {
+	if objID == 100 && method == testInfoMethod {
 		// Send Data
-		respData := map[string]any{"hostname": "OpenWrt"}
+		respData := map[string]any{"hostname": testHostname}
 		dataPayload, _ := blobmsg.CreateBlobmsgTable(respData)
 		// ParseBlobmsgContainer expects the payload WITHOUT the 4-byte length header
 		dataBody, _ := blobmsg.CreateBlobMessage(map[uint32]any{

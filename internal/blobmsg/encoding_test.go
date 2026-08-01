@@ -14,7 +14,7 @@ import (
 func TestCreateBlobMessage(t *testing.T) {
 	attrs := map[uint32]any{
 		blobmsg.UbusAttrObjID:  uint32(123),
-		blobmsg.UbusAttrMethod: "test",
+		blobmsg.UbusAttrMethod: testName,
 	}
 	ordered := []uint32{blobmsg.UbusAttrObjID, blobmsg.UbusAttrMethod}
 
@@ -40,7 +40,7 @@ func TestCreateBlobMessage(t *testing.T) {
 
 	if val, ok := decoded["method"]; !ok {
 		t.Errorf("method not found")
-	} else if v, ok := val.(string); !ok || v != "test" {
+	} else if v, ok := val.(string); !ok || v != testName {
 		t.Errorf("Decoded method mismatch: got %v, want test", val)
 	}
 }
@@ -160,7 +160,7 @@ func decodeReflectStructValue(t *testing.T, data any) map[string]any {
 func assertReflectBasicTypes(t *testing.T, decodedMap map[string]any) {
 	t.Helper()
 
-	if decodedMap["name"] != "test" {
+	if decodedMap["name"] != testValName {
 		t.Errorf("name mismatch: %v", decodedMap["name"])
 	}
 

@@ -11,6 +11,8 @@ import (
 	"github.com/honeybbq/goubus/v2/internal/testutil"
 )
 
+const responseResultKey = "result"
+
 func TestHostapdManager(t *testing.T) {
 	ctx := context.Background()
 	mock := testutil.NewMockTransport()
@@ -28,7 +30,7 @@ func TestHostapdManager(t *testing.T) {
 func testHostapdGeneral(t *testing.T, ctx context.Context, mock *testutil.MockTransport, mgr *hostapd.Manager) {
 	t.Helper()
 	t.Run("Reload", func(t *testing.T) {
-		mock.AddResponse("hostapd", "reload", map[string]any{"result": 0})
+		mock.AddResponse("hostapd", "reload", map[string]any{responseResultKey: 0})
 
 		err := mgr.Reload(ctx, "phy0", 0)
 		if err != nil {
@@ -124,7 +126,7 @@ func testHostapdGetStatus(t *testing.T, ctx context.Context, mock *testutil.Mock
 func testHostapdDelClient(t *testing.T, ctx context.Context, mock *testutil.MockTransport, mgr *hostapd.Manager) {
 	t.Helper()
 	t.Run("DelClient", func(t *testing.T) {
-		mock.AddResponse("hostapd.wlan0", "del_client", map[string]any{"result": 0})
+		mock.AddResponse("hostapd.wlan0", "del_client", map[string]any{responseResultKey: 0})
 
 		err := mgr.AP("hostapd.wlan0").DelClient(ctx, "00:11:22:33:44:55", 1, true, 0)
 		if err != nil {
@@ -147,7 +149,7 @@ func testHostapdDelClient(t *testing.T, ctx context.Context, mock *testutil.Mock
 func testHostapdSwitchChan(t *testing.T, ctx context.Context, mock *testutil.MockTransport, mgr *hostapd.Manager) {
 	t.Helper()
 	t.Run("SwitchChan", func(t *testing.T) {
-		mock.AddResponse("hostapd.wlan0", "switch_chan", map[string]any{"result": 0})
+		mock.AddResponse("hostapd.wlan0", "switch_chan", map[string]any{responseResultKey: 0})
 
 		err := mgr.AP("hostapd.wlan0").SwitchChan(ctx, 5180, 80)
 		if err != nil {

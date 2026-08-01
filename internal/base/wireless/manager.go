@@ -9,6 +9,8 @@ import (
 	"github.com/honeybbq/goubus/v2"
 )
 
+const paramDevice = "device"
+
 // Manager provides methods to interact with 'iwinfo'.
 type Manager struct {
 	caller goubus.Transport
@@ -35,7 +37,7 @@ func (m *Manager) Devices(ctx context.Context) ([]string, error) {
 
 // Info retrieves runtime information for a wireless interface.
 func (m *Manager) Info(ctx context.Context, device string) (*Info, error) {
-	params := map[string]any{"device": device}
+	params := map[string]any{paramDevice: device}
 
 	return goubus.Call[Info](ctx, m.caller, "iwinfo", "info", params)
 }
@@ -46,7 +48,7 @@ type scanResponse struct {
 
 // Scan scans for nearby wireless networks.
 func (m *Manager) Scan(ctx context.Context, device string) ([]ScanResult, error) {
-	params := map[string]any{"device": device}
+	params := map[string]any{paramDevice: device}
 
 	res, err := goubus.Call[scanResponse](ctx, m.caller, "iwinfo", "scan", params)
 	if err != nil {
@@ -62,7 +64,7 @@ type assocListResponse struct {
 
 // AssocList retrieves the list of stations currently associated with the interface.
 func (m *Manager) AssocList(ctx context.Context, device string) ([]Assoc, error) {
-	params := map[string]any{"device": device}
+	params := map[string]any{paramDevice: device}
 
 	res, err := goubus.Call[assocListResponse](ctx, m.caller, "iwinfo", "assoclist", params)
 	if err != nil {
@@ -74,7 +76,7 @@ func (m *Manager) AssocList(ctx context.Context, device string) ([]Assoc, error)
 
 // FreqList retrieves the list of available frequencies for the interface.
 func (m *Manager) FreqList(ctx context.Context, device string) ([]any, error) {
-	params := map[string]any{"device": device}
+	params := map[string]any{paramDevice: device}
 
 	res, err := goubus.Call[map[string][]any](ctx, m.caller, "iwinfo", "freqlist", params)
 	if err != nil {
@@ -86,7 +88,7 @@ func (m *Manager) FreqList(ctx context.Context, device string) ([]any, error) {
 
 // TxPowerList retrieves the list of available transmit power settings.
 func (m *Manager) TxPowerList(ctx context.Context, device string) ([]any, error) {
-	params := map[string]any{"device": device}
+	params := map[string]any{paramDevice: device}
 
 	res, err := goubus.Call[map[string][]any](ctx, m.caller, "iwinfo", "txpowerlist", params)
 	if err != nil {
@@ -98,7 +100,7 @@ func (m *Manager) TxPowerList(ctx context.Context, device string) ([]any, error)
 
 // CountryList retrieves the list of available country codes.
 func (m *Manager) CountryList(ctx context.Context, device string) ([]any, error) {
-	params := map[string]any{"device": device}
+	params := map[string]any{paramDevice: device}
 
 	res, err := goubus.Call[map[string][]any](ctx, m.caller, "iwinfo", "countrylist", params)
 	if err != nil {
@@ -110,7 +112,7 @@ func (m *Manager) CountryList(ctx context.Context, device string) ([]any, error)
 
 // Survey retrieves channel survey information.
 func (m *Manager) Survey(ctx context.Context, device string) ([]any, error) {
-	params := map[string]any{"device": device}
+	params := map[string]any{paramDevice: device}
 
 	res, err := goubus.Call[map[string][]any](ctx, m.caller, "iwinfo", "survey", params)
 	if err != nil {
