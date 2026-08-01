@@ -17,6 +17,9 @@ import (
 const (
 	testUbusEndpointPath = "/ubus"
 	testUbusAuthSession  = "00000000000000000000000000000000"
+	testSystemService    = "system"
+	testInfoMethod       = "info"
+	testHostname         = "OpenWrt"
 )
 
 func TestRpcClient_NewRpcClient(t *testing.T) {
@@ -63,7 +66,7 @@ func TestRpcClient_Call(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	res, err := client.Call(ctx, "system", "info", nil)
+	res, err := client.Call(ctx, testSystemService, testInfoMethod, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +80,7 @@ func TestRpcClient_Call(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if info.Hostname != "OpenWrt" {
+	if info.Hostname != testHostname {
 		t.Errorf("expected hostname OpenWrt, got %s", info.Hostname)
 	}
 }
@@ -138,7 +141,7 @@ func handleActualCall(t *testing.T, writer http.ResponseWriter, params []any) {
 		t.Fatal("method is not string")
 	}
 
-	if service == "system" && method == "info" {
+	if service == testSystemService && method == testInfoMethod {
 		_, _ = fmt.Fprint(writer, `{"jsonrpc":"2.0","id":2,"result":[0,{"hostname":"OpenWrt"}]}`)
 	}
 }

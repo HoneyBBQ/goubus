@@ -9,6 +9,11 @@ import (
 	"github.com/honeybbq/goubus/v2"
 )
 
+const (
+	paramName     = "name"
+	paramInstance = "instance"
+)
+
 // Manager provides an interface for managing LxC containers.
 type Manager struct {
 	caller goubus.Transport
@@ -37,7 +42,7 @@ func (m *Manager) Add(ctx context.Context, req SetRequest) error {
 func (m *Manager) List(ctx context.Context, name string, verbose bool) (map[string]any, error) {
 	params := make(map[string]any)
 	if name != "" {
-		params["name"] = name
+		params[paramName] = name
 	}
 
 	if verbose {
@@ -55,8 +60,8 @@ func (m *Manager) List(ctx context.Context, name string, verbose bool) (map[stri
 // Delete removes a container instance.
 func (m *Manager) Delete(ctx context.Context, name, instance string) error {
 	params := map[string]any{
-		"name":     name,
-		"instance": instance,
+		paramName:     name,
+		paramInstance: instance,
 	}
 	_, err := m.caller.Call(ctx, "container", "delete", params)
 
@@ -66,8 +71,8 @@ func (m *Manager) Delete(ctx context.Context, name, instance string) error {
 // State retrieves the state of a container.
 func (m *Manager) State(ctx context.Context, name string, spawn bool) (map[string]any, error) {
 	params := map[string]any{
-		"name":  name,
-		"spawn": spawn,
+		paramName: name,
+		"spawn":   spawn,
 	}
 
 	res, err := goubus.Call[map[string]any](ctx, m.caller, "container", "state", params)
@@ -91,8 +96,8 @@ func (m *Manager) GetFeatures(ctx context.Context) (map[string]any, error) {
 // ConsoleSet sets the console for a container instance.
 func (m *Manager) ConsoleSet(ctx context.Context, name, instance string) error {
 	params := map[string]any{
-		"name":     name,
-		"instance": instance,
+		paramName:     name,
+		paramInstance: instance,
 	}
 	_, err := m.caller.Call(ctx, "container", "console_set", params)
 
@@ -102,8 +107,8 @@ func (m *Manager) ConsoleSet(ctx context.Context, name, instance string) error {
 // ConsoleAttach attaches to the console of a container instance.
 func (m *Manager) ConsoleAttach(ctx context.Context, name, instance string) error {
 	params := map[string]any{
-		"name":     name,
-		"instance": instance,
+		paramName:     name,
+		paramInstance: instance,
 	}
 	_, err := m.caller.Call(ctx, "container", "console_attach", params)
 
