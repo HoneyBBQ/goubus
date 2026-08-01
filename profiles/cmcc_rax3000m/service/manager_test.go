@@ -11,6 +11,8 @@ import (
 	"github.com/honeybbq/goubus/v2/profiles/cmcc_rax3000m/service"
 )
 
+const testServiceName = "test"
+
 func TestRaxServiceManager(t *testing.T) {
 	ctx := context.Background()
 	mock := testutil.NewMockTransport()
@@ -54,7 +56,7 @@ func testRaxServiceDelete(t *testing.T, ctx context.Context, mock *testutil.Mock
 		mock.AddResponse("service", "delete", map[string]any{})
 		mgr := service.New(mock)
 
-		err := mgr.Delete(ctx, "test", "inst1")
+		err := mgr.Delete(ctx, testServiceName, "inst1")
 		if err != nil {
 			t.Fatalf("Delete failed: %v", err)
 		}
@@ -67,7 +69,7 @@ func testRaxServiceSignal(t *testing.T, ctx context.Context, mock *testutil.Mock
 		mock.AddResponse("service", "signal", map[string]any{})
 		mgr := service.New(mock)
 
-		err := mgr.Signal(ctx, "test", "inst1", 15)
+		err := mgr.Signal(ctx, testServiceName, "inst1", 15)
 		if err != nil {
 			t.Fatalf("Signal failed: %v", err)
 		}
@@ -81,12 +83,12 @@ func testRaxServiceSetAdd(t *testing.T, ctx context.Context, mock *testutil.Mock
 		mock.AddResponse("service", "add", map[string]any{})
 		mgr := service.New(mock)
 
-		err := mgr.Set(ctx, service.SetRequest{Name: "test"})
+		err := mgr.Set(ctx, service.SetRequest{Name: testServiceName})
 		if err != nil {
 			t.Fatalf("Set failed: %v", err)
 		}
 
-		err = mgr.Add(ctx, service.SetRequest{Name: "test"})
+		err = mgr.Add(ctx, service.SetRequest{Name: testServiceName})
 		if err != nil {
 			t.Fatalf("Add failed: %v", err)
 		}
@@ -100,12 +102,12 @@ func testRaxServiceUpdate(t *testing.T, ctx context.Context, mock *testutil.Mock
 		mock.AddResponse("service", "update_complete", map[string]any{})
 		mgr := service.New(mock)
 
-		err := mgr.UpdateStart(ctx, "test")
+		err := mgr.UpdateStart(ctx, testServiceName)
 		if err != nil {
 			t.Fatalf("UpdateStart failed: %v", err)
 		}
 
-		err = mgr.UpdateComplete(ctx, "test")
+		err = mgr.UpdateComplete(ctx, testServiceName)
 		if err != nil {
 			t.Fatalf("UpdateComplete failed: %v", err)
 		}
@@ -118,7 +120,7 @@ func testRaxServiceEvent(t *testing.T, ctx context.Context, mock *testutil.MockT
 		mock.AddResponse("service", "event", map[string]any{})
 		mgr := service.New(mock)
 
-		err := mgr.Event(ctx, service.EventRequest{Type: "test"})
+		err := mgr.Event(ctx, service.EventRequest{Type: testServiceName})
 		if err != nil {
 			t.Fatalf("Event failed: %v", err)
 		}
@@ -131,7 +133,7 @@ func testRaxServiceValidate(t *testing.T, ctx context.Context, mock *testutil.Mo
 		mock.AddResponse("service", "validate", map[string]any{"valid": true})
 		mgr := service.New(mock)
 
-		res, err := mgr.Validate(ctx, service.ValidateRequest{Package: "test"})
+		res, err := mgr.Validate(ctx, service.ValidateRequest{Package: testServiceName})
 		if err != nil {
 			t.Fatalf("Validate failed: %v", err)
 		}
@@ -149,7 +151,7 @@ func testRaxServiceGetSetData(t *testing.T, ctx context.Context, mock *testutil.
 		mock.AddResponse("service", "set_data", map[string]any{})
 		mgr := service.New(mock)
 
-		res, err := mgr.GetData(ctx, "test", "inst1", "type1")
+		res, err := mgr.GetData(ctx, testServiceName, "inst1", "type1")
 		if err != nil {
 			t.Fatalf("GetData failed: %v", err)
 		}
@@ -158,7 +160,7 @@ func testRaxServiceGetSetData(t *testing.T, ctx context.Context, mock *testutil.
 			t.Errorf("expected bar")
 		}
 
-		err = mgr.SetData(ctx, "test", "inst1", map[string]any{"foo": "baz"})
+		err = mgr.SetData(ctx, testServiceName, "inst1", map[string]any{"foo": "baz"})
 		if err != nil {
 			t.Fatalf("SetData failed: %v", err)
 		}
@@ -171,7 +173,7 @@ func testRaxServiceState(t *testing.T, ctx context.Context, mock *testutil.MockT
 		mock.AddResponse("service", "state", map[string]any{"running": true})
 		mgr := service.New(mock)
 
-		res, err := mgr.State(ctx, "test", false)
+		res, err := mgr.State(ctx, testServiceName, false)
 		if err != nil {
 			t.Fatalf("State failed: %v", err)
 		}
@@ -188,7 +190,7 @@ func testRaxServiceWatchdog(t *testing.T, ctx context.Context, mock *testutil.Mo
 		mock.AddResponse("service", "watchdog", map[string]any{})
 		mgr := service.New(mock)
 
-		err := mgr.Watchdog(ctx, "test", "inst1", 1, 30)
+		err := mgr.Watchdog(ctx, testServiceName, "inst1", 1, 30)
 		if err != nil {
 			t.Fatalf("Watchdog failed: %v", err)
 		}

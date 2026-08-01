@@ -9,6 +9,11 @@ import (
 	"github.com/honeybbq/goubus/v2"
 )
 
+const (
+	paramName     = "name"
+	paramInstance = "instance"
+)
+
 // Manager provides an interface for managing system services.
 type Manager struct {
 	caller goubus.Transport
@@ -23,7 +28,7 @@ func New(t goubus.Transport) *Manager {
 func (m *Manager) List(ctx context.Context, name string, verbose bool) (map[string]Info, error) {
 	params := make(map[string]any)
 	if name != "" {
-		params["name"] = name
+		params[paramName] = name
 	}
 
 	if verbose {
@@ -41,8 +46,8 @@ func (m *Manager) List(ctx context.Context, name string, verbose bool) (map[stri
 // Delete removes a service instance.
 func (m *Manager) Delete(ctx context.Context, name, instance string) error {
 	params := map[string]any{
-		"name":     name,
-		"instance": instance,
+		paramName:     name,
+		paramInstance: instance,
 	}
 	_, err := m.caller.Call(ctx, "service", "delete", params)
 
@@ -52,9 +57,9 @@ func (m *Manager) Delete(ctx context.Context, name, instance string) error {
 // Signal sends a Unix signal to a service instance.
 func (m *Manager) Signal(ctx context.Context, name, instance string, signal int) error {
 	params := map[string]any{
-		"name":     name,
-		"instance": instance,
-		"signal":   signal,
+		paramName:     name,
+		paramInstance: instance,
+		"signal":      signal,
 	}
 	_, err := m.caller.Call(ctx, "service", "signal", params)
 
@@ -77,7 +82,7 @@ func (m *Manager) Add(ctx context.Context, req SetRequest) error {
 
 // UpdateStart marks the start of a service update.
 func (m *Manager) UpdateStart(ctx context.Context, name string) error {
-	params := map[string]any{"name": name}
+	params := map[string]any{paramName: name}
 	_, err := m.caller.Call(ctx, "service", "update_start", params)
 
 	return err
@@ -85,7 +90,7 @@ func (m *Manager) UpdateStart(ctx context.Context, name string) error {
 
 // UpdateComplete marks the completion of a service update.
 func (m *Manager) UpdateComplete(ctx context.Context, name string) error {
-	params := map[string]any{"name": name}
+	params := map[string]any{paramName: name}
 	_, err := m.caller.Call(ctx, "service", "update_complete", params)
 
 	return err
@@ -111,9 +116,9 @@ func (m *Manager) Validate(ctx context.Context, req ValidateRequest) (map[string
 // GetData retrieves data from the service.
 func (m *Manager) GetData(ctx context.Context, name, instance, dataType string) (map[string]any, error) {
 	params := map[string]any{
-		"name":     name,
-		"instance": instance,
-		"type":     dataType,
+		paramName:     name,
+		paramInstance: instance,
+		"type":        dataType,
 	}
 
 	res, err := goubus.Call[map[string]any](ctx, m.caller, "service", "get_data", params)
@@ -127,9 +132,9 @@ func (m *Manager) GetData(ctx context.Context, name, instance, dataType string) 
 // SetData sets data for the service (RAX300M specific).
 func (m *Manager) SetData(ctx context.Context, name, instance string, data map[string]any) error {
 	params := map[string]any{
-		"name":     name,
-		"instance": instance,
-		"data":     data,
+		paramName:     name,
+		paramInstance: instance,
+		"data":        data,
 	}
 	_, err := m.caller.Call(ctx, "service", "set_data", params)
 
@@ -139,8 +144,8 @@ func (m *Manager) SetData(ctx context.Context, name, instance string, data map[s
 // State retrieves the spawn state of a service.
 func (m *Manager) State(ctx context.Context, name string, spawn bool) (map[string]any, error) {
 	params := map[string]any{
-		"name":  name,
-		"spawn": spawn,
+		paramName: name,
+		"spawn":   spawn,
 	}
 
 	res, err := goubus.Call[map[string]any](ctx, m.caller, "service", "state", params)
@@ -154,10 +159,10 @@ func (m *Manager) State(ctx context.Context, name string, spawn bool) (map[strin
 // Watchdog configures the watchdog for a service instance.
 func (m *Manager) Watchdog(ctx context.Context, name, instance string, mode, timeout int) error {
 	params := map[string]any{
-		"name":     name,
-		"instance": instance,
-		"mode":     mode,
-		"timeout":  timeout,
+		paramName:     name,
+		paramInstance: instance,
+		"mode":        mode,
+		"timeout":     timeout,
 	}
 	_, err := m.caller.Call(ctx, "service", "watchdog", params)
 
