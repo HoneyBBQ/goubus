@@ -5,6 +5,7 @@ package uci_test
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	"github.com/honeybbq/goubus/v2/internal/base/uci"
@@ -13,7 +14,11 @@ import (
 
 type mockUciDialect struct{}
 
-const methodSet = "set"
+const (
+	methodSet         = "set"
+	responseResultKey = "result"
+	responseValueKey  = "value"
+)
 
 func TestUciManager(t *testing.T) {
 	ctx := context.Background()
@@ -48,9 +53,9 @@ func testUciConfigs(t *testing.T, ctx context.Context, mock *testutil.MockTransp
 func testUciApplyConfirmRollback(t *testing.T, ctx context.Context, mock *testutil.MockTransport, mgr *uci.Manager) {
 	t.Helper()
 	t.Run("Apply_Confirm_Rollback", func(t *testing.T) {
-		mock.AddResponse("uci", "apply", map[string]any{"result": 0})
-		mock.AddResponse("uci", "confirm", map[string]any{"result": 0})
-		mock.AddResponse("uci", "rollback", map[string]any{"result": 0})
+		mock.AddResponse("uci", "apply", map[string]any{responseResultKey: 0})
+		mock.AddResponse("uci", "confirm", map[string]any{responseResultKey: 0})
+		mock.AddResponse("uci", "rollback", map[string]any{responseResultKey: 0})
 
 		err := mgr.Apply(ctx, true, 30)
 		if err != nil {
@@ -102,7 +107,7 @@ func testUciPackageGetAll(t *testing.T, ctx context.Context, mock *testutil.Mock
 func testUciPackageAdd(t *testing.T, ctx context.Context, mock *testutil.MockTransport, pkg *uci.PackageContext) {
 	t.Helper()
 	t.Run("Add", func(t *testing.T) {
-		mock.AddResponse("uci", "add", map[string]any{"result": 0})
+		mock.AddResponse("uci", "add", map[string]any{responseResultKey: 0})
 
 		values := uci.NewSectionValues()
 		values.Set("opt1", "v1")
@@ -133,8 +138,8 @@ func testUciPackageCommitRevert(
 ) {
 	t.Helper()
 	t.Run("Commit_Revert", func(t *testing.T) {
-		mock.AddResponse("uci", "commit", map[string]any{"result": 0})
-		mock.AddResponse("uci", "revert", map[string]any{"result": 0})
+		mock.AddResponse("uci", "commit", map[string]any{responseResultKey: 0})
+		mock.AddResponse("uci", "revert", map[string]any{responseResultKey: 0})
 
 		err := pkg.Commit(ctx)
 		if err != nil {
@@ -170,7 +175,7 @@ func testUciSectionOperations(t *testing.T, ctx context.Context, mock *testutil.
 		})
 
 		t.Run("SetValues", func(t *testing.T) {
-			mock.AddResponse("uci", "set", map[string]any{"result": 0})
+			mock.AddResponse("uci", "set", map[string]any{responseResultKey: 0})
 
 			values := uci.NewSectionValues()
 			values.Set("opt2", "v2")
@@ -182,8 +187,8 @@ func testUciSectionOperations(t *testing.T, ctx context.Context, mock *testutil.
 		})
 
 		t.Run("Delete_Rename", func(t *testing.T) {
-			mock.AddResponse("uci", "delete", map[string]any{"result": 0})
-			mock.AddResponse("uci", "rename", map[string]any{"result": 0})
+			mock.AddResponse("uci", "delete", map[string]any{responseResultKey: 0})
+			mock.AddResponse("uci", "rename", map[string]any{responseResultKey: 0})
 
 			err := sec.Delete(ctx)
 			if err != nil {
@@ -211,7 +216,7 @@ func testUciOptionOperations(t *testing.T, ctx context.Context, mock *testutil.M
 func testUciOptionGet(t *testing.T, ctx context.Context, mock *testutil.MockTransport, opt *uci.OptionContext) {
 	t.Helper()
 	t.Run("Get", func(t *testing.T) {
-		mock.AddResponse("uci", "get", map[string]any{"value": "val1"})
+		mock.AddResponse("uci", "get", map[string]any{responseValueKey: "val1"})
 
 		val, err := opt.Get(ctx)
 		if err != nil {
@@ -227,8 +232,8 @@ func testUciOptionGet(t *testing.T, ctx context.Context, mock *testutil.MockTran
 func testUciOptionAddToList(t *testing.T, ctx context.Context, mock *testutil.MockTransport, opt *uci.OptionContext) {
 	t.Helper()
 	t.Run("AddToList", func(t *testing.T) {
-		mock.AddResponse("uci", "get", map[string]any{"value": ""})
-		mock.AddResponse("uci", "set", map[string]any{"result": 0})
+		mock.AddResponse("uci", "get", map[string]any{responseValueKey: ""})
+		mock.AddResponse("uci", "set", map[string]any{responseResultKey: 0})
 
 		err := opt.AddToList(ctx, "item1")
 		if err != nil {
@@ -242,7 +247,7 @@ func testUciOptionAddToList(t *testing.T, ctx context.Context, mock *testutil.Mo
 			t.Errorf("unexpected list: %v", list)
 		}
 
-		mock.AddResponse("uci", "get", map[string]any{"value": "item1 item2"})
+		mock.AddResponse("uci", "get", map[string]any{responseValueKey: "item1 item2"})
 
 		err = opt.AddToList(ctx, "item3")
 		if err != nil {
@@ -266,8 +271,8 @@ func testUciOptionDeleteFromList(
 ) {
 	t.Helper()
 	t.Run("DeleteFromList", func(t *testing.T) {
-		mock.AddResponse("uci", "get", map[string]any{"value": "item1 item2 item3"})
-		mock.AddResponse("uci", "set", map[string]any{"result": 0})
+		mock.AddResponse("uci", "get", map[string]any{responseValueKey: "item1 item2 item3"})
+		mock.AddResponse("uci", "set", map[string]any{responseResultKey: 0})
 
 		err := opt.DeleteFromList(ctx, "item2")
 		if err != nil {
@@ -286,9 +291,9 @@ func testUciOptionDeleteFromList(
 func findLastSetRequest(t *testing.T, mock *testutil.MockTransport) *uci.Request {
 	t.Helper()
 
-	for i := len(mock.Calls) - 1; i >= 0; i-- {
-		if mock.Calls[i].Method == methodSet {
-			req, ok := mock.Calls[i].Data.(uci.Request)
+	for _, call := range slices.Backward(mock.Calls) {
+		if call.Method == methodSet {
+			req, ok := call.Data.(uci.Request)
 			if ok {
 				return &req
 			}

@@ -12,6 +12,8 @@ import (
 	raxuci "github.com/honeybbq/goubus/v2/profiles/cmcc_rax3000m/uci"
 )
 
+const testIPAddress = "192.168.1.1"
+
 func TestRaxUCIManager(t *testing.T) {
 	ctx := context.Background()
 	mock := testutil.NewMockTransport()
@@ -67,7 +69,7 @@ func testRaxUCIGetSingleSection(t *testing.T, ctx context.Context, mock *testuti
 			"values": map[string]any{
 				".type":  "interface",
 				"proto":  "static",
-				"ipaddr": "192.168.1.1",
+				"ipaddr": testIPAddress,
 			},
 		})
 
@@ -89,7 +91,7 @@ func testRaxUCIGetSingleOption(t *testing.T, ctx context.Context, mock *testutil
 	t.Helper()
 	t.Run("Get_SingleOption", func(t *testing.T) {
 		mock.AddResponse("uci", "get", map[string]any{
-			"value": "192.168.1.1",
+			"value": testIPAddress,
 		})
 
 		mgr := raxuci.New(mock)
@@ -99,7 +101,7 @@ func testRaxUCIGetSingleOption(t *testing.T, ctx context.Context, mock *testutil
 			t.Fatalf("Get failed: %v", err)
 		}
 
-		if res != "192.168.1.1" {
+		if res != testIPAddress {
 			t.Errorf("expected 192.168.1.1, got %v", res)
 		}
 	})

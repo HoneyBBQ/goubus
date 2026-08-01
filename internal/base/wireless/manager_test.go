@@ -11,6 +11,12 @@ import (
 	"github.com/honeybbq/goubus/v2/internal/testutil"
 )
 
+const (
+	phyName            = "phy0"
+	responseResultsKey = "results"
+	testClientMAC      = "00:11:22:33:44:55"
+)
+
 func TestWirelessManager(t *testing.T) {
 	ctx := context.Background()
 	mock := testutil.NewMockTransport()
@@ -60,7 +66,7 @@ func testWirelessDevices(t *testing.T, ctx context.Context, mock *testutil.MockT
 func testWirelessInfo(t *testing.T, ctx context.Context, mock *testutil.MockTransport, mgr *wireless.Manager) {
 	t.Helper()
 	mock.AddResponse("iwinfo", "info", map[string]any{
-		"phy":     "phy0",
+		"phy":     phyName,
 		"ssid":    "OpenWrt",
 		"channel": 36,
 	})
@@ -78,8 +84,8 @@ func testWirelessInfo(t *testing.T, ctx context.Context, mock *testutil.MockTran
 func testWirelessScan(t *testing.T, ctx context.Context, mock *testutil.MockTransport, mgr *wireless.Manager) {
 	t.Helper()
 	mock.AddResponse("iwinfo", "scan", map[string]any{
-		"results": []map[string]any{
-			{"ssid": "OtherSSID", "bssid": "00:11:22:33:44:55"},
+		responseResultsKey: []map[string]any{
+			{"ssid": "OtherSSID", "bssid": testClientMAC},
 		},
 	})
 
@@ -96,9 +102,9 @@ func testWirelessScan(t *testing.T, ctx context.Context, mock *testutil.MockTran
 func testWirelessAssocList(t *testing.T, ctx context.Context, mock *testutil.MockTransport, mgr *wireless.Manager) {
 	t.Helper()
 	mock.AddResponse("iwinfo", "assoclist", map[string]any{
-		"results": []map[string]any{
+		responseResultsKey: []map[string]any{
 			{
-				"mac":    "00:11:22:33:44:55",
+				"mac":    testClientMAC,
 				"signal": -50,
 				"rx":     map[string]any{"rate": 100000},
 			},
@@ -110,17 +116,17 @@ func testWirelessAssocList(t *testing.T, ctx context.Context, mock *testutil.Moc
 		t.Fatalf("AssocList failed: %v", err)
 	}
 
-	if len(clients) != 1 || clients[0].Mac != "00:11:22:33:44:55" {
+	if len(clients) != 1 || clients[0].Mac != testClientMAC {
 		t.Errorf("unexpected client data: %+v", clients[0])
 	}
 }
 
 func testWirelessLists(t *testing.T, ctx context.Context, mock *testutil.MockTransport, mgr *wireless.Manager) {
 	t.Helper()
-	mock.AddResponse("iwinfo", "freqlist", map[string]any{"results": []any{2412, 2417}})
-	mock.AddResponse("iwinfo", "txpowerlist", map[string]any{"results": []any{20, 23}})
-	mock.AddResponse("iwinfo", "countrylist", map[string]any{"results": []any{"US", "CN"}})
-	mock.AddResponse("iwinfo", "survey", map[string]any{"results": []any{map[string]any{"mhz": 2412}}})
+	mock.AddResponse("iwinfo", "freqlist", map[string]any{responseResultsKey: []any{2412, 2417}})
+	mock.AddResponse("iwinfo", "txpowerlist", map[string]any{responseResultsKey: []any{20, 23}})
+	mock.AddResponse("iwinfo", "countrylist", map[string]any{responseResultsKey: []any{"US", "CN"}})
+	mock.AddResponse("iwinfo", "survey", map[string]any{responseResultsKey: []any{map[string]any{"mhz": 2412}}})
 
 	res, err := mgr.FreqList(ctx, "wlan0")
 	if err != nil || len(res) != 2 {
@@ -145,14 +151,14 @@ func testWirelessLists(t *testing.T, ctx context.Context, mock *testutil.MockTra
 
 func testWirelessPhyName(t *testing.T, ctx context.Context, mock *testutil.MockTransport, mgr *wireless.Manager) {
 	t.Helper()
-	mock.AddResponse("iwinfo", "phyname", map[string]any{"phyname": "phy0"})
+	mock.AddResponse("iwinfo", "phyname", map[string]any{"phyname": phyName})
 
 	phy, err := mgr.PhyName(ctx, "radio0")
 	if err != nil {
 		t.Fatalf("PhyName failed: %v", err)
 	}
 
-	if phy != "phy0" {
+	if phy != phyName {
 		t.Errorf("expected phy0, got %s", phy)
 	}
 }

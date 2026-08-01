@@ -11,6 +11,8 @@ import (
 	"github.com/honeybbq/goubus/v2/internal/testutil"
 )
 
+const responseResultKey = "result"
+
 func TestWpaSupplicantManager(t *testing.T) {
 	ctx := context.Background()
 	mock := testutil.NewMockTransport()
@@ -49,7 +51,7 @@ func testWpaSTA(t *testing.T, ctx context.Context, mock *testutil.MockTransport,
 func testWpaSTAReload(t *testing.T, ctx context.Context, mock *testutil.MockTransport, mgr *wpa_supplicant.Manager) {
 	t.Helper()
 	t.Run("Reload", func(t *testing.T) {
-		mock.AddResponse("wpa_supplicant.wlan0", "reload", map[string]any{"result": 0})
+		mock.AddResponse("wpa_supplicant.wlan0", "reload", map[string]any{responseResultKey: 0})
 
 		err := mgr.STA("wpa_supplicant.wlan0").Reload(ctx)
 		if err != nil {
@@ -66,7 +68,7 @@ func testWpaSTAReload(t *testing.T, ctx context.Context, mock *testutil.MockTran
 func testWpaSTAWPSStart(t *testing.T, ctx context.Context, mock *testutil.MockTransport, mgr *wpa_supplicant.Manager) {
 	t.Helper()
 	t.Run("WPSStart", func(t *testing.T) {
-		mock.AddResponse("wpa_supplicant.wlan0", "wps_start", map[string]any{"result": 0})
+		mock.AddResponse("wpa_supplicant.wlan0", "wps_start", map[string]any{responseResultKey: 0})
 
 		err := mgr.STA("wpa_supplicant.wlan0").WPSStart(ctx, true)
 		if err != nil {
@@ -89,7 +91,7 @@ func testWpaSTAWPSStart(t *testing.T, ctx context.Context, mock *testutil.MockTr
 func testWpaSTAWPSCancel(t *testing.T, ctx context.Context, mock *testutil.MockTransport, mgr *wpa_supplicant.Manager) {
 	t.Helper()
 	t.Run("WPSCancel", func(t *testing.T) {
-		mock.AddResponse("wpa_supplicant.wlan0", "wps_cancel", map[string]any{"result": 0})
+		mock.AddResponse("wpa_supplicant.wlan0", "wps_cancel", map[string]any{responseResultKey: 0})
 
 		err := mgr.STA("wpa_supplicant.wlan0").WPSCancel(ctx)
 		if err != nil {
@@ -106,7 +108,7 @@ func testWpaSTAWPSCancel(t *testing.T, ctx context.Context, mock *testutil.MockT
 func testWpaSTAControl(t *testing.T, ctx context.Context, mock *testutil.MockTransport, mgr *wpa_supplicant.Manager) {
 	t.Helper()
 	t.Run("Control", func(t *testing.T) {
-		mock.AddResponse("wpa_supplicant.wlan0", "control", map[string]any{"result": "OK"})
+		mock.AddResponse("wpa_supplicant.wlan0", "control", map[string]any{responseResultKey: "OK"})
 
 		res, err := mgr.STA("wpa_supplicant.wlan0").Control(ctx, "PING")
 		if err != nil {
