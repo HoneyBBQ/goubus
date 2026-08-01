@@ -8,6 +8,11 @@ import (
 	"github.com/honeybbq/goubus/v2"
 )
 
+const (
+	jsonTrue  = `true`
+	jsonFalse = `false`
+)
+
 func TestBool_UnmarshalJSON(t *testing.T) {
 	t.Helper()
 
@@ -17,8 +22,8 @@ func TestBool_UnmarshalJSON(t *testing.T) {
 		wantErr  bool
 	}{
 		// Standard booleans
-		{`true`, true, false},
-		{`false`, false, false},
+		{jsonTrue, true, false},
+		{jsonFalse, false, false},
 		{`null`, false, false},
 
 		// Numeric representations
@@ -66,8 +71,8 @@ func TestBool_MarshalJSON(t *testing.T) {
 		expected string
 		input    goubus.Bool
 	}{
-		{`true`, goubus.Bool(true)},
-		{`false`, goubus.Bool(false)},
+		{jsonTrue, goubus.Bool(true)},
+		{jsonFalse, goubus.Bool(false)},
 	}
 
 	for _, test := range tests {
@@ -98,21 +103,21 @@ func TestBool_Format(t *testing.T) {
 	boolValue := goubus.Bool(true)
 
 	str := fmt.Sprintf("%t", &boolValue)
-	if str != "true" {
+	if str != jsonTrue {
 		t.Errorf("fmt.Sprintf(%%t) got = %s, want true", str)
 	}
 
 	boolValue = goubus.Bool(false)
 
 	str = fmt.Sprintf("%t", &boolValue)
-	if str != "false" {
+	if str != jsonFalse {
 		t.Errorf("fmt.Sprintf(%%t) got = %s, want false", str)
 	}
 
 	var nb *goubus.Bool
 
 	str = fmt.Sprintf("%t", nb)
-	if str != "false" {
+	if str != jsonFalse {
 		t.Errorf("fmt.Sprintf(%%t) for nil got = %s, want false", str)
 	}
 }

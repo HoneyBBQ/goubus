@@ -3,15 +3,33 @@ package goubus_test
 import (
 	"bytes"
 	"context"
+	"errors"
+	"io"
 	"net"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/honeybbq/goubus/v2"
+	"github.com/honeybbq/goubus/v2/errdefs"
 	"github.com/honeybbq/goubus/v2/internal/blobmsg"
 	"github.com/honeybbq/goubus/v2/internal/logging"
 )
+
+type signalingConn struct {
+	net.Conn
+	readStarted chan struct{}
+	once        sync.Once
+}
+
+func (c *signalingConn) Read(data []byte) (int, error) {
+	c.once.Do(func() {
+		close(c.readStarted)
+	})
+
+	return c.Conn.Read(data)
+}
 
 func TestSocketClient_NewSocketClient(t *testing.T) {
 	sockPath := filepath.Join(t.TempDir(), "ubus.sock")
@@ -67,6 +85,103 @@ func TestSocketClient_NewSocketClient(t *testing.T) {
 	}
 }
 
+func TestSocketClient_NewSocketClientFromConn(t *testing.T) {
+	const peerID = 0x456789ab
+
+	serverConn, clientConn := net.Pipe()
+	defer func() {
+		_ = serverConn.Close()
+	}()
+
+	go func() {
+		// Send HELLO
+		header := &blobmsg.UbusMessageHeader{
+			Type: blobmsg.UbusMsgHello,
+			Peer: peerID,
+		}
+
+		var buf bytes.Buffer
+
+		_ = blobmsg.EncodeHeader(&buf, header)
+		_, _ = serverConn.Write(buf.Bytes())
+		_, _ = serverConn.Write([]byte{0, 0, 0, 4}) // Empty payload length 4
+	}()
+
+	client, err := goubus.NewSocketClientFromConn(t.Context(), clientConn)
+	if err != nil {
+		t.Fatalf("failed to create client: %v", err)
+	}
+
+	defer func() {
+		_ = client.Close()
+	}()
+
+	if client.PeerID() != peerID {
+		t.Errorf("expected peer ID 0x%x, got 0x%x", peerID, client.PeerID())
+	}
+}
+
+func TestSocketClient_NewSocketClientFromConnRejectsNil(t *testing.T) {
+	client, err := goubus.NewSocketClientFromConn(t.Context(), nil)
+	if client != nil {
+		t.Fatal("expected nil client")
+	}
+
+	if !errdefs.IsInvalidParameter(err) {
+		t.Fatalf("expected invalid parameter error, got %v", err)
+	}
+}
+
+func TestSocketClient_NewSocketClientFromConnCancellation(t *testing.T) {
+	serverConn, clientConn := net.Pipe()
+	defer func() {
+		_ = serverConn.Close()
+	}()
+
+	err := serverConn.SetReadDeadline(time.Now().Add(time.Second))
+	if err != nil {
+		t.Fatalf("set peer read deadline: %v", err)
+	}
+
+	readStarted := make(chan struct{})
+	conn := &signalingConn{
+		Conn:        clientConn,
+		readStarted: readStarted,
+	}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	errCh := make(chan error, 1)
+
+	go func() {
+		_, handshakeErr := goubus.NewSocketClientFromConn(ctx, conn)
+		errCh <- handshakeErr
+	}()
+
+	select {
+	case <-readStarted:
+	case <-time.After(time.Second):
+		t.Fatal("HELLO handshake did not start reading")
+	}
+
+	cancel()
+
+	select {
+	case handshakeErr := <-errCh:
+		if !errors.Is(handshakeErr, context.Canceled) {
+			t.Fatalf("expected context canceled error, got %v", handshakeErr)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("HELLO handshake did not stop after cancellation")
+	}
+
+	_, err = serverConn.Read(make([]byte, 1))
+	if !errors.Is(err, io.EOF) {
+		t.Fatalf("expected owned connection to be closed, got %v", err)
+	}
+}
+
 func TestSocketClient_Call(t *testing.T) {
 	sockPath := filepath.Join(t.TempDir(), "ubus.sock")
 
@@ -94,7 +209,7 @@ func TestSocketClient_Call(t *testing.T) {
 		_ = client.Close()
 	}()
 
-	res, err := client.Call(ctx, "system", "info", nil)
+	res, err := client.Call(ctx, testSystemService, testInfoMethod, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,13 +223,13 @@ func TestSocketClient_Call(t *testing.T) {
 		t.Fatal(errUnmarshal)
 	}
 
-	if info.Hostname != "OpenWrt" {
+	if info.Hostname != testHostname {
 		t.Errorf("expected OpenWrt, got %s", info.Hostname)
 	}
 
 	// Test cache: call again, should not trigger another lookup
 	// (We can check this by making mockUbusd fail on second lookup if we wanted)
-	_, err = client.Call(ctx, "system", "info", nil)
+	_, err = client.Call(ctx, testSystemService, testInfoMethod, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,10 +280,10 @@ func handleLookup(conn net.Conn, seq uint16, payload []byte) {
 		return
 	}
 
-	if path == "system" {
+	if path == testSystemService {
 		// Send Data
 		dataAttrs := map[uint32]any{
-			blobmsg.UbusAttrObjPath: "system",
+			blobmsg.UbusAttrObjPath: testSystemService,
 			blobmsg.UbusAttrObjID:   uint32(100),
 		}
 		dataBody, _ := blobmsg.CreateBlobMessage(dataAttrs, nil)
@@ -191,9 +306,9 @@ func handleInvoke(conn net.Conn, seq uint16, payload []byte) {
 		return
 	}
 
-	if objID == 100 && method == "info" {
+	if objID == 100 && method == testInfoMethod {
 		// Send Data
-		respData := map[string]any{"hostname": "OpenWrt"}
+		respData := map[string]any{"hostname": testHostname}
 		dataPayload, _ := blobmsg.CreateBlobmsgTable(respData)
 		// ParseBlobmsgContainer expects the payload WITHOUT the 4-byte length header
 		dataBody, _ := blobmsg.CreateBlobMessage(map[uint32]any{

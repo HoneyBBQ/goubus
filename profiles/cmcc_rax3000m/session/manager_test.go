@@ -11,6 +11,11 @@ import (
 	"github.com/honeybbq/goubus/v2/profiles/cmcc_rax3000m/session"
 )
 
+const (
+	testSessionID = "test"
+	testScope     = "ubus"
+)
+
 func TestRaxSessionManager(t *testing.T) {
 	ctx := context.Background()
 	mock := testutil.NewMockTransport()
@@ -38,9 +43,14 @@ func TestRaxSessionManager(t *testing.T) {
 
 		mgr := session.New(mock)
 		_, _ = mgr.Login(ctx, session.LoginRequest{Username: "root", Password: "password"})
-		_ = mgr.Grant(ctx, session.GrantRequest{Session: "test", Scope: "ubus", Objects: []string{"*"}})
-		_ = mgr.Revoke(ctx, session.GrantRequest{Session: "test", Scope: "ubus", Objects: []string{"*"}})
-		_, _ = mgr.Access(ctx, session.AccessRequest{Session: "test", Scope: "ubus", Object: "system", Function: "info"})
-		_ = mgr.Destroy(ctx, "test")
+		_ = mgr.Grant(ctx, session.GrantRequest{Session: testSessionID, Scope: testScope, Objects: []string{"*"}})
+		_ = mgr.Revoke(ctx, session.GrantRequest{Session: testSessionID, Scope: testScope, Objects: []string{"*"}})
+		_, _ = mgr.Access(ctx, session.AccessRequest{
+			Session:  testSessionID,
+			Scope:    testScope,
+			Object:   "system",
+			Function: "info",
+		})
+		_ = mgr.Destroy(ctx, testSessionID)
 	})
 }

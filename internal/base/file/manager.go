@@ -11,6 +11,8 @@ import (
 	"github.com/honeybbq/goubus/v2/errdefs"
 )
 
+const paramPath = "path"
+
 // Manager provides methods to interact with the device's filesystem.
 type Manager struct {
 	caller goubus.Transport
@@ -23,7 +25,7 @@ func New(t goubus.Transport) *Manager {
 
 // Read retrieves file contents.
 func (m *Manager) Read(ctx context.Context, path string, base64 bool) (*Read, error) {
-	params := map[string]any{"path": path}
+	params := map[string]any{paramPath: path}
 	if base64 {
 		params["base64"] = true
 	}
@@ -39,8 +41,8 @@ func (m *Manager) Read(ctx context.Context, path string, base64 bool) (*Read, er
 // Write writes data to a file.
 func (m *Manager) Write(ctx context.Context, path, data string, isAppend bool, mode os.FileMode, base64 bool) error {
 	params := map[string]any{
-		"path": path,
-		"data": data,
+		paramPath: path,
+		"data":    data,
 	}
 	if isAppend {
 		params["append"] = true
@@ -61,21 +63,21 @@ func (m *Manager) Write(ctx context.Context, path, data string, isAppend bool, m
 
 // List lists directory contents.
 func (m *Manager) List(ctx context.Context, path string) (*List, error) {
-	params := map[string]any{"path": path}
+	params := map[string]any{paramPath: path}
 
 	return goubus.Call[List](ctx, m.caller, "file", "list", params)
 }
 
 // Stat retrieves file metadata.
 func (m *Manager) Stat(ctx context.Context, path string) (*Stat, error) {
-	params := map[string]any{"path": path}
+	params := map[string]any{paramPath: path}
 
 	return goubus.Call[Stat](ctx, m.caller, "file", "stat", params)
 }
 
 // Remove deletes a file.
 func (m *Manager) Remove(ctx context.Context, path string) error {
-	params := map[string]any{"path": path}
+	params := map[string]any{paramPath: path}
 	_, err := m.caller.Call(ctx, "file", "remove", params)
 
 	return err
@@ -83,7 +85,7 @@ func (m *Manager) Remove(ctx context.Context, path string) error {
 
 // MD5 calculates the MD5 hash of a file.
 func (m *Manager) MD5(ctx context.Context, path string) (string, error) {
-	params := map[string]any{"path": path}
+	params := map[string]any{paramPath: path}
 
 	res, err := goubus.Call[map[string]string](ctx, m.caller, "file", "md5", params)
 	if err != nil {
@@ -111,7 +113,7 @@ func (m *Manager) Exec(ctx context.Context, command string, params []string, env
 
 // LStat retrieves symbolic link metadata (RAX300M specific).
 func (m *Manager) LStat(ctx context.Context, path string) (*Stat, error) {
-	params := map[string]any{"path": path}
+	params := map[string]any{paramPath: path}
 
 	return goubus.Call[Stat](ctx, m.caller, "file", "lstat", params)
 }
