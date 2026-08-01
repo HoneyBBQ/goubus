@@ -11,6 +11,8 @@ import (
 	"github.com/honeybbq/goubus/v2/internal/testutil"
 )
 
+const getUnixtimeMethod = "getUnixtime"
+
 type mockLuciDialect struct {
 	method string
 }
@@ -36,7 +38,7 @@ func testLuciGetVersion(t *testing.T, ctx context.Context, mock *testutil.MockTr
 			"branch":   "LuCI (HEAD detached at 946f77a) branch",
 		})
 
-		mgr := luci.New(mock, mockLuciDialect{method: "getUnixtime"})
+		mgr := luci.New(mock, mockLuciDialect{method: getUnixtimeMethod})
 
 		ver, err := mgr.GetVersion(ctx)
 		if err != nil {
@@ -52,11 +54,11 @@ func testLuciGetVersion(t *testing.T, ctx context.Context, mock *testutil.MockTr
 func testLuciGetTimeUnix(t *testing.T, ctx context.Context, mock *testutil.MockTransport) {
 	t.Helper()
 	t.Run("GetTime_Unixtime", func(t *testing.T) {
-		mock.AddResponse("luci", "getUnixtime", map[string]any{
+		mock.AddResponse("luci", getUnixtimeMethod, map[string]any{
 			"result": 1737109342,
 		})
 
-		mgr := luci.New(mock, mockLuciDialect{method: "getUnixtime"})
+		mgr := luci.New(mock, mockLuciDialect{method: getUnixtimeMethod})
 
 		time, err := mgr.GetTime(ctx)
 		if err != nil {
@@ -68,7 +70,7 @@ func testLuciGetTimeUnix(t *testing.T, ctx context.Context, mock *testutil.MockT
 		}
 
 		call := mock.GetLastCall()
-		if call.Method != "getUnixtime" {
+		if call.Method != getUnixtimeMethod {
 			t.Errorf("expected method getUnixtime, got %s", call.Method)
 		}
 	})
@@ -106,7 +108,7 @@ func testLuciGetInitList(t *testing.T, ctx context.Context, mock *testutil.MockT
 			"firewall": map[string]any{"enabled": true},
 		})
 
-		mgr := luci.New(mock, mockLuciDialect{method: "getUnixtime"})
+		mgr := luci.New(mock, mockLuciDialect{method: getUnixtimeMethod})
 
 		list, err := mgr.GetInitList(ctx, "")
 		if err != nil {
@@ -126,7 +128,7 @@ func testLuciGetTimezones(t *testing.T, ctx context.Context, mock *testutil.Mock
 			"UTC": "UTC",
 		})
 
-		mgr := luci.New(mock, mockLuciDialect{method: "getUnixtime"})
+		mgr := luci.New(mock, mockLuciDialect{method: getUnixtimeMethod})
 
 		tz, err := mgr.GetTimezones(ctx)
 		if err != nil {
@@ -146,7 +148,7 @@ func testLuciGetHostHints(t *testing.T, ctx context.Context, mock *testutil.Mock
 			"00:11:22:33:44:55": map[string]any{"name": "test-host"},
 		})
 
-		mgr := luci.New(mock, mockLuciDialect{method: "getUnixtime"})
+		mgr := luci.New(mock, mockLuciDialect{method: getUnixtimeMethod})
 
 		hints, err := mgr.GetHostHints(ctx)
 		if err != nil {
