@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0-alpha2] - 2026-08-01
+
+### Added
+- Added `NewSocketClientFromConn` for creating a socket transport from an existing connection. Thanks to [@mook](https://github.com/mook) for the contribution in [#6](https://github.com/HoneyBBQ/goubus/pull/6).
+
+### Fixed
+- Made the socket HELLO handshake honor context cancellation and close the owned connection when initialization fails.
+- Restored reproducible lint checks by pinning `golangci-lint` to v2.12.2 and resolving the existing findings.
+
+### Changed
+- Updated the GitHub Actions used for checkout, Go setup, coverage uploads, and releases.
+
 ## [2.0.0-alpha1] - 2026-01-18
 
 ### Added
