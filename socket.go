@@ -116,7 +116,7 @@ func NewSocketClient(ctx context.Context, sockPath string, opts ...SocketOption)
 
 	client.conn = conn
 
-	err = client.exchangeHello()
+	err = client.exchangeHello(ctx)
 	if err != nil {
 		_ = conn.Close()
 
@@ -131,6 +131,10 @@ func NewSocketClient(ctx context.Context, sockPath string, opts ...SocketOption)
 // will be managed by the new client, including being closed if the handshake
 // fails.
 func NewSocketClientFromConn(ctx context.Context, conn net.Conn, opts ...SocketOption) (*SocketClient, error) {
+	if conn == nil {
+		return nil, errdefs.Wrapf(errdefs.ErrInvalidParameter, "connection is required")
+	}
+
 	client := &SocketClient{
 		conn:         conn,
 		seq:          1,
@@ -145,7 +149,7 @@ func NewSocketClientFromConn(ctx context.Context, conn net.Conn, opts ...SocketO
 		opt(client)
 	}
 
-	err := client.exchangeHello()
+	err := client.exchangeHello(ctx)
 	if err != nil {
 		_ = conn.Close()
 
@@ -420,7 +424,29 @@ func (c *SocketClient) handleLookupResponse() ([]map[string]any, error) {
 	return objects, nil
 }
 
-func (c *SocketClient) exchangeHello() error {
+func (c *SocketClient) exchangeHello(ctx context.Context) (retErr error) {
+	ctxErr := context.Cause(ctx)
+	if ctxErr != nil {
+		return errdefs.Wrapf(ctxErr, "hello handshake")
+	}
+
+	cancelDone := make(chan struct{})
+
+	stopCancel := context.AfterFunc(ctx, func() {
+		_ = c.conn.Close()
+
+		close(cancelDone)
+	})
+	defer func() {
+		if !stopCancel() {
+			<-cancelDone
+
+			if retErr == nil {
+				retErr = errdefs.Wrapf(context.Cause(ctx), "hello handshake")
+			}
+		}
+	}()
+
 	err := c.conn.SetReadDeadline(time.Now().Add(c.readTimeout))
 	if err != nil {
 		return errdefs.Wrapf(errdefs.ErrConnectionFailed, "set read deadline: %v", err)
@@ -428,6 +454,11 @@ func (c *SocketClient) exchangeHello() error {
 
 	hdr, payload, err := blobmsg.ReadMessage(c.conn)
 	if err != nil {
+		ctxErr = context.Cause(ctx)
+		if ctxErr != nil {
+			return errdefs.Wrapf(ctxErr, "hello handshake")
+		}
+
 		return errdefs.Wrapf(errdefs.ErrConnectionFailed, "read hello: %v", err)
 	}
 

@@ -3,15 +3,33 @@ package goubus_test
 import (
 	"bytes"
 	"context"
+	"errors"
+	"io"
 	"net"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/honeybbq/goubus/v2"
+	"github.com/honeybbq/goubus/v2/errdefs"
 	"github.com/honeybbq/goubus/v2/internal/blobmsg"
 	"github.com/honeybbq/goubus/v2/internal/logging"
 )
+
+type signalingConn struct {
+	net.Conn
+	readStarted chan struct{}
+	once        sync.Once
+}
+
+func (c *signalingConn) Read(data []byte) (int, error) {
+	c.once.Do(func() {
+		close(c.readStarted)
+	})
+
+	return c.Conn.Read(data)
+}
 
 func TestSocketClient_NewSocketClient(t *testing.T) {
 	sockPath := filepath.Join(t.TempDir(), "ubus.sock")
@@ -71,6 +89,9 @@ func TestSocketClient_NewSocketClientFromConn(t *testing.T) {
 	const peerID = 0x456789ab
 
 	serverConn, clientConn := net.Pipe()
+	defer func() {
+		_ = serverConn.Close()
+	}()
 
 	go func() {
 		// Send HELLO
@@ -97,6 +118,67 @@ func TestSocketClient_NewSocketClientFromConn(t *testing.T) {
 
 	if client.PeerID() != peerID {
 		t.Errorf("expected peer ID 0x%x, got 0x%x", peerID, client.PeerID())
+	}
+}
+
+func TestSocketClient_NewSocketClientFromConnRejectsNil(t *testing.T) {
+	client, err := goubus.NewSocketClientFromConn(t.Context(), nil)
+	if client != nil {
+		t.Fatal("expected nil client")
+	}
+
+	if !errdefs.IsInvalidParameter(err) {
+		t.Fatalf("expected invalid parameter error, got %v", err)
+	}
+}
+
+func TestSocketClient_NewSocketClientFromConnCancellation(t *testing.T) {
+	serverConn, clientConn := net.Pipe()
+	defer func() {
+		_ = serverConn.Close()
+	}()
+
+	err := serverConn.SetReadDeadline(time.Now().Add(time.Second))
+	if err != nil {
+		t.Fatalf("set peer read deadline: %v", err)
+	}
+
+	readStarted := make(chan struct{})
+	conn := &signalingConn{
+		Conn:        clientConn,
+		readStarted: readStarted,
+	}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	errCh := make(chan error, 1)
+
+	go func() {
+		_, handshakeErr := goubus.NewSocketClientFromConn(ctx, conn)
+		errCh <- handshakeErr
+	}()
+
+	select {
+	case <-readStarted:
+	case <-time.After(time.Second):
+		t.Fatal("HELLO handshake did not start reading")
+	}
+
+	cancel()
+
+	select {
+	case handshakeErr := <-errCh:
+		if !errors.Is(handshakeErr, context.Canceled) {
+			t.Fatalf("expected context canceled error, got %v", handshakeErr)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("HELLO handshake did not stop after cancellation")
+	}
+
+	_, err = serverConn.Read(make([]byte, 1))
+	if !errors.Is(err, io.EOF) {
+		t.Fatalf("expected owned connection to be closed, got %v", err)
 	}
 }
 
