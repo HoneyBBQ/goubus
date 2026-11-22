@@ -29,7 +29,8 @@
 // Non-zero ubus statuses and JSON-RPC refusals return a [*CallError] before
 // payload decoding. Match status causes with errors.Is against [ErrNotFound],
 // [ErrPermissionDenied], and the other root sentinels (or [ErrCall] for any
-// call refusal), and inspect Service, Method, Code, and Message with errors.As.
+// call refusal), and inspect Service, Method, Code, and Message with
+// errors.AsType.
 //
 // [List] queries object and method signatures on any [Caller] that implements
 // [Lister], normalizing wire argument types to [ArgType] across both

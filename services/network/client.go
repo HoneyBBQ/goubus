@@ -39,7 +39,7 @@ func (client *Client) AddHostRoute(ctx context.Context, request HostRouteRequest
 
 // ProtoHandlers retrieves available network protocol handlers.
 func (client *Client) ProtoHandlers(ctx context.Context) (map[string]any, error) {
-	return callValue[map[string]any](ctx, client.caller, "network", "get_proto_handlers", nil)
+	return goubus.Call[map[string]any](ctx, client.caller, "network", "get_proto_handlers", nil)
 }
 
 // AddDynamic adds a dynamic network interface.
@@ -135,7 +135,7 @@ func (ic *InterfaceContext) SetData(ctx context.Context, data map[string]any) er
 // Status retrieves live status for the selected interface.
 func (ic *InterfaceContext) Status(ctx context.Context) (*InterfaceDetails, error) {
 	params := map[string]any{"interface": ic.name}
-	status, err := goubus.Call[InterfaceDetails](ctx, ic.manager.caller, ic.service(), "status", params)
+	status, err := goubus.Call[*InterfaceDetails](ctx, ic.manager.caller, ic.service(), "status", params)
 	if err == nil {
 		return status, nil
 	}
@@ -176,10 +176,10 @@ func (dc *DeviceContext) Status(ctx context.Context, name string) (map[string]De
 			return nil, err
 		}
 
-		return map[string]Device{name: *device}, nil
+		return map[string]Device{name: device}, nil
 	}
 
-	return callValue[map[string]Device](ctx, dc.manager.caller, "network.device", "status", params)
+	return goubus.Call[map[string]Device](ctx, dc.manager.caller, "network.device", "status", params)
 }
 
 // SetAlias sets an alias for a network device.
@@ -239,7 +239,7 @@ func (wc *WirelessContext) Notify(ctx context.Context, request WirelessNotifyReq
 
 // Validate retrieves wireless radio validation information.
 func (wc *WirelessContext) Validate(ctx context.Context, device string) (map[string]any, error) {
-	return callValue[map[string]any](ctx, wc.manager.caller, "network.wireless", "get_validate", optionalDevice(device))
+	return goubus.Call[map[string]any](ctx, wc.manager.caller, "network.wireless", "get_validate", optionalDevice(device))
 }
 
 // Retry retries wireless radio setup.
@@ -260,15 +260,4 @@ func (client *Client) call(ctx context.Context, service, method string, params a
 	_, err := client.caller.Call(ctx, service, method, params)
 
 	return err
-}
-
-func callValue[T any](ctx context.Context, caller goubus.Caller, service, method string, params any) (T, error) {
-	result, err := goubus.Call[T](ctx, caller, service, method, params)
-	if err != nil {
-		var zero T
-
-		return zero, err
-	}
-
-	return *result, nil
 }

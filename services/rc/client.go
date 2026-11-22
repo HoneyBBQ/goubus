@@ -30,12 +30,8 @@ func (c *Client) List(ctx context.Context, name string, skipRunningCheck bool) (
 	if skipRunningCheck {
 		params["skip_running_check"] = true
 	}
-	res, err := goubus.Call[map[string]ListInfo](ctx, c.caller, "rc", "list", params)
-	if err != nil {
-		return nil, err
-	}
 
-	return *res, nil
+	return goubus.Call[map[string]ListInfo](ctx, c.caller, "rc", "list", params)
 }
 
 // Init performs an init script action.

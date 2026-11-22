@@ -59,8 +59,7 @@ case errors.Is(err, goubus.ErrCall):
 	// any other ubus or JSON-RPC refusal
 }
 
-var callErr *goubus.CallError
-if errors.As(err, &callErr) {
+if callErr, ok := errors.AsType[*goubus.CallError](err); ok {
 	log.Printf("service=%s method=%s code=%d msg=%q",
 		callErr.Service, callErr.Method, callErr.Code, callErr.Message)
 }

@@ -20,6 +20,8 @@ All notable changes to this module are documented here. This project follows [Se
 
 ### Changed
 
+- **Breaking:** Minimum Go version is now 1.26.
+- **Breaking:** `goubus.Call[T]` now returns `(T, error)` instead of `(*T, error)`. Pass a pointer type (such as `goubus.Call[*BoardInfo]`) when a struct pointer is desired, or decode directly into value, map, and slice types.
 - **Breaking:** Hardware-specific `profiles/<device>/<service>` packages are replaced by `github.com/honeybbq/goubus/v2/services/<service>` (`wpa_supplicant` is now `wpasupplicant`). Every service type is named `Client` instead of `Manager`, constructed with `New(caller)`.
 - **Breaking:** `Transport.SetLogger` is removed. Transports discard logs by default; pass `WithRpcLogger(logger)` to `NewRpcClient` or `WithSocketLogger(logger)` to `NewSocketClient` / `NewSocketClientFromConn`. `RpcOption`, `SocketOption`, `luci.Option`, and `dhcp.Option` are now sealed interfaces rather than function types.
 - **Breaking:** Root sentinels (`ErrNotFound`, `ErrPermissionDenied`, `ErrInvalidParameter`, and the rest) move from `errdefs` to `github.com/honeybbq/goubus/v2`. Match them with `errors.Is` instead of `errdefs.Is*` helpers.
@@ -50,10 +52,11 @@ All notable changes to this module are documented here. This project follows [Se
 | `github.com/honeybbq/goubus/v2/profiles/<device>/<svc>` | `github.com/honeybbq/goubus/v2/services/<svc>` |
 | `profiles/<device>/wpa_supplicant` | `github.com/honeybbq/goubus/v2/services/wpasupplicant` |
 | `*<svc>.Manager` (`system.New(transport)`) | `*<svc>.Client` (`system.New(caller)`) |
+| `goubus.Call[T](ctx, transport, ...)` -> `(*T, error)` | `goubus.Call[T](ctx, caller, ...)` -> `(T, error)` (`Call[*T]` for struct pointers) |
 | `transport.SetLogger(logger)` | `goubus.WithRpcLogger(logger)` / `goubus.WithSocketLogger(logger)` in constructor |
 | `errdefs.ErrNotFound`, `errdefs.ErrPermissionDenied`, ... | `goubus.ErrNotFound`, `goubus.ErrPermissionDenied`, ... |
 | `errdefs.IsNotFound(err)`, `errdefs.IsPermissionDenied(err)`, ... | `errors.Is(err, goubus.ErrNotFound)`, `errors.Is(err, goubus.ErrPermissionDenied)`, ... |
-| Unstructured call error string | `errors.Is(err, goubus.ErrCall)` and `var callErr *goubus.CallError; errors.As(err, &callErr)` |
+| Unstructured call error string | `errors.Is(err, goubus.ErrCall)` and `callErr, ok := errors.AsType[*goubus.CallError](err)` |
 | `luci` `GetLocaltime(ctx)` / `GetUnixtime(ctx)` | `luci.Client.Time(ctx)` (probes automatically, or pin with `luci.WithTimeMethod`) |
 | `luci` `GetVersion`, `GetProcessList`, `GetBoardJSON`, `GetDHCPLeases`, ... | `Version`, `Processes`, `BoardJSON`, `DHCPLeases` (`Get` prefix removed across `luci`) |
 | `luci` `GetFeatures` -> `map[string]goubus.Bool` | `Features` -> `map[string]luci.Feature` (`.Enabled`, `.Subfeatures`) |

@@ -20,7 +20,7 @@ OpenWrt ubus client in pure Go, over Unix sockets and HTTP JSON-RPC.
 go get github.com/honeybbq/goubus/v2
 ```
 
-Go 1.25 or newer is required. Until `v2.0.0` is tagged, `go get` without a version skips pre-releases: pass an explicit pre-release tag from [Releases](https://github.com/honeybbq/goubus/releases) or a commit on this branch (note that `v2.0.0-alpha2` predates the `services/*` redesign). Upgrading from `v2.0.0-alpha1` or `v2.0.0-alpha2`? See the [migration table in CHANGELOG.md](CHANGELOG.md#migrating-from-v200-alpha1-and-v200-alpha2).
+Go 1.26 or newer is required. Until `v2.0.0` is tagged, `go get` without a version skips pre-releases: pass an explicit pre-release tag from [Releases](https://github.com/honeybbq/goubus/releases) or a commit on this branch (note that `v2.0.0-alpha2` predates the `services/*` redesign). Upgrading from `v2.0.0-alpha1` or `v2.0.0-alpha2`? See the [migration table in CHANGELOG.md](CHANGELOG.md#migrating-from-v200-alpha1-and-v200-alpha2).
 
 ## Quick start
 
@@ -117,7 +117,7 @@ Reuse `*luci.Client` and `*dhcp.Client` instances across calls on the same route
 
 ### Handling errors
 
-Every non-zero ubus status (`1` to `10`) and every JSON-RPC error response returns a `*goubus.CallError` before any response JSON is decoded. Match causes with `errors.Is` and read wire details with `errors.As`:
+Every non-zero ubus status (`1` to `10`) and every JSON-RPC error response returns a `*goubus.CallError` before any response JSON is decoded. Match causes with `errors.Is` and read wire details with `errors.AsType`:
 
 ```go
 wan, err := netClient.Interface("wan6").Status(ctx)
@@ -127,8 +127,7 @@ case errors.Is(err, goubus.ErrNotFound):
 case errors.Is(err, goubus.ErrPermissionDenied):
 	// rpcd ACL denied the session
 case err != nil:
-	var callErr *goubus.CallError
-	if errors.As(err, &callErr) {
+	if callErr, ok := errors.AsType[*goubus.CallError](err); ok {
 		log.Printf("%s.%s failed with code %d (%s)",
 			callErr.Service, callErr.Method, callErr.Code, callErr.Message)
 	}
@@ -209,7 +208,7 @@ The full API reference is on [pkg.go.dev](https://pkg.go.dev/github.com/honeybbq
 | --- | --- |
 | OpenWrt 24.10 | Captured JSON and binary `blobmsg` fixtures from `x86/64` generic (`24.10.5`). |
 | OpenWrt 25.12 | Captured JSON and binary `blobmsg` fixtures from CMCC RAX3000M (`25.12.0-rc1`). |
-| Go | 1.25 and newer; pure Go, no CGO. |
+| Go | 1.26 and newer; pure Go, no CGO. |
 
 Which ubus objects exist on a router depends on its installed OpenWrt packages (`rpcd-mod-file`, `rpcd-mod-iwinfo`, `luci-base`, `odhcpd`, and others). Over HTTP JSON-RPC, each call is also subject to the `rpcd` ACLs of the logged-in user.
 

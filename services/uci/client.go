@@ -161,7 +161,7 @@ func (packageContext *PackageContext) Revert(ctx context.Context) error {
 func (packageContext *PackageContext) Changes(ctx context.Context) (*ChangesResponse, error) {
 	request := changesRequest{Config: packageContext.name}
 
-	return goubus.Call[ChangesResponse](ctx, packageContext.manager.caller, "uci", "changes", request)
+	return goubus.Call[*ChangesResponse](ctx, packageContext.manager.caller, "uci", "changes", request)
 }
 
 // Order rearranges sections in the package.
@@ -379,7 +379,7 @@ func removeValue(values []string, target string) ([]string, bool) {
 }
 
 func (client *Client) getRaw(ctx context.Context, method string, request getRequest) (*GetResponse, error) {
-	return goubus.Call[GetResponse](ctx, client.caller, "uci", method, request)
+	return goubus.Call[*GetResponse](ctx, client.caller, "uci", method, request)
 }
 
 func (client *Client) getAllRaw(

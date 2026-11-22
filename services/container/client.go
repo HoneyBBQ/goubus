@@ -44,12 +44,8 @@ func (c *Client) List(ctx context.Context, name string, verbose bool) (map[strin
 	if verbose {
 		params["verbose"] = true
 	}
-	res, err := goubus.Call[map[string]any](ctx, c.caller, "container", "list", params)
-	if err != nil {
-		return nil, err
-	}
 
-	return *res, nil
+	return goubus.Call[map[string]any](ctx, c.caller, "container", "list", params)
 }
 
 // Delete removes a container instance.
@@ -62,22 +58,13 @@ func (c *Client) Delete(ctx context.Context, name, instance string) error {
 // State retrieves the state of a container.
 func (c *Client) State(ctx context.Context, name string, spawn bool) (map[string]any, error) {
 	params := map[string]any{"name": name, "spawn": spawn}
-	res, err := goubus.Call[map[string]any](ctx, c.caller, "container", "state", params)
-	if err != nil {
-		return nil, err
-	}
 
-	return *res, nil
+	return goubus.Call[map[string]any](ctx, c.caller, "container", "state", params)
 }
 
 // Features retrieves supported container features.
 func (c *Client) Features(ctx context.Context) (map[string]any, error) {
-	res, err := goubus.Call[map[string]any](ctx, c.caller, "container", "get_features", nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return *res, nil
+	return goubus.Call[map[string]any](ctx, c.caller, "container", "get_features", nil)
 }
 
 // ConsoleSet sets the console for a container instance.

@@ -257,8 +257,7 @@ func newDumper() *dumper {
 // a directory that holds no public Go package.
 func (d *dumper) dump(dir, importPath string) (*packageAPI, error) {
 	bp, err := d.context.ImportDir(dir, 0)
-	var noGo *build.NoGoError
-	if errors.As(err, &noGo) {
+	if _, ok := errors.AsType[*build.NoGoError](err); ok {
 		return nil, nil //nolint:nilnil // no package here is not an error
 	}
 	if err != nil {

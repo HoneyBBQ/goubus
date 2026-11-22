@@ -30,12 +30,8 @@ func (c *Client) List(ctx context.Context, name string, verbose bool) (map[strin
 	if verbose {
 		params["verbose"] = true
 	}
-	res, err := goubus.Call[map[string]Info](ctx, c.caller, "service", "list", params)
-	if err != nil {
-		return nil, err
-	}
 
-	return *res, nil
+	return goubus.Call[map[string]Info](ctx, c.caller, "service", "list", params)
 }
 
 // Delete removes a service instance.
@@ -89,23 +85,14 @@ func (c *Client) Event(ctx context.Context, req EventRequest) error {
 
 // Validate validates the service configuration.
 func (c *Client) Validate(ctx context.Context, req ValidateRequest) (map[string]any, error) {
-	res, err := goubus.Call[map[string]any](ctx, c.caller, "service", "validate", req)
-	if err != nil {
-		return nil, err
-	}
-
-	return *res, nil
+	return goubus.Call[map[string]any](ctx, c.caller, "service", "validate", req)
 }
 
 // Data retrieves typed data from a service instance.
 func (c *Client) Data(ctx context.Context, name, instance, dataType string) (map[string]any, error) {
 	params := map[string]any{"name": name, "instance": instance, "type": dataType}
-	res, err := goubus.Call[map[string]any](ctx, c.caller, "service", "get_data", params)
-	if err != nil {
-		return nil, err
-	}
 
-	return *res, nil
+	return goubus.Call[map[string]any](ctx, c.caller, "service", "get_data", params)
 }
 
 // SetData sets data for a service instance.
@@ -118,12 +105,8 @@ func (c *Client) SetData(ctx context.Context, name, instance string, data map[st
 // State retrieves the spawn state of a service.
 func (c *Client) State(ctx context.Context, name string, spawn bool) (map[string]any, error) {
 	params := map[string]any{"name": name, "spawn": spawn}
-	res, err := goubus.Call[map[string]any](ctx, c.caller, "service", "state", params)
-	if err != nil {
-		return nil, err
-	}
 
-	return *res, nil
+	return goubus.Call[map[string]any](ctx, c.caller, "service", "state", params)
 }
 
 // Watchdog configures the watchdog for a service instance.

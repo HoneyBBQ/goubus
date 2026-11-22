@@ -268,8 +268,7 @@ func runRPCErrorHandlingCase(t *testing.T, testCase struct {
 		t.Errorf("Call() error = %v, want errors.Is(_, %v)", err, testCase.wantErr)
 	}
 	if testCase.wantCallError {
-		var callErr *goubus.CallError
-		if !errors.As(err, &callErr) {
+		if _, ok := errors.AsType[*goubus.CallError](err); !ok {
 			t.Fatalf("Call() error = %T, want *goubus.CallError", err)
 		}
 		if !errors.Is(err, goubus.ErrCall) {

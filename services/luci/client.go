@@ -33,8 +33,7 @@ func WithTimeMethod(method string) Option {
 
 			return
 		}
-		methodCopy := method
-		client.fixedTimeMethod = &methodCopy
+		client.fixedTimeMethod = new(method)
 	})
 }
 
@@ -62,7 +61,7 @@ func New(caller goubus.Caller, opts ...Option) *Client {
 
 // Version retrieves LuCI version metadata.
 func (client *Client) Version(ctx context.Context) (*Version, error) {
-	return goubus.Call[Version](ctx, client.caller, "luci", "getVersion", nil)
+	return goubus.Call[*Version](ctx, client.caller, "luci", "getVersion", nil)
 }
 
 // Time retrieves the current system time, adapting to the available ubus method.
@@ -107,9 +106,7 @@ func readTime(ctx context.Context, client *Client, method string) (time.Time, er
 }
 
 func cacheTimeMethod(client *Client, method string) {
-	stored := new(string)
-	*stored = method
-	client.timeMethod.CompareAndSwap(nil, stored)
+	client.timeMethod.CompareAndSwap(nil, new(method))
 }
 
 func timeMethodUnavailable(err error) bool {
@@ -128,51 +125,51 @@ func (client *Client) InitList(ctx context.Context, name string) (map[string]any
 		params["name"] = name
 	}
 
-	return callValue[map[string]any](ctx, client.caller, "luci", "getInitList", params)
+	return goubus.Call[map[string]any](ctx, client.caller, "luci", "getInitList", params)
 }
 
 // Timezones retrieves the available system timezones.
 func (client *Client) Timezones(ctx context.Context) (map[string]any, error) {
-	return callValue[map[string]any](ctx, client.caller, "luci", "getTimezones", nil)
+	return goubus.Call[map[string]any](ctx, client.caller, "luci", "getTimezones", nil)
 }
 
 // LEDs retrieves configured system LEDs.
 func (client *Client) LEDs(ctx context.Context) (map[string]LED, error) {
-	return callValue[map[string]LED](ctx, client.caller, "luci", "getLEDs", nil)
+	return goubus.Call[map[string]LED](ctx, client.caller, "luci", "getLEDs", nil)
 }
 
 // USBDevices retrieves connected USB devices and available ports.
 func (client *Client) USBDevices(ctx context.Context) (*USBInfo, error) {
-	return goubus.Call[USBInfo](ctx, client.caller, "luci", "getUSBDevices", nil)
+	return goubus.Call[*USBInfo](ctx, client.caller, "luci", "getUSBDevices", nil)
 }
 
 // ConntrackHelpers retrieves connection tracking helper names.
 func (client *Client) ConntrackHelpers(ctx context.Context) ([]string, error) {
-	return callValue[[]string](ctx, client.caller, "luci", "getConntrackHelpers", nil)
+	return goubus.Call[[]string](ctx, client.caller, "luci", "getConntrackHelpers", nil)
 }
 
 // Features retrieves system feature flags and their subfeatures.
 func (client *Client) Features(ctx context.Context) (map[string]Feature, error) {
-	return callValue[map[string]Feature](ctx, client.caller, "luci", "getFeatures", nil)
+	return goubus.Call[map[string]Feature](ctx, client.caller, "luci", "getFeatures", nil)
 }
 
 // SwconfigFeatures retrieves feature details for a switch.
 func (client *Client) SwconfigFeatures(ctx context.Context, switchName string) (map[string]any, error) {
 	params := map[string]any{"switch": switchName}
 
-	return callValue[map[string]any](ctx, client.caller, "luci", "getSwconfigFeatures", params)
+	return goubus.Call[map[string]any](ctx, client.caller, "luci", "getSwconfigFeatures", params)
 }
 
 // SwconfigPortState retrieves port states for a switch.
 func (client *Client) SwconfigPortState(ctx context.Context, switchName string) (map[string]any, error) {
 	params := map[string]any{"switch": switchName}
 
-	return callValue[map[string]any](ctx, client.caller, "luci", "getSwconfigPortState", params)
+	return goubus.Call[map[string]any](ctx, client.caller, "luci", "getSwconfigPortState", params)
 }
 
 // BlockDevices retrieves block devices keyed by device name.
 func (client *Client) BlockDevices(ctx context.Context) (map[string]BlockDevice, error) {
-	return callValue[map[string]BlockDevice](ctx, client.caller, "luci", "getBlockDevices", nil)
+	return goubus.Call[map[string]BlockDevice](ctx, client.caller, "luci", "getBlockDevices", nil)
 }
 
 // MountPoints retrieves mounted filesystem statistics.
@@ -184,12 +181,12 @@ func (client *Client) MountPoints(ctx context.Context) ([]MountPoint, error) {
 func (client *Client) RealtimeStats(ctx context.Context, mode, device string) (*RealtimeStats, error) {
 	params := map[string]any{"mode": mode, "device": device}
 
-	return goubus.Call[RealtimeStats](ctx, client.caller, "luci", "getRealtimeStats", params)
+	return goubus.Call[*RealtimeStats](ctx, client.caller, "luci", "getRealtimeStats", params)
 }
 
 // ConntrackList retrieves the current connection tracking entries.
 func (client *Client) ConntrackList(ctx context.Context) ([]any, error) {
-	return callValue[[]any](ctx, client.caller, "luci", "getConntrackList", nil)
+	return goubus.Call[[]any](ctx, client.caller, "luci", "getConntrackList", nil)
 }
 
 // Processes retrieves system processes.
@@ -199,7 +196,7 @@ func (client *Client) Processes(ctx context.Context) ([]Process, error) {
 
 // BuiltinEthernetPorts retrieves built-in Ethernet port data.
 func (client *Client) BuiltinEthernetPorts(ctx context.Context) ([]any, error) {
-	return callValue[[]any](ctx, client.caller, "luci", "getBuiltinEthernetPorts", nil)
+	return goubus.Call[[]any](ctx, client.caller, "luci", "getBuiltinEthernetPorts", nil)
 }
 
 // Odhcp6cStats retrieves odhcp6c statistics.
@@ -209,27 +206,27 @@ func (client *Client) Odhcp6cStats(ctx context.Context) (map[string]any, error) 
 
 // NetworkDevices retrieves detailed network device information.
 func (client *Client) NetworkDevices(ctx context.Context) (map[string]NetworkDevice, error) {
-	return callValue[map[string]NetworkDevice](ctx, client.caller, "luci-rpc", "getNetworkDevices", nil)
+	return goubus.Call[map[string]NetworkDevice](ctx, client.caller, "luci-rpc", "getNetworkDevices", nil)
 }
 
 // WirelessDevices retrieves wireless radio and interface information.
 func (client *Client) WirelessDevices(ctx context.Context) (map[string]WirelessDevice, error) {
-	return callValue[map[string]WirelessDevice](ctx, client.caller, "luci-rpc", "getWirelessDevices", nil)
+	return goubus.Call[map[string]WirelessDevice](ctx, client.caller, "luci-rpc", "getWirelessDevices", nil)
 }
 
 // HostHints retrieves host names and addresses.
 func (client *Client) HostHints(ctx context.Context) (map[string]HostHint, error) {
-	return callValue[map[string]HostHint](ctx, client.caller, "luci-rpc", "getHostHints", nil)
+	return goubus.Call[map[string]HostHint](ctx, client.caller, "luci-rpc", "getHostHints", nil)
 }
 
 // DUIDHints retrieves DHCP unique identifier hints.
 func (client *Client) DUIDHints(ctx context.Context) (map[string]any, error) {
-	return callValue[map[string]any](ctx, client.caller, "luci-rpc", "getDUIDHints", nil)
+	return goubus.Call[map[string]any](ctx, client.caller, "luci-rpc", "getDUIDHints", nil)
 }
 
 // BoardJSON retrieves board hardware information.
 func (client *Client) BoardJSON(ctx context.Context) (*BoardJSON, error) {
-	return goubus.Call[BoardJSON](ctx, client.caller, "luci-rpc", "getBoardJSON", nil)
+	return goubus.Call[*BoardJSON](ctx, client.caller, "luci-rpc", "getBoardJSON", nil)
 }
 
 // DHCPLeases retrieves DHCP leases, optionally filtered by address family.
@@ -239,7 +236,7 @@ func (client *Client) DHCPLeases(ctx context.Context, family int) (*DHCPLeases, 
 		params["family"] = family
 	}
 
-	return goubus.Call[DHCPLeases](ctx, client.caller, "luci-rpc", "getDHCPLeases", params)
+	return goubus.Call[*DHCPLeases](ctx, client.caller, "luci-rpc", "getDHCPLeases", params)
 }
 
 // SetLocaltime sets the device's local Unix time.
@@ -266,17 +263,6 @@ func (client *Client) call(ctx context.Context, method string, params any) error
 	_, err := client.caller.Call(ctx, "luci", method, params)
 
 	return err
-}
-
-func callValue[T any](ctx context.Context, caller goubus.Caller, service, method string, params any) (T, error) {
-	result, err := goubus.Call[T](ctx, caller, service, method, params)
-	if err != nil {
-		var zero T
-
-		return zero, err
-	}
-
-	return *result, nil
 }
 
 func callResult[T any](ctx context.Context, caller goubus.Caller, service, method string, params any) (T, error) {

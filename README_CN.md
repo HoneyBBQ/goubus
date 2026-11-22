@@ -12,7 +12,7 @@
 - **15 个独立的类型化服务子包。** 每个 ubus 领域对应独立的 `services/<pkg>` 子包且互不依赖，编译进路由器 Flash 的小工具按需引入，未使用的服务不会打进二进制。
 - **运行时抹平跨版本固件差异。** OpenWrt 24.10 的 `luci` 提供 `getLocaltime`，25.12 改为 `getUnixtime`；`luci.Client.Time` 会自动探测并缓存可用方法，也可通过 `luci.WithTimeMethod` 直接指定。`dhcp.Client.AddLease` 会查询 `ubus list` 签名来决定 `duid` 传单元素数组还是字符串。`rpcd` 与 `ubusd` 常见的 JSON 类型漂移（布尔值写成 `"1"`/`0`、单字符串与数组混用、数字带引号、时间戳混用秒数与 RFC3339）分别由 `Bool`、`StringOrSlice`、`StringInt`、`UnixTime` 处理。
 - **未封装的第三方插件一行调用。** 遇到 `services/` 尚未内置的 OpenWrt 插件（如 `mwan3`、`banip` 或自定义 `rpcd` 脚本），直接在当前连接上调用 `goubus.Call[T]` 即可按结构体解码返回值。
-- **方法签名查询与标准库错误处理。** `goubus.List` 在两种传输上返回结构一致的对象与参数类型表。只要 ubus 状态码非 0 或 JSON-RPC 报错，调用在解码响应体前就会返回 `*goubus.CallError`，可直接配合 `errors.Is` 与 `errors.As` 判别原因。
+- **方法签名查询与标准库错误处理。** `goubus.List` 在两种传输上返回结构一致的对象与参数类型表。只要 ubus 状态码非 0 或 JSON-RPC 报错，调用在解码响应体前就会返回 `*goubus.CallError`，可直接配合 `errors.Is` 与 `errors.AsType` 判别原因。
 
 ## 安装
 
@@ -20,7 +20,7 @@
 go get github.com/honeybbq/goubus/v2
 ```
 
-要求 Go 1.25 及以上版本。在 `v2.0.0` 正式打标前，不带版本号的 `go get` 默认跳过预发布版本，请从 [Releases](https://github.com/honeybbq/goubus/releases) 指定最新的预发布标签或直接拉取当前分支提交（注意 `v2.0.0-alpha2` 早于 `services/*` 重构）。从 `v2.0.0-alpha1` 或 `v2.0.0-alpha2` 升级可对照 [CHANGELOG.md 中的迁移表](CHANGELOG.md#migrating-from-v200-alpha1-and-v200-alpha2)。
+要求 Go 1.26 及以上版本。在 `v2.0.0` 正式打标前，不带版本号的 `go get` 默认跳过预发布版本，请从 [Releases](https://github.com/honeybbq/goubus/releases) 指定最新的预发布标签或直接拉取当前分支提交（注意 `v2.0.0-alpha2` 早于 `services/*` 重构）。从 `v2.0.0-alpha1` 或 `v2.0.0-alpha2` 升级可对照 [CHANGELOG.md 中的迁移表](CHANGELOG.md#migrating-from-v200-alpha1-and-v200-alpha2)。
 
 ## 快速上手
 
@@ -117,7 +117,7 @@ wan, err := netClient.Interface("wan").Status(ctx)
 
 ### 错误处理
 
-无论是本地 Socket 返回非 0 的 ubus 状态码（`1` 至 `10`），还是 HTTP 端返回 JSON-RPC 错误，都会在解码业务字段前返回 `*goubus.CallError`。用 `errors.Is` 判断根包哨兵错误，用 `errors.As` 读取出错的对象名、方法名与状态码：
+无论是本地 Socket 返回非 0 的 ubus 状态码（`1` 至 `10`），还是 HTTP 端返回 JSON-RPC 错误，都会在解码业务字段前返回 `*goubus.CallError`。用 `errors.Is` 判断根包哨兵错误，用 `errors.AsType` 读取出错的对象名、方法名与状态码：
 
 ```go
 wan, err := netClient.Interface("wan6").Status(ctx)
@@ -127,8 +127,7 @@ case errors.Is(err, goubus.ErrNotFound):
 case errors.Is(err, goubus.ErrPermissionDenied):
 	// 当前 rpcd 账号的 ACL 无权调用该方法
 case err != nil:
-	var callErr *goubus.CallError
-	if errors.As(err, &callErr) {
+	if callErr, ok := errors.AsType[*goubus.CallError](err); ok {
 		log.Printf("%s.%s 调用失败，错误码 %d (%s)",
 			callErr.Service, callErr.Method, callErr.Code, callErr.Message)
 	}
@@ -209,7 +208,7 @@ fmt.Println(objects["dhcp"]["add_lease"]) // map[duid:array ip:string ...]
 | --- | --- |
 | OpenWrt 24.10 | 基于 `x86/64` generic（`24.10.5`）实机采集的 JSON 与 `blobmsg` 二进制样本回归测试。 |
 | OpenWrt 25.12 | 基于 CMCC RAX3000M（`25.12.0-rc1`）实机采集的 JSON 与 `blobmsg` 二进制样本回归测试。 |
-| Go | 1.25 及以上；纯 Go 实现，零 CGO。 |
+| Go | 1.26 及以上；纯 Go 实现，零 CGO。 |
 
 路由器上实际可调用的对象取决于固件安装了哪些软件包（如 `rpcd-mod-file`、`rpcd-mod-iwinfo`、`luci-base`、`odhcpd` 等）；通过 HTTP JSON-RPC 访问时，还需确保所用 `rpcd` 账号具备对应对象的读写 ACL。
 

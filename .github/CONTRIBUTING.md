@@ -6,7 +6,7 @@ By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). To repo
 
 ## Setup
 
-You need Go 1.25 or newer and [golangci-lint](https://golangci-lint.run/) (CI currently runs `v2.15.0`).
+You need Go 1.26 or newer and [golangci-lint](https://golangci-lint.run/) (CI currently runs `v2.15.0`).
 
 ```sh
 git clone https://github.com/HoneyBBQ/goubus
@@ -48,7 +48,7 @@ Unit tests run offline without a live OpenWrt router:
 ## Changes
 
 - Include unit tests with every bug fix or feature. A bug fix should come with a test that fails without it.
-- Wrap underlying errors with `%w` and root-package sentinels (`goubus.ErrNotFound`, `goubus.ErrInvalidResponse`, and others) so callers can match them with `errors.Is` and `errors.As`.
+- Wrap underlying errors with `%w` and root-package sentinels (`goubus.ErrNotFound`, `goubus.ErrInvalidResponse`, and others) so callers can match them with `errors.Is` and `errors.AsType`.
 - Use `log/slog` where logging is needed, keep transports silent by default, and never log passwords or `ubus_rpc_session` tokens.
 - User-visible changes belong under `## Unreleased` in [CHANGELOG.md](../CHANGELOG.md). GitHub release notes are extracted directly from `CHANGELOG.md` by `scripts/release-notes.sh`.
 - Keep commits focused and follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat`, `fix`, `docs`, `ci`, `test`, `refactor`, `chore`, with an optional scope such as `fix(uci): ...`).

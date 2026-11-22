@@ -3,7 +3,6 @@ package file
 
 import (
 	"context"
-	"errors"
 	"os"
 
 	"github.com/honeybbq/goubus/v2"
@@ -29,12 +28,8 @@ func (c *Client) Read(ctx context.Context, path string, base64 bool) (*Read, err
 	if base64 {
 		params["base64"] = true
 	}
-	res, err := goubus.Call[Read](ctx, c.caller, "file", "read", params)
-	if errors.Is(err, goubus.ErrNotFound) {
-		return nil, err
-	}
 
-	return res, err
+	return goubus.Call[*Read](ctx, c.caller, "file", "read", params)
 }
 
 // Write writes data to a file.
@@ -56,12 +51,12 @@ func (c *Client) Write(ctx context.Context, path, data string, isAppend bool, mo
 
 // List lists directory contents.
 func (c *Client) List(ctx context.Context, path string) (*List, error) {
-	return goubus.Call[List](ctx, c.caller, "file", "list", map[string]any{"path": path})
+	return goubus.Call[*List](ctx, c.caller, "file", "list", map[string]any{"path": path})
 }
 
 // Stat retrieves file metadata.
 func (c *Client) Stat(ctx context.Context, path string) (*Stat, error) {
-	return goubus.Call[Stat](ctx, c.caller, "file", "stat", map[string]any{"path": path})
+	return goubus.Call[*Stat](ctx, c.caller, "file", "stat", map[string]any{"path": path})
 }
 
 // Remove deletes a file.
@@ -78,7 +73,7 @@ func (c *Client) MD5(ctx context.Context, path string) (string, error) {
 		return "", err
 	}
 
-	return (*res)["md5"], nil
+	return res["md5"], nil
 }
 
 // Exec executes a command on the device.
@@ -91,12 +86,12 @@ func (c *Client) Exec(ctx context.Context, command string, params []string, env 
 		req["env"] = env
 	}
 
-	return goubus.Call[Exec](ctx, c.caller, "file", "exec", req)
+	return goubus.Call[*Exec](ctx, c.caller, "file", "exec", req)
 }
 
 // LStat retrieves symbolic link metadata.
 func (c *Client) LStat(ctx context.Context, path string) (*Stat, error) {
-	return goubus.Call[Stat](ctx, c.caller, "file", "lstat", map[string]any{"path": path})
+	return goubus.Call[*Stat](ctx, c.caller, "file", "lstat", map[string]any{"path": path})
 }
 
 // List represents a directory listing.

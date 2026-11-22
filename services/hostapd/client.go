@@ -30,12 +30,7 @@ func (c *Client) Reload(ctx context.Context, phy string, radio int) error {
 
 // BSSInfo retrieves BSS information for an interface.
 func (c *Client) BSSInfo(ctx context.Context, iface string) (map[string]any, error) {
-	res, err := goubus.Call[map[string]any](ctx, c.caller, "hostapd", "bss_info", map[string]any{"iface": iface})
-	if err != nil {
-		return nil, err
-	}
-
-	return *res, nil
+	return goubus.Call[map[string]any](ctx, c.caller, "hostapd", "bss_info", map[string]any{"iface": iface})
 }
 
 // AP returns a context for a hostapd AP instance.
@@ -51,22 +46,12 @@ type APContext struct {
 
 // Clients retrieves the connected clients for the AP.
 func (a *APContext) Clients(ctx context.Context) (map[string]any, error) {
-	res, err := goubus.Call[map[string]any](ctx, a.caller, a.name, "get_clients", nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return *res, nil
+	return goubus.Call[map[string]any](ctx, a.caller, a.name, "get_clients", nil)
 }
 
 // Status retrieves the status of the AP.
 func (a *APContext) Status(ctx context.Context) (map[string]any, error) {
-	res, err := goubus.Call[map[string]any](ctx, a.caller, a.name, "get_status", nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return *res, nil
+	return goubus.Call[map[string]any](ctx, a.caller, a.name, "get_status", nil)
 }
 
 // DelClient removes a connected client.

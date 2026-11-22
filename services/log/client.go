@@ -25,7 +25,7 @@ func New(caller goubus.Caller) *Client {
 func (c *Client) Read(ctx context.Context, lines int, stream bool, oneshot bool) (*Log, error) {
 	params := map[string]any{"lines": lines, "stream": stream, "oneshot": oneshot}
 
-	return goubus.Call[Log](ctx, c.caller, "log", "read", params)
+	return goubus.Call[*Log](ctx, c.caller, "log", "read", params)
 }
 
 // Write sends a log entry.

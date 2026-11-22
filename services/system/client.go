@@ -23,12 +23,12 @@ func New(caller goubus.Caller) *Client {
 
 // Info retrieves runtime system information.
 func (c *Client) Info(ctx context.Context) (*Info, error) {
-	return goubus.Call[Info](ctx, c.caller, "system", "info", nil)
+	return goubus.Call[*Info](ctx, c.caller, "system", "info", nil)
 }
 
 // Board retrieves board hardware information.
 func (c *Client) Board(ctx context.Context) (*BoardInfo, error) {
-	return goubus.Call[BoardInfo](ctx, c.caller, "system", "board", nil)
+	return goubus.Call[*BoardInfo](ctx, c.caller, "system", "board", nil)
 }
 
 // Reboot reboots the system.
@@ -55,12 +55,8 @@ func (c *Client) Signal(ctx context.Context, pid, signum int) error {
 // ValidateFirmwareImage validates a firmware image file.
 func (c *Client) ValidateFirmwareImage(ctx context.Context, path string) (map[string]any, error) {
 	request := validateFirmwareImageRequest{Path: path}
-	res, err := goubus.Call[map[string]any](ctx, c.caller, "system", "validate_firmware_image", request)
-	if err != nil {
-		return nil, err
-	}
 
-	return *res, nil
+	return goubus.Call[map[string]any](ctx, c.caller, "system", "validate_firmware_image", request)
 }
 
 // Sysupgrade performs a system upgrade.

@@ -23,12 +23,7 @@ func New(caller goubus.Caller) *Client {
 
 // PackageList retrieves the installed package list.
 func (c *Client) PackageList(ctx context.Context, all bool) (map[string]any, error) {
-	res, err := goubus.Call[map[string]any](ctx, c.caller, "rpc-sys", "packagelist", map[string]any{"all": all})
-	if err != nil {
-		return nil, err
-	}
-
-	return *res, nil
+	return goubus.Call[map[string]any](ctx, c.caller, "rpc-sys", "packagelist", map[string]any{"all": all})
 }
 
 // PasswordSet sets the password for a user.

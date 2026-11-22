@@ -81,8 +81,8 @@ func TestSocketClientCallReportsStatusImmediately(t *testing.T) {
 	if !errors.Is(err, goubus.ErrPermissionDenied) || !errors.Is(err, goubus.ErrCall) {
 		t.Fatalf("Call() error = %v, want permission denied and ErrCall", err)
 	}
-	var callErr *goubus.CallError
-	if !errors.As(err, &callErr) || callErr.Code != goubus.StatusPermissionDenied {
+	callErr, ok := errors.AsType[*goubus.CallError](err)
+	if !ok || callErr.Code != goubus.StatusPermissionDenied {
 		t.Fatalf("Call() error = %#v, want status CallError", err)
 	}
 }
@@ -96,8 +96,8 @@ func TestSocketClientCallLookupStatusErrorIsCallError(t *testing.T) {
 	if !errors.Is(err, goubus.ErrPermissionDenied) || !errors.Is(err, goubus.ErrCall) {
 		t.Fatalf("Call() error = %v, want permission denied and ErrCall", err)
 	}
-	var callErr *goubus.CallError
-	if !errors.As(err, &callErr) || callErr.Code != goubus.StatusPermissionDenied {
+	callErr, ok := errors.AsType[*goubus.CallError](err)
+	if !ok || callErr.Code != goubus.StatusPermissionDenied {
 		t.Fatalf("Call() error = %#v, want status CallError", err)
 	}
 }

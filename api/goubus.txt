@@ -33,7 +33,7 @@ var ErrPermissionDenied error
 var ErrTimeout error
 var ErrUnknown error
 func BoolValue(b Bool) bool
-func Call[T any](ctx context.Context, caller Caller, service string, method string, data any) (*T, error)
+func Call[T any](ctx context.Context, caller Caller, service string, method string, data any) (T, error)
 func ChainMiddleware(caller Caller, middlewares ...CallMiddleware) Caller
 func List(ctx context.Context, caller Caller, patterns ...string) (map[string]ObjectSignatures, error)
 func NewJSONResult(raw json.RawMessage) Result

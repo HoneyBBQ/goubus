@@ -37,7 +37,7 @@ func (c *Client) Devices(ctx context.Context) ([]string, error) {
 
 // Info retrieves runtime information for a wireless interface.
 func (c *Client) Info(ctx context.Context, device string) (*Info, error) {
-	return goubus.Call[Info](ctx, c.caller, "iwinfo", "info", map[string]any{"device": device})
+	return goubus.Call[*Info](ctx, c.caller, "iwinfo", "info", map[string]any{"device": device})
 }
 
 type scanResponse struct {
@@ -75,7 +75,7 @@ func (c *Client) FreqList(ctx context.Context, device string) ([]any, error) {
 		return nil, err
 	}
 
-	return (*res)["results"], nil
+	return res["results"], nil
 }
 
 // TxPowerList retrieves available transmit power settings.
@@ -85,7 +85,7 @@ func (c *Client) TxPowerList(ctx context.Context, device string) ([]any, error) 
 		return nil, err
 	}
 
-	return (*res)["results"], nil
+	return res["results"], nil
 }
 
 // CountryList retrieves available country codes.
@@ -95,7 +95,7 @@ func (c *Client) CountryList(ctx context.Context, device string) ([]any, error) 
 		return nil, err
 	}
 
-	return (*res)["results"], nil
+	return res["results"], nil
 }
 
 // Survey retrieves channel survey information.
@@ -105,7 +105,7 @@ func (c *Client) Survey(ctx context.Context, device string) ([]any, error) {
 		return nil, err
 	}
 
-	return (*res)["results"], nil
+	return res["results"], nil
 }
 
 // PhyName retrieves the physical name for a UCI section.
@@ -115,7 +115,7 @@ func (c *Client) PhyName(ctx context.Context, section string) (string, error) {
 		return "", err
 	}
 
-	return (*res)["phyname"], nil
+	return res["phyname"], nil
 }
 
 // Info contains wireless interface information.

@@ -75,17 +75,20 @@ func (r jsonResult) Unmarshal(target any) error {
 }
 
 // Call invokes caller and decodes its result into T.
-func Call[T any](ctx context.Context, caller Caller, service, method string, data any) (*T, error) {
+func Call[T any](ctx context.Context, caller Caller, service, method string, data any) (T, error) {
+	var target T
+
 	resp, err := caller.Call(ctx, service, method, data)
 	if err != nil {
-		return nil, err
+		return target, err
 	}
 
-	var target T
 	err = resp.Unmarshal(&target)
 	if err != nil {
-		return nil, err
+		var zero T
+
+		return zero, err
 	}
 
-	return &target, nil
+	return target, nil
 }

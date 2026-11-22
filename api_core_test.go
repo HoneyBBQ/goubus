@@ -55,7 +55,7 @@ func TestCallHelpers(t *testing.T) {
 	got, err := goubus.Call[struct {
 		OK bool `json:"ok"`
 	}](context.Background(), goubus.ChainMiddleware(base, wrap("one"), wrap("two")), "svc", "method", nil)
-	if err != nil || got == nil || !got.OK {
+	if err != nil || !got.OK {
 		t.Fatalf("Call() = %#v, %v", got, err)
 	}
 	wantOrder := []string{"before-one", "before-two", "call", "after-two", "after-one"}

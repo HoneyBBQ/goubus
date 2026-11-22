@@ -23,12 +23,7 @@ func New(caller goubus.Caller) *Client {
 
 // IfaceStatus retrieves the status of a wireless interface.
 func (c *Client) IfaceStatus(ctx context.Context, name string) (map[string]any, error) {
-	res, err := goubus.Call[map[string]any](ctx, c.caller, "wpa_supplicant", "iface_status", map[string]any{"name": name})
-	if err != nil {
-		return nil, err
-	}
-
-	return *res, nil
+	return goubus.Call[map[string]any](ctx, c.caller, "wpa_supplicant", "iface_status", map[string]any{"name": name})
 }
 
 // STA returns a context for a wpa_supplicant STA object.
@@ -70,5 +65,5 @@ func (s *STAContext) Control(ctx context.Context, command string) (string, error
 		return "", err
 	}
 
-	return (*res)["result"], nil
+	return res["result"], nil
 }

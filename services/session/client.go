@@ -26,7 +26,7 @@ func New(caller goubus.Caller) *Client {
 
 // Create creates a new session.
 func (c *Client) Create(ctx context.Context, timeout int) (*Data, error) {
-	res, err := goubus.Call[Data](ctx, c.caller, "session", "create", map[string]any{"timeout": timeout})
+	res, err := goubus.Call[*Data](ctx, c.caller, "session", "create", map[string]any{"timeout": timeout})
 	if err != nil {
 		return nil, err
 	}
@@ -37,12 +37,7 @@ func (c *Client) Create(ctx context.Context, timeout int) (*Data, error) {
 
 // List retrieves active sessions.
 func (c *Client) List(ctx context.Context) (map[string]any, error) {
-	res, err := goubus.Call[map[string]any](ctx, c.caller, "session", "list", nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return *res, nil
+	return goubus.Call[map[string]any](ctx, c.caller, "session", "list", nil)
 }
 
 // Grant grants access to a session.
@@ -66,7 +61,7 @@ func (c *Client) Access(ctx context.Context, req AccessRequest) (bool, error) {
 		return false, err
 	}
 
-	return bool((*res)["access"]), nil
+	return bool(res["access"]), nil
 }
 
 // Set sets session values.
@@ -79,12 +74,8 @@ func (c *Client) Set(ctx context.Context, session string, values map[string]any)
 // Get retrieves session values.
 func (c *Client) Get(ctx context.Context, session string, keys []string) (map[string]any, error) {
 	params := map[string]any{ubusRPCSessionKey: session, "keys": keys}
-	res, err := goubus.Call[map[string]any](ctx, c.caller, "session", "get", params)
-	if err != nil {
-		return nil, err
-	}
 
-	return *res, nil
+	return goubus.Call[map[string]any](ctx, c.caller, "session", "get", params)
 }
 
 // Unset removes values from a session.
@@ -103,7 +94,7 @@ func (c *Client) Destroy(ctx context.Context, session string) error {
 
 // Login performs a session login.
 func (c *Client) Login(ctx context.Context, req LoginRequest) (*Data, error) {
-	res, err := goubus.Call[Data](ctx, c.caller, "session", "login", req)
+	res, err := goubus.Call[*Data](ctx, c.caller, "session", "login", req)
 	if err != nil {
 		return nil, err
 	}
