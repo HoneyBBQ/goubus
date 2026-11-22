@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"github.com/honeybbq/goubus/v2"
-	"github.com/honeybbq/goubus/v2/services"
+	"github.com/honeybbq/goubus/v2/services/network"
+	"github.com/honeybbq/goubus/v2/services/system"
+	"github.com/honeybbq/goubus/v2/services/uci"
 )
 
 const (
@@ -86,13 +88,15 @@ func benchmarkTransport(ctx context.Context, transportType, socketPath, host, us
 		_ = caller.Close()
 	}()
 
-	serviceSet := services.New(caller)
+	sysClient := system.New(caller)
+	netClient := network.New(caller)
+	uciClient := uci.New(caller)
 
 	// Test 1: Single call latency
-	result.SingleCallAvg, result.ErrorCount = runSingleCallTest(ctx, serviceSet, iterations)
+	result.SingleCallAvg, result.ErrorCount = runSingleCallTest(ctx, sysClient, iterations)
 
 	// Test 2: Batch operations
-	totalBatch, errs := runBatchTest(ctx, serviceSet, iterations)
+	totalBatch, errs := runBatchTest(ctx, sysClient, netClient, uciClient, iterations)
 	result.BatchCallTotal = totalBatch
 	result.ErrorCount += errs
 
@@ -129,7 +133,7 @@ func initTransport(ctx context.Context, transportType, socketPath, host, usernam
 	return caller, time.Since(startConnect)
 }
 
-func runSingleCallTest(ctx context.Context, svc *services.Client, iterations int) (time.Duration, int) {
+func runSingleCallTest(ctx context.Context, sysClient *system.Client, iterations int) (time.Duration, int) {
 	var total time.Duration
 
 	errors := 0
@@ -137,7 +141,7 @@ func runSingleCallTest(ctx context.Context, svc *services.Client, iterations int
 	for range iterations {
 		start := time.Now()
 
-		_, err := svc.System().Info(ctx)
+		_, err := sysClient.Info(ctx)
 		if err != nil {
 			errors++
 
@@ -154,7 +158,13 @@ func runSingleCallTest(ctx context.Context, svc *services.Client, iterations int
 	return 0, errors
 }
 
-func runBatchTest(ctx context.Context, services *services.Client, iterations int) (time.Duration, int) {
+func runBatchTest(
+	ctx context.Context,
+	sysClient *system.Client,
+	netClient *network.Client,
+	uciClient *uci.Client,
+	iterations int,
+) (time.Duration, int) {
 	startBatch := time.Now()
 	errors := 0
 
@@ -169,13 +179,13 @@ func runBatchTest(ctx context.Context, services *services.Client, iterations int
 
 		switch iteration % metricsCount {
 		case 0:
-			_, err = services.System().Info(ctx)
+			_, err = sysClient.Info(ctx)
 		case metricBoard:
-			_, err = services.System().Board(ctx)
+			_, err = sysClient.Board(ctx)
 		case metricInterfaces:
-			_, err = services.Network().DumpInterfaces(ctx)
+			_, err = netClient.DumpInterfaces(ctx)
 		case metricConfigs:
-			_, err = services.UCI().Configs(ctx)
+			_, err = uciClient.Configs(ctx)
 		}
 
 		if err != nil {

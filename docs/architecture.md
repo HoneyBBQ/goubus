@@ -6,9 +6,7 @@ goubus/
 │                             #   RpcClient, SocketClient, *CallError, sentinels,
 │                             #   and flexible JSON types (Bool, StringOrSlice,
 │                             #   StringInt, UnixTime)
-├── services/
-│   ├── client.go             # package services: shared Client holding all 15
-│   │                         #   typed clients over one Caller
+├── services/                 # 15 independent typed service packages
 │   ├── container/            # ubus "container"
 │   ├── dhcp/                 # ubus "dhcp" (leases, RA, adaptive add_lease)
 │   ├── file/                 # ubus "file" (read, write, list, stat, md5, exec)
@@ -43,11 +41,10 @@ goubus/
 Imports flow in one direction across the module:
 
 ```text
-services -> services/<pkg> -> goubus -> internal/{blobmsg,rpc,errs,logging}
+services/<pkg> -> goubus -> internal/{blobmsg,rpc,errs,logging}
 ```
 
 - `services/<pkg>` packages never import one another. Importing `services/system` compiles only `goubus`, `services/system`, and the four `internal/` runtime packages.
-- `services` imports `goubus` and all 15 `services/<pkg>` packages to construct one shared collection when a program needs many objects at once.
 - `goubus` has zero third-party runtime dependencies and uses no CGO, so binaries cross-compile cleanly to `mipsle`, `arm`, `arm64`, and `amd64` OpenWrt targets.
 - `internal/testdata/` and `internal/tools/apidump/` are used only during testing and CI checks.
 

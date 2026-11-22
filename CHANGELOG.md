@@ -9,10 +9,10 @@ All notable changes to this module are documented here. This project follows [Se
 - `Caller` (`Call(ctx, service, method, data) (Result, error)`), `CallerFunc`, and `NewJSONResult`: narrow call contract accepted by every service client and `Call[T]`, decoupling callers that borrow a connection from `Transport` (`Caller` plus `Close() error`).
 - `CallMiddleware` and `ChainMiddleware(caller, middlewares...)` to wrap ubus calls in arrival order across both transports.
 - `goubus.List(ctx, caller, patterns...)` and `Lister`, implemented by both `*RpcClient` and `*SocketClient`, returning `map[string]ObjectSignatures` with wire argument types normalized to `ArgType` (`ArgTypeString`, `ArgTypeNumber`, `ArgTypeBoolean`, `ArgTypeArray`, `ArgTypeObject`, `ArgTypeUnknown`). `SocketClient.List` also populates its `objpath -> objid` lookup cache.
-- 15 hardware-independent typed service packages under `services/` (`container`, `dhcp`, `file`, `hostapd`, `log`, `luci`, `network`, `rc`, `rpcsys`, `service`, `session`, `system`, `uci`, `wireless`, `wpasupplicant`), plus `services.New(caller, opts...)` returning a `*services.Client` that shares one `Caller` across all 15 clients.
+- 15 hardware-independent typed service packages under `services/` (`container`, `dhcp`, `file`, `hostapd`, `log`, `luci`, `network`, `rc`, `rpcsys`, `service`, `session`, `system`, `uci`, `wireless`, `wpasupplicant`).
 - Runtime adaptation for firmware differences, verified against fixtures from OpenWrt 24.10.5 (`x86_generic`) and OpenWrt 25.12.0-rc1 (CMCC RAX3000M):
-  - `luci.Client.Time` tries `getUnixtime` (25.12), falls back to `getLocaltime` (24.10) on `ErrMethodNotFound`, `ErrInvalidCommand`, or `ErrPermissionDenied`, and atomically caches the working method. `luci.WithTimeMethod` (or `services.WithLuCI`) pins one explicitly.
-  - `dhcp.Client.AddLease` inspects `goubus.List(ctx, caller, "dhcp")` to send `duid` as `[]string` or `string`, falling back to array-then-string probing on `ErrInvalidParameter` when signature lookup is unavailable. `dhcp.WithDUIDFormat` (or `services.WithDHCP`) pins `DUIDString` or `DUIDArray`.
+  - `luci.Client.Time` tries `getUnixtime` (25.12), falls back to `getLocaltime` (24.10) on `ErrMethodNotFound`, `ErrInvalidCommand`, or `ErrPermissionDenied`, and atomically caches the working method. `luci.WithTimeMethod` pins one explicitly.
+  - `dhcp.Client.AddLease` inspects `goubus.List(ctx, caller, "dhcp")` to send `duid` as `[]string` or `string`, falling back to array-then-string probing on `ErrInvalidParameter` when signature lookup is unavailable. `dhcp.WithDUIDFormat` pins `DUIDString` or `DUIDArray`.
   - `StringOrSlice`, `StringInt`, and `UnixTime` alongside `Bool` (`BoolValue`) in the root package to decode scalar-or-array strings, quoted integers, Unix-second or RFC3339 timestamps, and numeric or string booleans.
 - `*goubus.CallError` (`Service`, `Method`, `Code`, `Message`, `Err`), `ErrCall`, `StatusOK` through `StatusConnectionFailed` (`0`..`10`), and `StatusError(code)` in the root package. `*CallError` unwraps to both `ErrCall` and the mapped status sentinel.
 - `WithHTTPClient` and `WithRpcEndpoint` on `NewRpcClient`; `DialTimeout()`, `ReadTimeout()`, `WriteTimeout()`, and `PeerID()` accessors on `*SocketClient`; `Values` and `StateValues` on `*uci.OptionContext`.
@@ -21,7 +21,7 @@ All notable changes to this module are documented here. This project follows [Se
 ### Changed
 
 - **Breaking:** Hardware-specific `profiles/<device>/<service>` packages are replaced by `github.com/honeybbq/goubus/v2/services/<service>` (`wpa_supplicant` is now `wpasupplicant`). Every service type is named `Client` instead of `Manager`, constructed with `New(caller)`.
-- **Breaking:** `Transport.SetLogger` is removed. Transports discard logs by default; pass `WithRpcLogger(logger)` to `NewRpcClient` or `WithSocketLogger(logger)` to `NewSocketClient` / `NewSocketClientFromConn`. `RpcOption`, `SocketOption`, `services.Option`, `luci.Option`, and `dhcp.Option` are now sealed interfaces rather than function types.
+- **Breaking:** `Transport.SetLogger` is removed. Transports discard logs by default; pass `WithRpcLogger(logger)` to `NewRpcClient` or `WithSocketLogger(logger)` to `NewSocketClient` / `NewSocketClientFromConn`. `RpcOption`, `SocketOption`, `luci.Option`, and `dhcp.Option` are now sealed interfaces rather than function types.
 - **Breaking:** Root sentinels (`ErrNotFound`, `ErrPermissionDenied`, `ErrInvalidParameter`, and the rest) move from `errdefs` to `github.com/honeybbq/goubus/v2`. Match them with `errors.Is` instead of `errdefs.Is*` helpers.
 - **Breaking:** Redundant `Get` prefixes are dropped on service methods (`luci.Client.Version`, `Time`, `Processes`, `Features`, `BlockDevices`, `USBDevices`, `BoardJSON`, `DHCPLeases`, ...; `container.Client.Features`; `network.Client.ProtoHandlers` and `Wireless().Validate`; `service.Client.Data`; `hostapd.AP(name).Clients` and `Status`; `uci.Package(name).All` and `Section.First`).
 - **Breaking:** `luci.Client.Features` returns `map[string]luci.Feature` (supporting both boolean flags on 24.10 and subfeature maps on 25.12), `BlockDevices` returns `map[string]luci.BlockDevice` keyed by device name, and `USBDevices` returns `*luci.USBInfo` (`Devices` and `Ports`).
@@ -47,7 +47,7 @@ All notable changes to this module are documented here. This project follows [Se
 
 | Before (`v2.0.0-alpha1` / `alpha2`) | Now |
 | --- | --- |
-| `github.com/honeybbq/goubus/v2/profiles/<device>/<svc>` | `github.com/honeybbq/goubus/v2/services/<svc>` (or `services.New(caller)` for all 15) |
+| `github.com/honeybbq/goubus/v2/profiles/<device>/<svc>` | `github.com/honeybbq/goubus/v2/services/<svc>` |
 | `profiles/<device>/wpa_supplicant` | `github.com/honeybbq/goubus/v2/services/wpasupplicant` |
 | `*<svc>.Manager` (`system.New(transport)`) | `*<svc>.Client` (`system.New(caller)`) |
 | `transport.SetLogger(logger)` | `goubus.WithRpcLogger(logger)` / `goubus.WithSocketLogger(logger)` in constructor |

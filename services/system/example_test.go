@@ -1,4 +1,4 @@
-package services_test
+package system_test
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/honeybbq/goubus/v2"
-	"github.com/honeybbq/goubus/v2/services"
 	"github.com/honeybbq/goubus/v2/services/system"
 )
 
@@ -16,24 +15,12 @@ func Example() {
 		return goubus.NewJSONResult(json.RawMessage(`{"uptime":42}`)), nil
 	})
 
-	all := services.New(caller)
-	info, err := all.System().Info(ctx)
+	info, err := system.New(caller).Info(ctx)
 	if err != nil {
 		fmt.Println(err)
 
 		return
 	}
 	fmt.Println(info.Uptime)
-
-	single := system.New(caller)
-	info, err = single.Info(ctx)
-	if err != nil {
-		fmt.Println(err)
-
-		return
-	}
-	fmt.Println(info.Uptime)
-	// Output:
-	// 42
-	// 42
+	// Output: 42
 }

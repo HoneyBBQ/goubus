@@ -12,7 +12,7 @@ type Caller interface {
 }
 ```
 
-`Transport` embeds `Caller` and adds `Close() error`. Service clients (`system.New`, `uci.New`, `services.New`, ...) take a `Caller` rather than a `Transport`: they borrow the connection and never close it. The code that called `NewSocketClient` or `NewRpcClient` owns `Close`.
+`Transport` embeds `Caller` and adds `Close() error`. Service clients (`system.New`, `uci.New`, `network.New`, ...) take a `Caller` rather than a `Transport`: they borrow the connection and never close it. The code that called `NewSocketClient` or `NewRpcClient` owns `Close`.
 
 Because `Caller` has one method, unit tests for code built on typed service clients do not need a router or a mock socket. Combine `CallerFunc` with `NewJSONResult`:
 
@@ -31,7 +31,7 @@ info, err := system.New(caller).Info(ctx)
 
 ```go
 traced := goubus.ChainMiddleware(conn, auditMiddleware, metricsMiddleware)
-api := services.New(traced)
+sys := system.New(traced)
 ```
 
 Two details to keep in mind when wrapping a transport:
@@ -133,15 +133,9 @@ When you already know the target firmware's behavior and want to skip probing, p
 ```go
 luciClient := luci.New(conn, luci.WithTimeMethod(luci.TimeMethodLocaltime))
 dhcpClient := dhcp.New(conn, dhcp.WithDUIDFormat(dhcp.DUIDString))
-
-// Or through the shared services collection:
-api := services.New(conn,
-	services.WithLuCI(luci.WithTimeMethod(luci.TimeMethodLocaltime)),
-	services.WithDHCP(dhcp.WithDUIDFormat(dhcp.DUIDString)),
-)
 ```
 
-All `Option` interfaces (`RpcOption`, `SocketOption`, `services.Option`, `luci.Option`, `dhcp.Option`) are sealed with unexported methods so new internal fields can be added without breaking callers.
+All `Option` interfaces (`RpcOption`, `SocketOption`, `luci.Option`, `dhcp.Option`) are sealed with unexported methods so new internal fields can be added without breaking callers.
 
 ## Logging and credentials
 

@@ -9,7 +9,7 @@
 ## 核心特性
 
 - **本地 Socket 与远程 RPC 共用同一套调用接口。** 程序直接跑在路由器上时，用 `NewSocketClient` 连 `/tmp/run/ubus/ubus.sock` 与 `ubusd` 通信，内置纯 Go 的 `blobmsg` 二进制编解码，不依赖 CGO 或第三方库，可直接交叉编译到 MIPS/ARM 路由固件；从外部机器远程管理路由器时，用 `NewRpcClient` 走 `uhttpd-mod-ubus` 的 HTTP/HTTPS JSON-RPC 接口。
-- **15 个标准服务包支持单引或聚合。** 编译进路由器 Flash 的小工具只需引 `services/system` 等单个子包，未引用的服务不会打进二进制；集中管控后台或监控采集器可用 `services.New(conn)` 一次挂齐全部 15 个客户端，复用同一连接与各客户端内的探测缓存。
+- **15 个独立的类型化服务子包。** 每个 ubus 领域对应独立的 `services/<pkg>` 子包且互不依赖，编译进路由器 Flash 的小工具按需引入，未使用的服务不会打进二进制。
 - **运行时抹平跨版本固件差异。** OpenWrt 24.10 的 `luci` 提供 `getLocaltime`，25.12 改为 `getUnixtime`；`luci.Client.Time` 会自动探测并缓存可用方法，也可通过 `luci.WithTimeMethod` 直接指定。`dhcp.Client.AddLease` 会查询 `ubus list` 签名来决定 `duid` 传单元素数组还是字符串。`rpcd` 与 `ubusd` 常见的 JSON 类型漂移（布尔值写成 `"1"`/`0`、单字符串与数组混用、数字带引号、时间戳混用秒数与 RFC3339）分别由 `Bool`、`StringOrSlice`、`StringInt`、`UnixTime` 处理。
 - **未封装的第三方插件一行调用。** 遇到 `services/` 尚未内置的 OpenWrt 插件（如 `mwan3`、`banip` 或自定义 `rpcd` 脚本），直接在当前连接上调用 `goubus.Call[T]` 即可按结构体解码返回值。
 - **方法签名查询与标准库错误处理。** `goubus.List` 在两种传输上返回结构一致的对象与参数类型表。只要 ubus 状态码非 0 或 JSON-RPC 报错，调用在解码响应体前就会返回 `*goubus.CallError`，可直接配合 `errors.Is` 与 `errors.As` 判别原因。
@@ -91,35 +91,36 @@ defer conn.Close()
 
 `*SocketClient` 与 `*RpcClient` 均实现 `goubus.Transport`（即 `Caller` 加 `Close`）。各业务客户端只接收 `goubus.Caller`，不接管也不关闭底层连接。
 
-### 按需单引 `services/<pkg>` vs 聚合 `services.New`
+### 使用类型化服务包（`services/<pkg>`）
 
-部署到路由器上的 Agent 或命令行工具通常只访问一两个对象，直接引对应子包即可控制编译体积：
-
-```go
-import "github.com/honeybbq/goubus/v2/services/system"
-
-info, err := system.New(conn).Info(ctx)
-```
-
-管理后台、Prometheus Exporter 等需要同时读写系统、网络、UCI、DHCP 等多处状态时，在连接建立后调一次 `services.New(conn)`，即可复用全部 15 个客户端实例及其内部探测结果：
+按实际访问的对象引入对应的 `services/<pkg>` 子包即可，未引用的服务不会参与编译，多个客户端可直接共用同一个 `Caller`：
 
 ```go
-import "github.com/honeybbq/goubus/v2/services"
+import (
+	"github.com/honeybbq/goubus/v2/services/luci"
+	"github.com/honeybbq/goubus/v2/services/network"
+	"github.com/honeybbq/goubus/v2/services/system"
+)
 
-api := services.New(conn)
-info, err := api.System().Info(ctx)
+sys := system.New(conn)
+netClient := network.New(conn)
+luciClient := luci.New(conn)
+
+info, err := sys.Info(ctx)
 if err != nil {
 	return err
 }
-wan, err := api.Network().Interface("wan").Status(ctx)
+wan, err := netClient.Interface("wan").Status(ctx)
 ```
+
+针对同一台路由器连接，建议复用 `*luci.Client` 与 `*dhcp.Client` 实例，以保留其内部对 `luci` 时间方法及 `dhcp.add_lease` DUID 格式的运行期探测缓存。
 
 ### 错误处理
 
 无论是本地 Socket 返回非 0 的 ubus 状态码（`1` 至 `10`），还是 HTTP 端返回 JSON-RPC 错误，都会在解码业务字段前返回 `*goubus.CallError`。用 `errors.Is` 判断根包哨兵错误，用 `errors.As` 读取出错的对象名、方法名与状态码：
 
 ```go
-wan, err := api.Network().Interface("wan6").Status(ctx)
+wan, err := netClient.Interface("wan6").Status(ctx)
 switch {
 case errors.Is(err, goubus.ErrNotFound):
 	// ubus 对象或对应接口不存在
@@ -177,7 +178,6 @@ fmt.Println(objects["dhcp"]["add_lease"]) // map[duid:array ip:string ...]
 | 导入路径 | 对应 ubus 对象 | 功能范围 |
 | --- | --- | --- |
 | `github.com/honeybbq/goubus/v2` | 任意对象 | `SocketClient`、`RpcClient`、`Caller`、`Call[T]`、`List`、`*CallError`、状态哨兵错误，以及 `Bool`、`StringOrSlice`、`StringInt`、`UnixTime` |
-| `github.com/honeybbq/goubus/v2/services` | 以下全部 | 统一入口 `services.New` 及子客户端构造选项 |
 | `github.com/honeybbq/goubus/v2/services/container` | `container` | `procd` 容器配置、运行状态、特性查询与控制台操作 |
 | `github.com/honeybbq/goubus/v2/services/dhcp` | `dhcp` | `odhcpd` / `dnsmasq` 的 IPv4/IPv6 租约、IPv6 RA 前缀与 `add_lease` 静态租约下发 |
 | `github.com/honeybbq/goubus/v2/services/file` | `file` | 文件读写、目录列举、`stat`/`lstat`、MD5 计算与命令执行 |

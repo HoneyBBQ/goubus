@@ -9,7 +9,7 @@ OpenWrt ubus client in pure Go, over Unix sockets and HTTP JSON-RPC.
 ## Why this library
 
 - **Local socket and remote JSON-RPC.** Talk directly to `ubusd` on the router over `/tmp/run/ubus/ubus.sock` with a pure-Go binary `blobmsg` codec, or manage a router from outside over HTTP/HTTPS through `uhttpd-mod-ubus` and `rpcd`. No CGO and no third-party dependencies.
-- **15 typed services, imported singly or together.** An on-router binary can import only `services/system` so unused packages stay out of the build. A controller or dashboard can call `services.New(conn)` to hold one shared instance of every service client.
+- **15 independent typed service packages.** Each ubus domain lives in its own `services/<pkg>` package with no cross-service imports, so a binary only compiles the services it imports.
 - **Runtime handling of OpenWrt release differences.** OpenWrt 24.10's `luci` object exposes `getLocaltime`, while 25.12 exposes `getUnixtime`; `luci.Client.Time` probes and caches the working method, or `luci.WithTimeMethod` pins it. `dhcp.Client.AddLease` reads the router's `ubus list` signature to send `duid` as an array or string. `Bool`, `StringOrSlice`, `StringInt`, and `UnixTime` decode fields whose JSON types vary across daemons.
 - **One-line generic calls for custom objects.** Third-party OpenWrt packages that have no typed package in `services/` (such as `mwan3` or `banip`) run on the same `Caller` through `goubus.Call[T]`.
 - **Signature inspection and standard Go errors.** `goubus.List` reads object and method argument types in one normalized format over both transports. Non-zero ubus statuses and JSON-RPC refusals return `*goubus.CallError` before payload decoding, matching sentinels like `goubus.ErrNotFound` and `goubus.ErrPermissionDenied` via `errors.Is`.
@@ -91,35 +91,36 @@ defer conn.Close()
 
 Both `*SocketClient` and `*RpcClient` implement `goubus.Transport` (`Caller` plus `Close`). Service clients accept `goubus.Caller` and never close the underlying transport.
 
-### Single service package vs `services.New`
+### Typed service packages (`services/<pkg>`)
 
-For a small agent or CLI deployed onto router flash, import only the service packages you call:
-
-```go
-import "github.com/honeybbq/goubus/v2/services/system"
-
-info, err := system.New(conn).Info(ctx)
-```
-
-For a control plane, exporter, or web backend that talks to many ubus objects over one connection, construct the shared collection once so per-client caches (such as `luci` and `dhcp` runtime probes) stay warm:
+Import only the `services/<pkg>` packages your program calls; unused services stay out of the binary, and multiple clients can share one `Caller`:
 
 ```go
-import "github.com/honeybbq/goubus/v2/services"
+import (
+	"github.com/honeybbq/goubus/v2/services/luci"
+	"github.com/honeybbq/goubus/v2/services/network"
+	"github.com/honeybbq/goubus/v2/services/system"
+)
 
-api := services.New(conn)
-info, err := api.System().Info(ctx)
+sys := system.New(conn)
+netClient := network.New(conn)
+luciClient := luci.New(conn)
+
+info, err := sys.Info(ctx)
 if err != nil {
 	return err
 }
-wan, err := api.Network().Interface("wan").Status(ctx)
+wan, err := netClient.Interface("wan").Status(ctx)
 ```
+
+Reuse `*luci.Client` and `*dhcp.Client` instances across calls on the same router connection so their runtime probes (`luci` time method and `dhcp.add_lease` DUID format) stay cached.
 
 ### Handling errors
 
 Every non-zero ubus status (`1` to `10`) and every JSON-RPC error response returns a `*goubus.CallError` before any response JSON is decoded. Match causes with `errors.Is` and read wire details with `errors.As`:
 
 ```go
-wan, err := api.Network().Interface("wan6").Status(ctx)
+wan, err := netClient.Interface("wan6").Status(ctx)
 switch {
 case errors.Is(err, goubus.ErrNotFound):
 	// ubus object or interface does not exist
@@ -177,7 +178,6 @@ fmt.Println(objects["dhcp"]["add_lease"]) // map[duid:array ip:string ...]
 | Import | ubus objects | What it covers |
 | --- | --- | --- |
 | `github.com/honeybbq/goubus/v2` | any | `SocketClient`, `RpcClient`, `Caller`, `Call[T]`, `List`, `*CallError`, status sentinels, `Bool`, `StringOrSlice`, `StringInt`, `UnixTime` |
-| `github.com/honeybbq/goubus/v2/services` | all below | Shared client collection (`services.New`) and constructor options |
 | `github.com/honeybbq/goubus/v2/services/container` | `container` | Procd container instances, state, features, and console |
 | `github.com/honeybbq/goubus/v2/services/dhcp` | `dhcp` | `odhcpd` / `dnsmasq` IPv4 and IPv6 leases, IPv6 RA prefixes, and `add_lease` |
 | `github.com/honeybbq/goubus/v2/services/file` | `file` | File read/write, directory listings, `stat`/`lstat`, MD5, and command execution |

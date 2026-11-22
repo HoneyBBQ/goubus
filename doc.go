@@ -6,11 +6,12 @@
 // (talking to uhttpd-mod-ubus and rpcd over HTTP or HTTPS). Both implement
 // [Transport], which combines [Caller] with Close.
 //
-// Typed clients for standard OpenWrt daemons live under [services]: import a
-// single package such as [github.com/honeybbq/goubus/v2/services/system] to
-// keep a binary small, or call [github.com/honeybbq/goubus/v2/services.New] to
-// share one [Caller] across all 15 service clients. For ubus objects without a
-// typed package, decode any call directly with [Call]:
+// Typed clients for 15 standard OpenWrt ubus domains live under [services/*]
+// (such as [github.com/honeybbq/goubus/v2/services/system],
+// [github.com/honeybbq/goubus/v2/services/network], and
+// [github.com/honeybbq/goubus/v2/services/uci]); import only the packages a
+// binary uses. For ubus objects without a typed package, decode any call
+// directly with [Call]:
 //
 //	conn, err := goubus.NewSocketClient(ctx, "")
 //	if err != nil {
@@ -37,13 +38,13 @@
 //
 // # Documentation
 //
-//   - [services]: typed clients for system, network, uci, dhcp, luci, wireless,
-//     and nine other OpenWrt ubus domains.
+//   - [services/*]: 15 typed client packages for system, network, uci, dhcp,
+//     luci, wireless, and nine other OpenWrt ubus domains.
 //   - [architecture]: module layout, dependency direction, and wire paths.
 //   - [design]: calls, errors, signature discovery, firmware quirks, and API
 //     snapshots.
 //
-// [services]: https://pkg.go.dev/github.com/honeybbq/goubus/v2/services
+// [services/*]: https://pkg.go.dev/github.com/honeybbq/goubus/v2#section-directories
 // [architecture]: https://github.com/honeybbq/goubus/blob/main/docs/architecture.md
 // [design]: https://github.com/honeybbq/goubus/blob/main/docs/design.md
 package goubus
