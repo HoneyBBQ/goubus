@@ -19,9 +19,20 @@ type clientOption func(*Client)
 
 func (option clientOption) apply(client *Client) { option(client) }
 
+// TimeMethodUnixtime is the LuCI method for retrieving Unix time.
+const TimeMethodUnixtime = "getUnixtime"
+
+// TimeMethodLocaltime is the LuCI method for retrieving local time.
+const TimeMethodLocaltime = "getLocaltime"
+
 // WithTimeMethod fixes the method used to retrieve the system time.
 func WithTimeMethod(method string) Option {
 	return clientOption(func(client *Client) {
+		if method == "" {
+			client.fixedTimeMethod = nil
+
+			return
+		}
 		methodCopy := method
 		client.fixedTimeMethod = &methodCopy
 	})
@@ -64,7 +75,7 @@ func (client *Client) Time(ctx context.Context) (time.Time, error) {
 		if cached := client.timeMethod.Load(); cached != nil {
 			method = *cached
 		} else {
-			method = "getUnixtime"
+			method = TimeMethodUnixtime
 		}
 	}
 	unixTime, err := readTime(ctx, client, method)
@@ -75,12 +86,12 @@ func (client *Client) Time(ctx context.Context) (time.Time, error) {
 
 		return unixTime, nil
 	}
-	if client.fixedTimeMethod != nil || !timeMethodUnavailable(err) || method != "getUnixtime" {
+	if client.fixedTimeMethod != nil || !timeMethodUnavailable(err) || method != TimeMethodUnixtime {
 		return time.Time{}, err
 	}
-	unixTime, err = readTime(ctx, client, "getLocaltime")
+	unixTime, err = readTime(ctx, client, TimeMethodLocaltime)
 	if err == nil && client.fixedTimeMethod == nil {
-		cacheTimeMethod(client, "getLocaltime")
+		cacheTimeMethod(client, TimeMethodLocaltime)
 	}
 
 	return unixTime, err

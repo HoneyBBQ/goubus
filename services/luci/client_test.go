@@ -41,11 +41,11 @@ func TestLuCIFixtures(t *testing.T) {
 			}
 			check := checks[filepath.Base(file)]
 			if check == nil {
-				continue
+				t.Fatalf("unexpected LuCI fixture %s", filepath.Base(file))
 			}
-			method := "getUnixtime"
+			method := TimeMethodUnixtime
 			if filepath.Base(file) == "luci_getLocaltime.json" {
-				method = "getLocaltime"
+				method = TimeMethodLocaltime
 			}
 			client := fixtureLuciClient(raw, WithTimeMethod(method))
 			err := check(client, ctx)
@@ -118,6 +118,26 @@ func TestAdaptiveTimeMethod(t *testing.T) {
 				t.Fatalf("calls = %v", calls)
 			}
 		})
+	}
+}
+
+func TestEmptyTimeMethodUsesAdaptiveSelection(t *testing.T) {
+	var calls []string
+	caller := goubus.CallerFunc(func(_ context.Context, _, method string, _ any) (goubus.Result, error) {
+		calls = append(calls, method)
+		if method == TimeMethodUnixtime {
+			return nil, goubus.ErrMethodNotFound
+		}
+
+		return goubus.NewJSONResult([]byte(`{"result":1737109342}`)), nil
+	})
+	client := New(caller, WithTimeMethod(""))
+	got, err := client.Time(t.Context())
+	if err != nil || got.Unix() != 1737109342 {
+		t.Fatalf("Time() = %v, %v", got, err)
+	}
+	if len(calls) != 2 || calls[0] != TimeMethodUnixtime || calls[1] != TimeMethodLocaltime {
+		t.Fatalf("time methods = %v", calls)
 	}
 }
 

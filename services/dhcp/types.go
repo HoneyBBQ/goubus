@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"strconv"
+
+	"github.com/honeybbq/goubus/v2"
 )
 
 // IPv4Lease represents a DHCPv4 lease.
@@ -97,7 +99,7 @@ type IPv6RA struct {
 	// Length is the prefix length in bits.
 	Length uint64 `json:"length,omitempty"`
 	// Stale reports whether the advertised prefix is stale.
-	Stale bool `json:"stale,omitempty"`
+	Stale goubus.Bool `json:"stale,omitempty"`
 }
 
 // UnmarshalJSON interprets a string prefix as an address and a number as a length.
@@ -109,7 +111,7 @@ func (ra *IPv6RA) UnmarshalJSON(data []byte) error {
 		Length    uint64          `json:"length"`
 		Valid     uint64          `json:"valid"`
 		Preferred uint64          `json:"preferred"`
-		Stale     bool            `json:"stale"`
+		Stale     goubus.Bool    `json:"stale"`
 	}
 	err := json.Unmarshal(data, &decoded)
 	if err != nil {

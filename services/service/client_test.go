@@ -68,6 +68,34 @@ func TestSamples(t *testing.T) {
 	}
 }
 
+func TestExpandedInstanceFields(t *testing.T) {
+	raw := fixture(t, "rax3000m")
+	client := New(goubus.CallerFunc(func(context.Context, string, string, any) (goubus.Result, error) {
+		return goubus.NewJSONResult(raw), nil
+	}))
+	services, err := client.List(t.Context(), "", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dnsmasq := services["dnsmasq"].Instances["cfg01411c"]
+	if dnsmasq.Respawn == nil || dnsmasq.Respawn.Retry == 0 || dnsmasq.Jail == nil ||
+		dnsmasq.Jail.Name != "dnsmasq" || dnsmasq.TermTimeout != 5 {
+		t.Fatalf("dnsmasq expanded instance = %+v", dnsmasq)
+	}
+	network := services["network"].Instances["instance1"]
+	if network.Limits["core"] != "unlimited" {
+		t.Fatalf("network limits = %#v", network.Limits)
+	}
+	sshd := services["sshd"].Instances["instance1"]
+	if len(sshd.Data) == 0 {
+		t.Fatalf("sshd data = %#v", sshd.Data)
+	}
+	urandom := services["urandom_seed"].Instances["urandom_seed"]
+	if urandom.ExitCode != 0 {
+		t.Fatalf("urandom_seed exit code = %d", urandom.ExitCode)
+	}
+}
+
 type methodCase struct {
 	params any
 	invoke func(*Client) error

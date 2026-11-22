@@ -11,6 +11,8 @@ type InterfaceInfo struct {
 
 // InterfaceDetails contains detailed network interface status.
 type InterfaceDetails struct {
+	// Inactive contains inactive address and route data.
+	Inactive Inactive `json:"inactive"`
 	// Data contains protocol-specific interface data.
 	Data Data `json:"data"`
 	// L3Device is the layer 3 device backing the interface.
@@ -21,8 +23,6 @@ type InterfaceDetails struct {
 	Device string `json:"device"`
 	// Proto is the interface protocol.
 	Proto string `json:"proto"`
-	// Inactive contains inactive address and route data.
-	Inactive Inactive `json:"inactive"`
 	// DNSServer lists the interface's DNS servers.
 	DNSServer []string `json:"dns-server"`
 	// DNSSearch lists the interface's DNS search domains.
@@ -45,6 +45,8 @@ type InterfaceDetails struct {
 	Neighbors []Neighbor `json:"neighbors"`
 	// IPv6Address lists the interface's IPv6 addresses.
 	IPv6Address []Address `json:"ipv6-address"`
+	// Errors contains interface status errors.
+	Errors []InterfaceError `json:"errors"`
 	// Metric is the interface route metric.
 	Metric int `json:"metric"`
 	// DNSMetric is the interface DNS route metric.
@@ -130,7 +132,15 @@ type Inactive struct {
 }
 
 // Data contains protocol-specific network data.
-type Data struct{}
+type Data map[string]any
+
+// InterfaceError contains an interface status error.
+type InterfaceError struct {
+	// Subsystem identifies the subsystem reporting the error.
+	Subsystem string `json:"subsystem"`
+	// Code is the error code.
+	Code string `json:"code"`
+}
 
 // Device represents a network device status.
 type Device struct {
@@ -144,6 +154,10 @@ type Device struct {
 	MacAddr string `json:"macaddr"`
 	// Devtype is the device class.
 	Devtype string `json:"devtype"`
+	// Conduit is the network device carrying this device's traffic.
+	Conduit string `json:"conduit"`
+	// BridgeMembers lists devices attached to the bridge.
+	BridgeMembers []string `json:"bridge-members,omitempty"`
 	// LinkAdvertising lists advertised link modes.
 	LinkAdvertising []string `json:"link-advertising"`
 	// LinkPartnerAdvertising lists the link partner's advertised modes.
@@ -174,16 +188,34 @@ type DeviceStatistic struct {
 	RxErrors int64 `json:"rx_errors"`
 	// TxErrors is the transmit error count.
 	TxErrors int64 `json:"tx_errors"`
+	// RxDropped is the received packet drop count.
+	RxDropped int64 `json:"rx_dropped"`
+	// TxDropped is the transmitted packet drop count.
+	TxDropped int64 `json:"tx_dropped"`
+	// Multicast is the received multicast packet count.
+	Multicast int64 `json:"multicast"`
+	// Collisions is the transmit collision count.
+	Collisions int64 `json:"collisions"`
 }
 
 // DeviceFlowControl contains Ethernet flow-control settings.
 type DeviceFlowControl struct {
+	// Supported lists locally supported flow-control modes.
+	Supported []string `json:"supported"`
+	// LinkAdvertising lists locally advertised flow-control modes.
+	LinkAdvertising []string `json:"link-advertising"`
+	// LinkPartnerAdvertising lists peer-advertised flow-control modes.
+	LinkPartnerAdvertising []string `json:"link-partner-advertising"`
+	// Negotiated lists negotiated flow-control modes.
+	Negotiated []string `json:"negotiated"`
 	// Autoneg reports whether flow-control autonegotiation is enabled.
 	Autoneg goubus.Bool `json:"autoneg"`
 }
 
 // RadioStatus contains a wireless radio's runtime status.
 type RadioStatus struct {
+	// Config contains the radio configuration.
+	Config map[string]any `json:"config"`
 	// Interfaces lists interfaces attached to the radio.
 	Interfaces []RadioInterface `json:"interfaces"`
 	// Up reports whether the radio is up.
@@ -200,6 +232,8 @@ type RadioStatus struct {
 
 // RadioInterface identifies a wireless interface on a radio.
 type RadioInterface struct {
+	// Config contains the interface configuration.
+	Config map[string]any `json:"config"`
 	// Section is the UCI section name.
 	Section string `json:"section"`
 	// Ifname is the operating system interface name.

@@ -83,7 +83,7 @@ func TestMethods(t *testing.T) {
 
 		return err
 	})
-	request := InitRequest{Name: "network", Action: "restart"}
+	request := initRequest{Name: "network", Action: "restart"}
 	assertCall(t, "rc", "init", request, json.RawMessage(`{}`), func(c *Client) error {
 		return c.Init(ctx, "network", "restart")
 	})

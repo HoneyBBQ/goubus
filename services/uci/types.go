@@ -2,8 +2,8 @@ package uci
 
 import "github.com/honeybbq/goubus/v2"
 
-// RequestGeneric contains common UCI request parameters.
-type RequestGeneric struct {
+// requestGeneric contains common UCI request parameters.
+type requestGeneric struct {
 	// Config is the configuration package name.
 	Config string `json:"config"`
 	// Section selects a configuration section.
@@ -18,16 +18,16 @@ type RequestGeneric struct {
 	Name string `json:"name,omitempty"`
 }
 
-// Request contains common UCI parameters and values.
-type Request struct {
+// writeRequest contains common UCI parameters and values.
+type writeRequest struct {
 	// Values contains option values to write.
 	Values map[string]any `json:"values,omitempty"`
-	RequestGeneric
+	requestGeneric
 }
 
-// GetRequest contains parameters for UCI get operations.
-type GetRequest struct {
-	RequestGeneric
+// getRequest contains parameters for UCI get operations.
+type getRequest struct {
+	requestGeneric
 }
 
 // GetResponse contains values returned by UCI get or state operations.
@@ -38,19 +38,30 @@ type GetResponse struct {
 	Value goubus.StringOrSlice `json:"value"`
 }
 
-// ConfigsResponse contains available configuration names.
-type ConfigsResponse struct {
+// configsResponse contains available configuration names.
+type configsResponse struct {
 	// Configs lists configuration package names.
 	Configs []string `json:"configs"`
 }
 
 // StateRequest contains parameters for UCI state operations.
 type StateRequest struct {
-	RequestGeneric
+	// Config is the configuration package name.
+	Config string `json:"config"`
+	// Section selects a configuration section.
+	Section string `json:"section,omitempty"`
+	// Option selects a section option.
+	Option string `json:"option,omitempty"`
+	// Type selects a section type.
+	Type string `json:"type,omitempty"`
+	// Match contains a matching expression.
+	Match string `json:"match,omitempty"`
+	// Name is a section or option name.
+	Name string `json:"name,omitempty"`
 }
 
-// RenameRequest contains parameters for renaming a section or option.
-type RenameRequest struct {
+// renameRequest contains parameters for renaming a section or option.
+type renameRequest struct {
 	// Config is the configuration package name.
 	Config string `json:"config"`
 	// Section selects a section to rename.
@@ -61,16 +72,16 @@ type RenameRequest struct {
 	Name string `json:"name"`
 }
 
-// OrderRequest contains a package's desired section order.
-type OrderRequest struct {
+// orderRequest contains a package's desired section order.
+type orderRequest struct {
 	// Config is the configuration package name.
 	Config string `json:"config"`
 	// Sections lists sections in their desired order.
 	Sections []string `json:"sections"`
 }
 
-// ChangesRequest selects a package for staged changes.
-type ChangesRequest struct {
+// changesRequest selects a package for staged changes.
+type changesRequest struct {
 	// Config is the configuration package name.
 	Config string `json:"config"`
 }
@@ -81,18 +92,18 @@ type ChangesResponse struct {
 	Changes map[string]any `json:"changes"`
 }
 
-// RevertRequest selects a package to revert.
-type RevertRequest struct {
+// revertRequest selects a package to revert.
+type revertRequest struct {
 	// Config is the configuration package name.
 	Config string `json:"config"`
 }
 
-// ApplyRequest contains parameters for activating staged changes.
-type ApplyRequest struct {
-	// Rollback enables automatic rollback after timeout.
-	Rollback goubus.Bool `json:"rollback,omitempty"`
+// applyRequest contains parameters for activating staged changes.
+type applyRequest struct {
 	// Timeout is the automatic rollback timeout in seconds.
 	Timeout int `json:"timeout,omitempty"`
+	// Rollback enables automatic rollback after timeout.
+	Rollback goubus.Bool `json:"rollback,omitempty"`
 }
 
 // Metadata contains read-only UCI section metadata.

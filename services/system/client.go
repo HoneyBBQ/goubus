@@ -47,14 +47,14 @@ func (c *Client) Watchdog(ctx context.Context, req WatchdogRequest) error {
 
 // Signal sends a signal to a process.
 func (c *Client) Signal(ctx context.Context, pid, signum int) error {
-	_, err := c.caller.Call(ctx, "system", "signal", SignalRequest{Pid: pid, Signum: signum})
+	_, err := c.caller.Call(ctx, "system", "signal", signalRequest{Pid: pid, Signum: signum})
 
 	return err
 }
 
 // ValidateFirmwareImage validates a firmware image file.
 func (c *Client) ValidateFirmwareImage(ctx context.Context, path string) (map[string]any, error) {
-	request := ValidateFirmwareImageRequest{Path: path}
+	request := validateFirmwareImageRequest{Path: path}
 	res, err := goubus.Call[map[string]any](ctx, c.caller, "system", "validate_firmware_image", request)
 	if err != nil {
 		return nil, err
@@ -172,16 +172,16 @@ type WatchdogRequest struct {
 	Stop goubus.Bool `json:"stop,omitempty"`
 }
 
-// SignalRequest contains parameters for signaling a process.
-type SignalRequest struct {
+// signalRequest contains parameters for signaling a process.
+type signalRequest struct {
 	// Pid is the process identifier.
 	Pid int `json:"pid"`
 	// Signum is the signal number.
 	Signum int `json:"signum"`
 }
 
-// ValidateFirmwareImageRequest contains firmware validation parameters.
-type ValidateFirmwareImageRequest struct {
+// validateFirmwareImageRequest contains firmware validation parameters.
+type validateFirmwareImageRequest struct {
 	// Path is the firmware image path.
 	Path string `json:"path"`
 }

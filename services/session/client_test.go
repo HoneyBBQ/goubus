@@ -42,6 +42,20 @@ func assertCall(t *testing.T, method string, params any, raw json.RawMessage, in
 	}
 }
 
+func TestSessionDataPreservesACLAndValues(t *testing.T) {
+	var data Data
+	err := json.Unmarshal(fixture(t, "rax3000m"), &data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(data.ACLs) == 0 || data.Data == nil {
+		t.Fatalf("session ACL/data fields = %+v", data)
+	}
+	if _, ok := data.ACLs["ubus"]; !ok {
+		t.Fatalf("session ACLs missing ubus entries: %#v", data.ACLs)
+	}
+}
+
 func TestNewPanicsOnNilCaller(t *testing.T) {
 	defer func() {
 		if got := recover(); got != "goubus/session: nil caller" {
@@ -71,6 +85,30 @@ type methodCase struct {
 	params any
 	invoke func(*Client) error
 	method string
+}
+
+func TestAccessDecodesBlobmsgBooleanNumbers(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		raw  string
+		want bool
+	}{
+		{name: "true", raw: `{"access":1}`, want: true},
+		{name: "false", raw: `{"access":0}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			client := New(goubus.CallerFunc(func(context.Context, string, string, any) (goubus.Result, error) {
+				return goubus.NewJSONResult([]byte(tc.raw)), nil
+			}))
+			got, err := client.Access(context.Background(), AccessRequest{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tc.want {
+				t.Fatalf("Access() = %t, want %t", got, tc.want)
+			}
+		})
+	}
 }
 
 func TestMethods(t *testing.T) {

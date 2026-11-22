@@ -61,12 +61,12 @@ func (c *Client) Revoke(ctx context.Context, req GrantRequest) error {
 
 // Access checks access for a session.
 func (c *Client) Access(ctx context.Context, req AccessRequest) (bool, error) {
-	res, err := goubus.Call[map[string]bool](ctx, c.caller, "session", "access", req)
+	res, err := goubus.Call[map[string]goubus.Bool](ctx, c.caller, "session", "access", req)
 	if err != nil {
 		return false, err
 	}
 
-	return (*res)["access"], nil
+	return bool((*res)["access"]), nil
 }
 
 // Set sets session values.
@@ -116,18 +116,14 @@ func (c *Client) Login(ctx context.Context, req LoginRequest) (*Data, error) {
 type Data struct {
 	// ExpireTime is the calculated session expiration time.
 	ExpireTime time.Time `json:"-"`
+	// ACLs contains the session access control lists.
+	ACLs map[string]any `json:"acls"`
+	// Data contains arbitrary session data.
+	Data map[string]any `json:"data"`
 	// UbusRPCSession is the ubus session identifier.
 	UbusRPCSession string `json:"ubus_rpc_session"`
 	// Timeout is the session timeout in seconds.
 	Timeout int `json:"timeout"`
-}
-
-// ACLs contains session access control lists.
-type ACLs struct {
-	// Ubus contains ubus access control entries.
-	Ubus map[string][]string `json:"ubus"`
-	// Uci contains UCI access control entries.
-	Uci map[string][]string `json:"uci"`
 }
 
 // GrantRequest contains parameters for granting or revoking access.

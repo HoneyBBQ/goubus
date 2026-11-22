@@ -40,7 +40,7 @@ func (c *Client) List(ctx context.Context, name string, skipRunningCheck bool) (
 
 // Init performs an init script action.
 func (c *Client) Init(ctx context.Context, name, action string) error {
-	_, err := c.caller.Call(ctx, "rc", "init", InitRequest{Name: name, Action: action})
+	_, err := c.caller.Call(ctx, "rc", "init", initRequest{Name: name, Action: action})
 
 	return err
 }
@@ -57,8 +57,8 @@ type ListInfo struct {
 	Enabled goubus.Bool `json:"enabled"`
 }
 
-// InitRequest contains parameters for an init script action.
-type InitRequest struct {
+// initRequest contains parameters for an init script action.
+type initRequest struct {
 	// Name is the init script name.
 	Name string `json:"name"`
 	// Action is the requested init script action.

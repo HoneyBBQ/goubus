@@ -102,7 +102,7 @@ func TestMethods(t *testing.T) {
 	ctx := context.Background()
 	watchdog := WatchdogRequest{Timeout: 30}
 	upgrade := SysupgradeRequest{Path: "/tmp/fw.bin"}
-	validation := ValidateFirmwareImageRequest{Path: "/tmp/fw.bin"}
+	validation := validateFirmwareImageRequest{Path: "/tmp/fw.bin"}
 	for _, tc := range []struct {
 		params any
 		invoke func(*Client) error
@@ -111,7 +111,7 @@ func TestMethods(t *testing.T) {
 		{method: "reboot", invoke: func(c *Client) error { return c.Reboot(ctx) }},
 		{method: "watchdog", params: watchdog, invoke: func(c *Client) error { return c.Watchdog(ctx, watchdog) }},
 		{
-			method: "signal", params: SignalRequest{Pid: 123, Signum: 15},
+			method: "signal", params: signalRequest{Pid: 123, Signum: 15},
 			invoke: func(c *Client) error { return c.Signal(ctx, 123, 15) },
 		},
 		{

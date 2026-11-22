@@ -11,6 +11,23 @@ import (
 	"github.com/honeybbq/goubus/v2"
 )
 
+func TestConfigsFixtures(t *testing.T) {
+	for _, device := range []string{"rax3000m", "x86_generic"} {
+		// #nosec G304 -- the profile comes from the fixed test profile list.
+		raw, err := os.ReadFile(filepath.Join("..", "..", "internal", "testdata", device, "uci_configs.json"))
+		if err != nil {
+			t.Fatalf("read %s configs: %v", device, err)
+		}
+		configs, err := fixtureUCIClient(raw).Configs(context.Background())
+		if err != nil {
+			t.Fatalf("Configs %s: %v", device, err)
+		}
+		if len(configs) == 0 || !slices.Contains(configs, "network") {
+			t.Fatalf("Configs %s = %v", device, configs)
+		}
+	}
+}
+
 func TestPackageFixtures(t *testing.T) {
 	ctx := context.Background()
 	for _, device := range []string{"rax3000m", "x86_generic"} {
@@ -87,21 +104,29 @@ func TestOptionListValuesPreserveSpaces(t *testing.T) {
 	}
 }
 
+func TestOptionStateValues(t *testing.T) {
+	option := New(optionListCaller(t, new([]string))).Package("system").Section("ntp").Option("server")
+	values, err := option.StateValues(context.Background())
+	if err != nil || len(values) != 2 || values[1] != "other" {
+		t.Fatalf("StateValues() = %v, %v", values, err)
+	}
+}
+
 func optionListCaller(t *testing.T, written *[]string) goubus.Caller {
 	t.Helper()
 
 	return goubus.CallerFunc(func(_ context.Context, _, method string, data any) (goubus.Result, error) {
 		switch method {
-		case "get":
+		case "get", "state":
 			return goubus.NewJSONResult([]byte(`{"value":["server with spaces","other"]}`)), nil
 		case "set":
-			request, ok := data.(Request)
+			writeReq, ok := data.(writeRequest)
 			if !ok {
-				t.Fatalf("request has type %T, want uci.Request", data)
+				t.Fatalf("request has type %T, want uci.writeRequest", data)
 			}
-			values, ok := request.Values["server"].([]string)
+			values, ok := writeReq.Values["server"].([]string)
 			if !ok {
-				t.Fatalf("server values have type %T, want []string", request.Values["server"])
+				t.Fatalf("server values have type %T, want []string", writeReq.Values["server"])
 			}
 			*written = values
 
@@ -111,6 +136,60 @@ func optionListCaller(t *testing.T, written *[]string) goubus.Caller {
 		}
 	})
 }
+func TestSectionValuesMarshalValueReceiver(t *testing.T) {
+	values := SectionValuesFromStrings(map[string]string{"scalar": "one"})
+	values.SetList("list", "alpha", "beta")
+	encoded, err := json.Marshal(values)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(encoded) != `{"list":["alpha","beta"],"scalar":"one"}` {
+		t.Fatalf("json.Marshal(SectionValues) = %s", encoded)
+	}
+}
+
+func TestMetadataAnonymousAcceptsJSONNumbers(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		raw  string
+		want bool
+	}{
+		{name: "one", raw: `{"values":{".anonymous":1}}`, want: true},
+		{name: "zero", raw: `{"values":{".anonymous":0}}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			section, err := fixtureUCIClient([]byte(tc.raw)).Package("network").Section("wifi").Get(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if bool(section.Metadata.Anonymous) != tc.want {
+				t.Fatalf("Anonymous = %t, want %t", section.Metadata.Anonymous, tc.want)
+			}
+		})
+	}
+}
+
+func TestMetadataAnonymousAcceptsSocketValues(t *testing.T) {
+	for _, tc := range []struct {
+		value any
+		want  bool
+	}{
+		{value: int64(1), want: true},
+		{value: int64(0)},
+		{value: float64(2), want: true},
+		{value: float64(0)},
+		{value: uint64(1), want: true},
+		{value: uint64(0)},
+		{value: true, want: true},
+		{value: "1", want: true},
+		{value: "true", want: true},
+	} {
+		if got := parseMetadata(map[string]any{".anonymous": tc.value}).Anonymous; bool(got) != tc.want {
+			t.Errorf("parseMetadata(%T(%v)).Anonymous = %t, want %t", tc.value, tc.value, got, tc.want)
+		}
+	}
+}
+
 func TestGetResponseAcceptsScalarAndList(t *testing.T) {
 	var response GetResponse
 	err := json.Unmarshal([]byte(`{"value":"single value"}`), &response)

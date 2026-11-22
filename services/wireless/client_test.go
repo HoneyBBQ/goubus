@@ -106,6 +106,73 @@ func TestSamples(t *testing.T) {
 	}
 }
 
+func TestExpandedWirelessFixtureFields(t *testing.T) {
+	client := expandedWirelessFixtureClient(t)
+	assertExpandedInfo(t, client)
+	assertExpandedScan(t, client)
+	assertExpandedAssociation(t, client)
+}
+
+func expandedWirelessFixtureClient(t *testing.T) *Client {
+	t.Helper()
+	caller := goubus.CallerFunc(func(_ context.Context, _, method string, _ any) (goubus.Result, error) {
+		name := ""
+		switch method {
+		case "info":
+			name = "iwinfo_info_phy0.json"
+		case "scan":
+			name = "iwinfo_scan_phy0.json"
+		case "assoclist":
+			name = "iwinfo_assoclist_phy0.json"
+		default:
+			t.Fatalf("unexpected iwinfo method %q", method)
+		}
+
+		return goubus.NewJSONResult(fixture(t, "rax3000m", name)), nil
+	})
+
+	return New(caller)
+}
+
+func assertExpandedInfo(t *testing.T, client *Client) {
+	t.Helper()
+	info, err := client.Info(t.Context(), "phy0")
+	if err != nil || info.Frequency != 2412 || info.Encryption == nil ||
+		!bool(info.Encryption.Enabled) || len(info.HWModes) == 0 {
+		t.Fatalf("Info expanded fields = %+v, %v", info, err)
+	}
+}
+
+func assertExpandedScan(t *testing.T, client *Client) {
+	t.Helper()
+	scan, err := client.Scan(t.Context(), "phy0")
+	if err != nil || len(scan) == 0 || scan[0].Band == 0 || scan[0].MHz != 2412 || scan[0].Encryption == nil {
+		t.Fatalf("Scan expanded fields = %+v, %v", scan, err)
+	}
+}
+
+func assertExpandedAssociation(t *testing.T, client *Client) {
+	t.Helper()
+	stations, err := client.AssocList(t.Context(), "phy0")
+	if err != nil || len(stations) == 0 || stations[0].Rx.Packets != 510 || stations[0].Rx.Bytes != 33375 ||
+		stations[0].Tx.Packets != 102 || stations[0].Tx.Bytes != 10723 || stations[0].Throughput == 0 {
+		t.Fatalf("Assoc expanded fields = %+v, %v", stations, err)
+	}
+}
+
+func TestAssocDecodesBlobmsgBooleanNumbers(t *testing.T) {
+	client := New(goubus.CallerFunc(func(context.Context, string, string, any) (goubus.Result, error) {
+		return goubus.NewJSONResult([]byte(`{"results":[{"authorized":1,"authenticated":0}]}`)), nil
+	}))
+	stations, err := client.AssocList(context.Background(), "phy0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stations) != 1 || !bool(stations[0].Authorized) || bool(stations[0].Authenticated) {
+		t.Fatalf("association booleans = %+v", stations)
+	}
+}
+
 func TestMethods(t *testing.T) {
 	ctx := context.Background()
 	methods := []struct {

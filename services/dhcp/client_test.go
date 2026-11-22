@@ -59,6 +59,28 @@ func TestLeaseFixtures(t *testing.T) {
 	}
 }
 
+func TestIPv6RAStaleDecodesBlobmsgBooleanNumbers(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		raw  string
+		want bool
+	}{
+		{name: "true", raw: `{"stale":1}`, want: true},
+		{name: "false", raw: `{"stale":0}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var ra IPv6RA
+			err := json.Unmarshal([]byte(tc.raw), &ra)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if bool(ra.Stale) != tc.want {
+				t.Fatalf("Stale = %t, want %t", ra.Stale, tc.want)
+			}
+		})
+	}
+}
+
 func TestIPv6LeaseAliases(t *testing.T) {
 	var lease IPv6Lease
 	err := json.Unmarshal([]byte(`{"address":"2001:db8::1","duid":"d","iaid":"7","assigned":10,`+

@@ -31,7 +31,7 @@ func (client *Client) Package(name string) *PackageContext {
 
 // Configs lists available configuration package names.
 func (client *Client) Configs(ctx context.Context) ([]string, error) {
-	result, err := goubus.Call[ConfigsResponse](ctx, client.caller, "uci", "configs", nil)
+	result, err := goubus.Call[configsResponse](ctx, client.caller, "uci", "configs", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -41,13 +41,12 @@ func (client *Client) Configs(ctx context.Context) ([]string, error) {
 
 // State retrieves runtime state for a UCI request.
 func (client *Client) State(ctx context.Context, request StateRequest) (*GetResponse, error) {
-	//nolint:staticcheck // Explicit construction keeps the embedded UCI fields visible across distinct request types.
-	return client.getRaw(ctx, "state", GetRequest{RequestGeneric: request.RequestGeneric})
+	return client.getRaw(ctx, "state", getRequest{requestGeneric: requestGeneric(request)})
 }
 
 // Apply activates staged configuration changes.
 func (client *Client) Apply(ctx context.Context, rollback bool, timeout int) error {
-	request := ApplyRequest{Rollback: goubus.Bool(rollback), Timeout: timeout}
+	request := applyRequest{Rollback: goubus.Bool(rollback), Timeout: timeout}
 
 	return client.call(ctx, "apply", request)
 }
@@ -140,7 +139,7 @@ func (packageContext *PackageContext) SectionsOfType(ctx context.Context, sectio
 
 // Add creates a section with optional initial values.
 func (packageContext *PackageContext) Add(ctx context.Context, sectionType, name string, values SectionValues) error {
-	request := Request{RequestGeneric: RequestGeneric{Config: packageContext.name, Name: name, Type: sectionType}}
+	request := writeRequest{requestGeneric: requestGeneric{Config: packageContext.name, Name: name, Type: sectionType}}
 	if values.Len() > 0 {
 		request.Values = values.toUbusValues()
 	}
@@ -150,30 +149,30 @@ func (packageContext *PackageContext) Add(ctx context.Context, sectionType, name
 
 // Commit saves staged changes for the package.
 func (packageContext *PackageContext) Commit(ctx context.Context) error {
-	return packageContext.manager.call(ctx, "commit", RequestGeneric{Config: packageContext.name})
+	return packageContext.manager.call(ctx, "commit", requestGeneric{Config: packageContext.name})
 }
 
 // Revert discards staged changes for the package.
 func (packageContext *PackageContext) Revert(ctx context.Context) error {
-	return packageContext.manager.call(ctx, "revert", RevertRequest{Config: packageContext.name})
+	return packageContext.manager.call(ctx, "revert", revertRequest{Config: packageContext.name})
 }
 
 // Changes lists staged changes for the package.
 func (packageContext *PackageContext) Changes(ctx context.Context) (*ChangesResponse, error) {
-	request := ChangesRequest{Config: packageContext.name}
+	request := changesRequest{Config: packageContext.name}
 
 	return goubus.Call[ChangesResponse](ctx, packageContext.manager.caller, "uci", "changes", request)
 }
 
 // Order rearranges sections in the package.
 func (packageContext *PackageContext) Order(ctx context.Context, names []string) error {
-	request := OrderRequest{Config: packageContext.name, Sections: names}
+	request := orderRequest{Config: packageContext.name, Sections: names}
 
 	return packageContext.manager.call(ctx, "order", request)
 }
 
-func (packageContext *PackageContext) getRequest() GetRequest {
-	return GetRequest{RequestGeneric: RequestGeneric{Config: packageContext.name}}
+func (packageContext *PackageContext) getRequest() getRequest {
+	return getRequest{requestGeneric: requestGeneric{Config: packageContext.name}}
 }
 
 // SectionContext provides operations on one UCI section.
@@ -209,7 +208,7 @@ func (sectionContext *SectionContext) State(ctx context.Context) (*Section, erro
 
 // SetValues updates multiple options in the section.
 func (sectionContext *SectionContext) SetValues(ctx context.Context, values SectionValues) error {
-	request := Request{RequestGeneric: RequestGeneric{Config: sectionContext.pc.name, Section: sectionContext.name}}
+	request := writeRequest{requestGeneric: requestGeneric{Config: sectionContext.pc.name, Section: sectionContext.name}}
 	if values.Len() > 0 {
 		request.Values = values.toUbusValues()
 	}
@@ -219,20 +218,20 @@ func (sectionContext *SectionContext) SetValues(ctx context.Context, values Sect
 
 // Delete removes the section from the package.
 func (sectionContext *SectionContext) Delete(ctx context.Context) error {
-	request := RequestGeneric{Config: sectionContext.pc.name, Section: sectionContext.name}
+	request := requestGeneric{Config: sectionContext.pc.name, Section: sectionContext.name}
 
 	return sectionContext.pc.manager.call(ctx, "delete", request)
 }
 
 // Rename changes the section name.
 func (sectionContext *SectionContext) Rename(ctx context.Context, newName string) error {
-	request := RenameRequest{Config: sectionContext.pc.name, Section: sectionContext.name, Name: newName}
+	request := renameRequest{Config: sectionContext.pc.name, Section: sectionContext.name, Name: newName}
 
 	return sectionContext.pc.manager.call(ctx, "rename", request)
 }
 
 func (sectionContext *SectionContext) get(ctx context.Context, method string) (*GetResponse, error) {
-	request := GetRequest{RequestGeneric: RequestGeneric{Config: sectionContext.pc.name, Section: sectionContext.name}}
+	request := getRequest{requestGeneric: requestGeneric{Config: sectionContext.pc.name, Section: sectionContext.name}}
 
 	return sectionContext.pc.manager.getRaw(ctx, method, request)
 }
@@ -259,6 +258,16 @@ func (optionContext *OptionContext) Get(ctx context.Context) (string, error) {
 // Values retrieves all current values of the option.
 func (optionContext *OptionContext) Values(ctx context.Context) ([]string, error) {
 	response, err := optionContext.get(ctx, "get")
+	if err != nil {
+		return nil, err
+	}
+
+	return append([]string(nil), response.Value...), nil
+}
+
+// StateValues retrieves all runtime state values of the option.
+func (optionContext *OptionContext) StateValues(ctx context.Context) ([]string, error) {
+	response, err := optionContext.get(ctx, "state")
 	if err != nil {
 		return nil, err
 	}
@@ -325,7 +334,7 @@ func (optionContext *OptionContext) DeleteFromList(ctx context.Context, value st
 
 // Rename changes the option name.
 func (optionContext *OptionContext) Rename(ctx context.Context, newName string) error {
-	request := RenameRequest{
+	request := renameRequest{
 		Config:  optionContext.sc.pc.name,
 		Section: optionContext.sc.name,
 		Option:  optionContext.name,
@@ -336,18 +345,18 @@ func (optionContext *OptionContext) Rename(ctx context.Context, newName string) 
 }
 
 func (optionContext *OptionContext) get(ctx context.Context, method string) (*GetResponse, error) {
-	request := GetRequest{RequestGeneric: optionContext.request()}
+	request := getRequest{requestGeneric: optionContext.request()}
 
 	return optionContext.sc.pc.manager.getRaw(ctx, method, request)
 }
 
-func (optionContext *OptionContext) request() RequestGeneric {
-	return RequestGeneric{Config: optionContext.sc.pc.name, Section: optionContext.sc.name, Option: optionContext.name}
+func (optionContext *OptionContext) request() requestGeneric {
+	return requestGeneric{Config: optionContext.sc.pc.name, Section: optionContext.sc.name, Option: optionContext.name}
 }
 
 func (optionContext *OptionContext) setList(ctx context.Context, values []string) error {
-	request := Request{
-		RequestGeneric: RequestGeneric{Config: optionContext.sc.pc.name, Section: optionContext.sc.name},
+	request := writeRequest{
+		requestGeneric: requestGeneric{Config: optionContext.sc.pc.name, Section: optionContext.sc.name},
 		Values:         map[string]any{optionContext.name: values},
 	}
 
@@ -369,14 +378,14 @@ func removeValue(values []string, target string) ([]string, bool) {
 	return result, found
 }
 
-func (client *Client) getRaw(ctx context.Context, method string, request GetRequest) (*GetResponse, error) {
+func (client *Client) getRaw(ctx context.Context, method string, request getRequest) (*GetResponse, error) {
 	return goubus.Call[GetResponse](ctx, client.caller, "uci", method, request)
 }
 
 func (client *Client) getAllRaw(
 	ctx context.Context,
 	method string,
-	request GetRequest,
+	request getRequest,
 ) (map[string]map[string]any, error) {
 	response, err := client.getRaw(ctx, method, request)
 	if err != nil {

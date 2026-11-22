@@ -144,10 +144,22 @@ type Info struct {
 
 // Instance contains information about a service instance.
 type Instance struct {
+	// Data contains instance-specific runtime data.
+	Data map[string]any `json:"data"`
+	// Limits contains the instance resource limits.
+	Limits map[string]any `json:"limits"`
+	// Respawn contains the instance respawn configuration.
+	Respawn *Respawn `json:"respawn"`
+	// Jail contains the instance sandboxing configuration.
+	Jail *Jail `json:"jail"`
 	// Command is the process command line.
 	Command []string `json:"command"`
 	// Pid is the process identifier.
 	Pid int `json:"pid"`
+	// ExitCode is the process exit code.
+	ExitCode int `json:"exit_code"`
+	// TermTimeout is the process termination timeout in seconds.
+	TermTimeout int `json:"term_timeout"`
 	// Running indicates whether the instance is running.
 	Running goubus.Bool `json:"running"`
 }
