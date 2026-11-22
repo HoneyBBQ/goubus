@@ -1,0 +1,45 @@
+---
+name: Vulnerabilities
+
+'on':
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  # New advisories appear without any change to the code.
+  schedule:
+    - cron: "17 5 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  govulncheck:
+    name: govulncheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # yamllint disable rule:line-length
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        # yamllint enable rule:line-length
+        with:
+          persist-credentials: false
+      # The newest patch release: a hole in an older toolchain's standard
+      # library is fixed by upgrading Go, not in this module, and the cached
+      # runner toolchain can lag the release by days.
+      # yamllint disable rule:line-length
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        # yamllint enable rule:line-length
+        with:
+          go-version: stable
+          check-latest: true
+          cache: true
+      # Reports only vulnerabilities whose vulnerable code the module can reach.
+      - name: govulncheck
+        # yamllint disable rule:line-length
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 -tags integration ./...
+        # yamllint enable rule:line-length

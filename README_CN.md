@@ -2,7 +2,7 @@
 
 纯 Go 实现的 OpenWrt ubus 客户端，支持本地 Unix Socket 直连与远程 HTTP/HTTPS JSON-RPC。
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/honeybbq/goubus/v2.svg)](https://pkg.go.dev/github.com/honeybbq/goubus/v2) [![CI](https://github.com/honeybbq/goubus/actions/workflows/ci.yml/badge.svg)](https://github.com/honeybbq/goubus/actions/workflows/ci.yml) [![Codecov](https://codecov.io/gh/honeybbq/goubus/branch/main/graph/badge.svg)](https://codecov.io/gh/honeybbq/goubus) [![Release](https://img.shields.io/github/v/release/honeybbq/goubus?include_prereleases&sort=semver)](https://github.com/honeybbq/goubus/releases) [![Go version](https://img.shields.io/github/go-mod/go-version/honeybbq/goubus)](go.mod) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Go Reference](https://pkg.go.dev/badge/github.com/honeybbq/goubus/v2.svg)](https://pkg.go.dev/github.com/honeybbq/goubus/v2) [![CI](https://github.com/honeybbq/goubus/actions/workflows/ci.yml/badge.svg)](https://github.com/honeybbq/goubus/actions/workflows/ci.yml) [![Codecov](https://codecov.io/gh/honeybbq/goubus/branch/main/graph/badge.svg)](https://codecov.io/gh/honeybbq/goubus) [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/HoneyBBQ/goubus/badge)](https://scorecard.dev/viewer/?uri=github.com/HoneyBBQ/goubus) [![Release](https://img.shields.io/github/v/release/honeybbq/goubus?include_prereleases&sort=semver)](https://github.com/honeybbq/goubus/releases) [![Go version](https://img.shields.io/github/go-mod/go-version/honeybbq/goubus)](go.mod) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 [API 文档](https://pkg.go.dev/github.com/honeybbq/goubus/v2) · [架构](docs/architecture.md) · [设计](docs/design.md) · [示例](examples/) · [变更日志](CHANGELOG.md) · [English](README.md)
 
@@ -206,9 +206,9 @@ fmt.Println(objects["dhcp"]["add_lease"]) // map[duid:array ip:string ...]
 
 | 目标环境 | 实测覆盖 |
 | --- | --- |
-| OpenWrt 24.10 | 基于 `x86/64` generic（`24.10.5`）实机采集的 JSON 与 `blobmsg` 二进制样本回归测试。 |
-| OpenWrt 25.12 | 基于 CMCC RAX3000M（`25.12.0-rc1`）实机采集的 JSON 与 `blobmsg` 二进制样本回归测试。 |
-| Go | 1.26 及以上；纯 Go 实现，零 CGO。 |
+| OpenWrt 24.10 | CI 中针对真实 OpenWrt `24.10` 容器（Unix Socket + HTTP/HTTPS RPC）持续集成测试，并包含 `x86/64` generic（`24.10.5`）实机采集的 JSON 与 `blobmsg` 二进制样本回归测试。 |
+| OpenWrt 25.12 | CI 中针对真实 OpenWrt `25.12` 容器（Unix Socket + HTTP/HTTPS RPC）持续集成测试，并包含 CMCC RAX3000M（`25.12.0-rc1`）实机采集的 JSON 与 `blobmsg` 二进制样本回归测试。 |
+| Go | 1.26 及以上（CI 覆盖 Go 1.26 / 1.27 测试及 `linux/mipsle`、`linux/arm`、`linux/386`、`linux/arm64` 交叉编译）；纯 Go 实现，零 CGO。 |
 
 路由器上实际可调用的对象取决于固件安装了哪些软件包（如 `rpcd-mod-file`、`rpcd-mod-iwinfo`、`luci-base`、`odhcpd` 等）；通过 HTTP JSON-RPC 访问时，还需确保所用 `rpcd` 账号具备对应对象的读写 ACL。
 

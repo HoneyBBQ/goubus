@@ -29,12 +29,15 @@ All notable changes to this module are documented here. This project follows [Se
 - **Breaking:** `luci.Client.Features` returns `map[string]luci.Feature` (supporting both boolean flags on 24.10 and subfeature maps on 25.12), `BlockDevices` returns `map[string]luci.BlockDevice` keyed by device name, and `USBDevices` returns `*luci.USBInfo` (`Devices` and `Ports`).
 - **Breaking:** `uci.SectionValues` encapsulates its internal map; read and `MarshalJSON` methods use value receivers so non-addressable `SectionValues` marshal cleanly, while mutators (`Set`, `SetList`, `SetScalar`, `Append`, `Delete`) use pointer receivers.
 - `RpcClient` formats `String()`, `GoString()`, and `LogValue()` with `password` and `ubus_rpc_session` redacted, redacts outgoing RPC request bodies and `"session"` responses in debug logs, and calls `session.destroy` on `Close()`.
-- CI and release workflows pin GitHub Actions by commit SHA, run `go test -race ./...` and `apidump -check`, and build GitHub release notes from `CHANGELOG.md` via `scripts/release-notes.sh`.
+- Incoming wire frames are bounded before allocation: `blobmsg.ReadMessage` enforces minimum header length and `blobmsg.MaxMessageBytes` (1 MiB) on Unix socket frames, and `RpcClient` caps HTTP response bodies at 4 MiB.
+- CI and security workflows pin GitHub Actions by commit SHA, test against Go 1.26 and 1.27, cross-compile `linux/mipsle`, `linux/arm`, `linux/386`, and `linux/arm64`, run live OpenWrt 24.10 and 25.12 container integration tests, check `apidump`, `govulncheck`, CodeQL, and OpenSSF Scorecard, and build GitHub release notes from `CHANGELOG.md` via `scripts/release-notes.sh`.
 
 ### Fixed
 
 - Both `RpcClient.Call` and `SocketClient.Call` now inspect the ubus status code (and JSON-RPC `error` object) before returning a `Result`, so status-only calls such as `system.Reboot` and `uci.Commit` report `*CallError` instead of silently succeeding on non-zero status codes.
-- `SocketClient` applies read/write deadlines per round trip, honors `Call` context cancellation during in-flight socket reads, and decodes integer-encoded boolean attributes in `blobmsg` payloads.
+- `SocketClient` applies read/write deadlines per round trip, honors `Call` context cancellation during in-flight socket reads, decodes integer-encoded boolean attributes and `BLOBMSG_TYPE_UNSPEC` (`null`) container entries in `blobmsg` payloads, and avoids 32-bit `int` constant overflow in `blobmsg` attribute encoding on `mipsle`, `arm`, and `386` targets.
+- `RpcClient` hoists explicit `ubus_rpc_session` fields out of RPC payload objects into JSON-RPC `params[0]` for `uhttpd-mod-ubus`.
+- `uci.PackageContext.Changes` accepts array-shaped `changes` responses from `rpcd`, and `uci.OptionContext.AddToList` / `DeleteFromList` treat `ErrNoData` alongside `ErrNotFound` as a missing option.
 - `dhcp` lease decoders unwrap outer `"device"` and `"interfaces"` maps, stamp `Interface` onto returned leases, accept `"ip6addr"`, `"address"`, `"ipv6"`, and `"ipv6-addr"` keys on `IPv6Lease`, and accept both string addresses and numeric lengths in `IPv6RA.Prefix`.
 - `network.InterfaceContext.Status` falls back to matching the interface in `network.interface` `dump` when `network.interface.<name>` `status` fails.
 - `luci` decodes string-quoted `PID`/`PPID` values in `Processes`, unsigned 64-bit byte counters in `MountPoint` and `BlockDevice`, and `Ports` lists on `BoardInterface`.

@@ -1,0 +1,32 @@
+---
+# Unit and integration runs upload separately, flagged, and Codecov merges them
+# per commit. The total shown on the badge is that merge.
+codecov:
+  notify:
+    # Unit jobs (2 Go versions) + integration legs (24.10, 25.12), one upload
+    # each.
+    after_n_builds: 4
+
+# Informational: coverage is reported on pull requests, never a gate.
+coverage:
+  status:
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true
+
+flags:
+  unit:
+    carryforward: false
+  integration-24-10:
+    carryforward: false
+  integration-25-12:
+    carryforward: false
+
+# Example programs, developer tools, and test files, not the library.
+ignore:
+  - "examples"
+  - "internal/tools"
+  - "**/*_test.go"

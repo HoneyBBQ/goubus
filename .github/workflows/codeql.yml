@@ -1,0 +1,37 @@
+---
+name: CodeQL
+
+'on':
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  schedule:
+    - cron: "41 3 * * 1"
+
+permissions: read-all
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      # yamllint disable rule:line-length
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        # yamllint enable rule:line-length
+        with:
+          persist-credentials: false
+      # yamllint disable rule:line-length
+      - uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370  # v4.39.1
+        # yamllint enable rule:line-length
+        with:
+          languages: go
+          build-mode: autobuild
+          queries: security-and-quality
+      # yamllint disable rule:line-length
+      - uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370  # v4.39.1
+        # yamllint enable rule:line-length
+        with:
+          category: "/language:go"

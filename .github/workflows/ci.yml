@@ -1,14 +1,18 @@
 ---
 name: CI
+
 'on':
   push:
     branches: ["main"]
   pull_request:
     branches: ["main"]
+  workflow_call:
 
 permissions:
   contents: read
 
+# A new push to a pull request supersedes the run in progress. Runs on main and
+# on tags are never cancelled.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -21,6 +25,10 @@ jobs:
     steps:
       # yamllint disable rule:line-length
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        # yamllint enable rule:line-length
+        with:
+          persist-credentials: false
+      # yamllint disable rule:line-length
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         # yamllint enable rule:line-length
         with:
@@ -34,21 +42,38 @@ jobs:
           version: v2.15.0
       - name: Public API report is current
         run: go run ./internal/tools/apidump -check
+      - name: Cross-compile router targets
+        run: |
+          GOOS=linux GOARCH=mipsle go build ./...
+          GOOS=linux GOARCH=arm go build ./...
+          GOOS=linux GOARCH=386 go build ./...
+          GOOS=linux GOARCH=arm64 go build ./...
 
   test:
-    name: Test
+    name: Test (Go ${{ matrix.go-version }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        # The module requires 1.26; 1.27 is the current stable.
+        go-version: ["1.26", "1.27"]
     steps:
       # yamllint disable rule:line-length
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        # yamllint enable rule:line-length
+        with:
+          persist-credentials: false
+      # yamllint disable rule:line-length
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         # yamllint enable rule:line-length
         with:
-          go-version: "1.26"
+          go-version: ${{ matrix.go-version }}
           cache: true
       - name: Run tests
-        run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+        # yamllint disable rule:line-length
+        run: go test -v -race -coverprofile=coverage.txt -covermode=atomic -coverpkg=./... ./...
+        # yamllint enable rule:line-length
       - name: Upload coverage to Codecov
         # yamllint disable rule:line-length
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5  # v7.1.1
@@ -56,4 +81,61 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.txt
+          flags: unit
+          fail_ci_if_error: false
+
+  integration:
+    name: Integration (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "OpenWrt 24.10"
+            release: "24-10"
+          - name: "OpenWrt 25.12"
+            release: "25-12"
+    steps:
+      # yamllint disable rule:line-length
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        # yamllint enable rule:line-length
+        with:
+          persist-credentials: false
+      # yamllint disable rule:line-length
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        # yamllint enable rule:line-length
+        with:
+          go-version: "1.26"
+          cache: true
+      - name: Start OpenWrt lab
+        run: |
+          ./scripts/openwrt-lab.sh start \
+            "${{ matrix.release }}" "$RUNNER_TEMP/openwrt-lab"
+      - name: Run integration tests
+        run: |
+          . "$RUNNER_TEMP/openwrt-lab/env.sh"
+          go test -v -race -count=1 -p 1 -tags integration -timeout 180s \
+            -covermode=atomic -coverpkg=./... \
+            -coverprofile="$RUNNER_TEMP/cover-integration.txt" ./...
+      - name: Stop OpenWrt lab
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          if [ "$JOB_STATUS" != "success" ] && \
+             [ -f "$RUNNER_TEMP/openwrt-lab/container.name" ]; then
+            docker logs \
+              "$(cat "$RUNNER_TEMP/openwrt-lab/container.name")" || true
+          fi
+          ./scripts/openwrt-lab.sh stop "$RUNNER_TEMP/openwrt-lab"
+      - name: Upload coverage to Codecov
+        if: ${{ !cancelled() }}
+        # yamllint disable rule:line-length
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5  # v7.1.1
+        # yamllint enable rule:line-length
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ${{ runner.temp }}/cover-integration.txt
+          flags: integration-${{ matrix.release }}
           fail_ci_if_error: false

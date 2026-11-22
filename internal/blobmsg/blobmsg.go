@@ -288,8 +288,9 @@ func EncodeUintAttributeValue(value any) ([]byte, error) {
 
 // EncodeIntAttributeValue encodes a non-negative integer attribute value.
 func EncodeIntAttributeValue(value int) ([]byte, error) {
-	if value >= 0 && value <= math.MaxUint32 {
-		return EncodeUint32(uint32(value)), nil
+	v64 := int64(value)
+	if v64 >= 0 && v64 <= math.MaxUint32 {
+		return EncodeUint32(uint32(v64)), nil
 	}
 
 	return nil, errs.Wrapf(errs.ErrInvalidParameter, "int value %d out of uint32 range", value)

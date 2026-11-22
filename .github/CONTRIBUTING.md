@@ -45,6 +45,19 @@ Unit tests run offline without a live OpenWrt router:
 - `internal/testdata/` holds sanitized JSON responses captured on OpenWrt 24.10.5 (`x86_generic`) and OpenWrt 25.12.0-rc1 (`rax3000m`). To capture new responses or method signatures from a router and turn them into regression tests, follow [docs/CONTRIBUTING_DATA.md](../docs/CONTRIBUTING_DATA.md).
 - `internal/blobmsg/testdata/` holds captured binary `ubus` frames and the upstream OpenWrt `ubus` fuzz corpus (`fuzz_corpus/`), verified by `internal/blobmsg/golden_test.go` during `go test ./...` to ensure malformed binary frames return errors rather than panicking.
 
+### Live OpenWrt container integration tests
+
+With Docker installed locally, `scripts/openwrt-lab.sh` starts an ephemeral OpenWrt `24.10` (`24-10`) or `25.12` (`25-12`) container running `ubusd`, `rpcd`, and `uhttpd` over a Unix socket, HTTP JSON-RPC, and HTTPS JSON-RPC (with a generated CA):
+
+```sh
+./scripts/openwrt-lab.sh start 24-10 /tmp/openwrt-lab
+. /tmp/openwrt-lab/env.sh
+go test -v -race -count=1 -p 1 -tags integration ./...
+./scripts/openwrt-lab.sh stop /tmp/openwrt-lab
+```
+
+Pass `25-12` instead of `24-10` to run the same suite against OpenWrt 25.12. CI runs both container targets on every push and pull request.
+
 ## Changes
 
 - Include unit tests with every bug fix or feature. A bug fix should come with a test that fails without it.

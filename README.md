@@ -2,7 +2,7 @@
 
 OpenWrt ubus client in pure Go, over Unix sockets and HTTP JSON-RPC.
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/honeybbq/goubus/v2.svg)](https://pkg.go.dev/github.com/honeybbq/goubus/v2) [![CI](https://github.com/honeybbq/goubus/actions/workflows/ci.yml/badge.svg)](https://github.com/honeybbq/goubus/actions/workflows/ci.yml) [![Codecov](https://codecov.io/gh/honeybbq/goubus/branch/main/graph/badge.svg)](https://codecov.io/gh/honeybbq/goubus) [![Release](https://img.shields.io/github/v/release/honeybbq/goubus?include_prereleases&sort=semver)](https://github.com/honeybbq/goubus/releases) [![Go version](https://img.shields.io/github/go-mod/go-version/honeybbq/goubus)](go.mod) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Go Reference](https://pkg.go.dev/badge/github.com/honeybbq/goubus/v2.svg)](https://pkg.go.dev/github.com/honeybbq/goubus/v2) [![CI](https://github.com/honeybbq/goubus/actions/workflows/ci.yml/badge.svg)](https://github.com/honeybbq/goubus/actions/workflows/ci.yml) [![Codecov](https://codecov.io/gh/honeybbq/goubus/branch/main/graph/badge.svg)](https://codecov.io/gh/honeybbq/goubus) [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/HoneyBBQ/goubus/badge)](https://scorecard.dev/viewer/?uri=github.com/HoneyBBQ/goubus) [![Release](https://img.shields.io/github/v/release/honeybbq/goubus?include_prereleases&sort=semver)](https://github.com/honeybbq/goubus/releases) [![Go version](https://img.shields.io/github/go-mod/go-version/honeybbq/goubus)](go.mod) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 [Docs](https://pkg.go.dev/github.com/honeybbq/goubus/v2) · [Architecture](docs/architecture.md) · [Design](docs/design.md) · [Examples](examples/) · [Changelog](CHANGELOG.md) · [中文文档](README_CN.md)
 
@@ -206,9 +206,9 @@ The full API reference is on [pkg.go.dev](https://pkg.go.dev/github.com/honeybbq
 
 | Target | Tested against |
 | --- | --- |
-| OpenWrt 24.10 | Captured JSON and binary `blobmsg` fixtures from `x86/64` generic (`24.10.5`). |
-| OpenWrt 25.12 | Captured JSON and binary `blobmsg` fixtures from CMCC RAX3000M (`25.12.0-rc1`). |
-| Go | 1.26 and newer; pure Go, no CGO. |
+| OpenWrt 24.10 | Live OpenWrt `24.10` container in CI (Unix socket, HTTP RPC, and HTTPS RPC) plus captured JSON and binary `blobmsg` fixtures from `x86/64` generic (`24.10.5`). |
+| OpenWrt 25.12 | Live OpenWrt `25.12` container in CI (Unix socket, HTTP RPC, and HTTPS RPC) plus captured JSON and binary `blobmsg` fixtures from CMCC RAX3000M (`25.12.0-rc1`). |
+| Go | 1.26 and newer (CI runs Go 1.26 and 1.27 plus `linux/mipsle`, `linux/arm`, `linux/386`, and `linux/arm64` cross-builds); pure Go, no CGO. |
 
 Which ubus objects exist on a router depends on its installed OpenWrt packages (`rpcd-mod-file`, `rpcd-mod-iwinfo`, `luci-base`, `odhcpd`, and others). Over HTTP JSON-RPC, each call is also subject to the `rpcd` ACLs of the logged-in user.
 
