@@ -1,10 +1,28 @@
-# goubus
+<h1 align="center">goubus</h1>
 
-纯 Go 实现的 OpenWrt ubus 客户端，支持本地 Unix Socket 直连与远程 HTTP/HTTPS JSON-RPC。
+<p align="center">
+  <strong>纯 Go 实现的 OpenWrt ubus 客户端，支持本地 Unix Socket 直连与远程 HTTP/HTTPS JSON-RPC。</strong><br>
+  OpenWrt 24.10 &amp; 25.12 · 无 CGO · 零第三方依赖
+</p>
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/honeybbq/goubus/v2.svg)](https://pkg.go.dev/github.com/honeybbq/goubus/v2) [![CI](https://github.com/honeybbq/goubus/actions/workflows/ci.yml/badge.svg)](https://github.com/honeybbq/goubus/actions/workflows/ci.yml) [![Codecov](https://codecov.io/gh/honeybbq/goubus/branch/main/graph/badge.svg)](https://codecov.io/gh/honeybbq/goubus) [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/HoneyBBQ/goubus/badge)](https://scorecard.dev/viewer/?uri=github.com/HoneyBBQ/goubus) [![Release](https://img.shields.io/github/v/release/honeybbq/goubus?include_prereleases&sort=semver)](https://github.com/honeybbq/goubus/releases) [![Go version](https://img.shields.io/github/go-mod/go-version/honeybbq/goubus)](go.mod) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+<p align="center">
+  <a href="https://pkg.go.dev/github.com/honeybbq/goubus/v2"><img alt="Go Reference" src="https://pkg.go.dev/badge/github.com/honeybbq/goubus/v2.svg"></a>
+  <a href="https://github.com/honeybbq/goubus/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/honeybbq/goubus/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://codecov.io/gh/honeybbq/goubus"><img alt="Codecov" src="https://codecov.io/gh/honeybbq/goubus/branch/main/graph/badge.svg"></a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/HoneyBBQ/goubus"><img alt="OpenSSF Scorecard" src="https://api.scorecard.dev/projects/github.com/HoneyBBQ/goubus/badge"></a>
+  <a href="https://github.com/honeybbq/goubus/releases"><img alt="Release" src="https://img.shields.io/github/v/release/honeybbq/goubus?include_prereleases&amp;sort=semver"></a>
+  <a href="go.mod"><img alt="Go version" src="https://img.shields.io/github/go-mod/go-version/honeybbq/goubus"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg"></a>
+</p>
 
-[API 文档](https://pkg.go.dev/github.com/honeybbq/goubus/v2) · [架构](docs/architecture.md) · [设计](docs/design.md) · [示例](examples/) · [变更日志](CHANGELOG.md) · [English](README.md)
+<p align="center">
+  <a href="https://pkg.go.dev/github.com/honeybbq/goubus/v2">API 文档</a> ·
+  <a href="docs/architecture.md">架构</a> ·
+  <a href="docs/design.md">设计</a> ·
+  <a href="examples/">示例</a> ·
+  <a href="CHANGELOG.md">变更日志</a> ·
+  <a href="README.md">English</a>
+</p>
 
 ## 核心特性
 

@@ -1,10 +1,28 @@
-# goubus
+<h1 align="center">goubus</h1>
 
-OpenWrt ubus client in pure Go, over Unix sockets and HTTP JSON-RPC.
+<p align="center">
+  <strong>OpenWrt ubus client in pure Go, over Unix sockets and HTTP JSON-RPC.</strong><br>
+  For OpenWrt 24.10 and 25.12. No CGO, no third-party dependencies.
+</p>
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/honeybbq/goubus/v2.svg)](https://pkg.go.dev/github.com/honeybbq/goubus/v2) [![CI](https://github.com/honeybbq/goubus/actions/workflows/ci.yml/badge.svg)](https://github.com/honeybbq/goubus/actions/workflows/ci.yml) [![Codecov](https://codecov.io/gh/honeybbq/goubus/branch/main/graph/badge.svg)](https://codecov.io/gh/honeybbq/goubus) [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/HoneyBBQ/goubus/badge)](https://scorecard.dev/viewer/?uri=github.com/HoneyBBQ/goubus) [![Release](https://img.shields.io/github/v/release/honeybbq/goubus?include_prereleases&sort=semver)](https://github.com/honeybbq/goubus/releases) [![Go version](https://img.shields.io/github/go-mod/go-version/honeybbq/goubus)](go.mod) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+<p align="center">
+  <a href="https://pkg.go.dev/github.com/honeybbq/goubus/v2"><img alt="Go Reference" src="https://pkg.go.dev/badge/github.com/honeybbq/goubus/v2.svg"></a>
+  <a href="https://github.com/honeybbq/goubus/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/honeybbq/goubus/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://codecov.io/gh/honeybbq/goubus"><img alt="Codecov" src="https://codecov.io/gh/honeybbq/goubus/branch/main/graph/badge.svg"></a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/HoneyBBQ/goubus"><img alt="OpenSSF Scorecard" src="https://api.scorecard.dev/projects/github.com/HoneyBBQ/goubus/badge"></a>
+  <a href="https://github.com/honeybbq/goubus/releases"><img alt="Release" src="https://img.shields.io/github/v/release/honeybbq/goubus?include_prereleases&amp;sort=semver"></a>
+  <a href="go.mod"><img alt="Go version" src="https://img.shields.io/github/go-mod/go-version/honeybbq/goubus"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg"></a>
+</p>
 
-[Docs](https://pkg.go.dev/github.com/honeybbq/goubus/v2) · [Architecture](docs/architecture.md) · [Design](docs/design.md) · [Examples](examples/) · [Changelog](CHANGELOG.md) · [中文文档](README_CN.md)
+<p align="center">
+  <a href="https://pkg.go.dev/github.com/honeybbq/goubus/v2">Docs</a> ·
+  <a href="docs/architecture.md">Architecture</a> ·
+  <a href="docs/design.md">Design</a> ·
+  <a href="examples/">Examples</a> ·
+  <a href="CHANGELOG.md">Changelog</a> ·
+  <a href="README_CN.md">中文文档</a>
+</p>
 
 ## Why this library
 
