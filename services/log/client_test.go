@@ -41,7 +41,7 @@ func TestNewPanicsOnNilCaller(t *testing.T) {
 }
 
 func TestSamples(t *testing.T) {
-	for _, profile := range []string{"rax3000m", "x86_generic"} {
+	for _, profile := range []string{"rax3000m"} {
 		t.Run(profile, func(t *testing.T) {
 			// Profile values are fixed by this test table.
 			// #nosec G304

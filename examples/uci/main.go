@@ -1,3 +1,4 @@
+// Package main demonstrates goubus UCI configuration operations.
 package main
 
 import (
@@ -8,7 +9,7 @@ import (
 	"strconv"
 
 	"github.com/honeybbq/goubus/v2"
-	"github.com/honeybbq/goubus/v2/profiles/x86_generic/uci"
+	"github.com/honeybbq/goubus/v2/services/uci"
 )
 
 type connectionConfig struct {
@@ -93,7 +94,7 @@ func initTransport(ctx context.Context, cfg connectionConfig, verbose bool) (gou
 	return socketClient, "ubus socket " + cfg.Socket
 }
 
-func showSection(ctx context.Context, svc *uci.Manager, pkg, section string) {
+func showSection(ctx context.Context, svc *uci.Client, pkg, section string) {
 	slog.Info("Reading section", "package", pkg, "section", section)
 
 	sec, err := svc.Package(pkg).Section(section).Get(ctx)
@@ -116,10 +117,10 @@ func showSection(ctx context.Context, svc *uci.Manager, pkg, section string) {
 	}
 }
 
-func showPackageSections(ctx context.Context, svc *uci.Manager, pkg string) {
+func showPackageSections(ctx context.Context, svc *uci.Client, pkg string) {
 	slog.Info("Listing package sections", "package", pkg)
 
-	sections, err := svc.Package(pkg).GetAll(ctx)
+	sections, err := svc.Package(pkg).All(ctx)
 	if err != nil {
 		slog.Error("failed to load package", "error", err)
 
@@ -136,7 +137,7 @@ func showPackageSections(ctx context.Context, svc *uci.Manager, pkg string) {
 	}
 }
 
-func resolveSystemSection(ctx context.Context, svc *uci.Manager) string {
+func resolveSystemSection(ctx context.Context, svc *uci.Client) string {
 	_, err := svc.Package("system").Section("system").Get(ctx)
 	if err == nil {
 		return "system"
@@ -145,7 +146,7 @@ func resolveSystemSection(ctx context.Context, svc *uci.Manager) string {
 	return "@system[0]"
 }
 
-func stageHostname(ctx context.Context, svc *uci.Manager, sectionName, hostname string) {
+func stageHostname(ctx context.Context, svc *uci.Client, sectionName, hostname string) {
 	slog.Info("Staging hostname change", "new_hostname", hostname)
 
 	values := uci.NewSectionValues()

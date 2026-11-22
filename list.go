@@ -78,6 +78,7 @@ type ObjectSignatures map[string]MethodSignature
 
 // Lister lists ubus objects and their method signatures.
 type Lister interface {
+	// List returns matching ubus objects and their method signatures.
 	List(ctx context.Context, patterns ...string) (map[string]ObjectSignatures, error)
 }
 

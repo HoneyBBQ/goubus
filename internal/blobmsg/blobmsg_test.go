@@ -1,6 +1,3 @@
-// Copyright (c) 2026 honeybbq
-// Licensed under the MIT License. See LICENSE file in the project root for full license information.
-
 package blobmsg_test
 
 import (

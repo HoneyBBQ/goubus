@@ -42,11 +42,16 @@ func (feature *Feature) UnmarshalJSON(data []byte) error {
 
 // LED describes a system LED and its supported triggers.
 type LED struct {
-	Name          string   `json:"name,omitempty"`
-	ActiveTrigger string   `json:"active_trigger"`
-	Triggers      []string `json:"triggers"`
-	Brightness    int      `json:"brightness"`
-	MaxBrightness int      `json:"max_brightness"`
+	// Name is the system LED name.
+	Name string `json:"name,omitempty"`
+	// ActiveTrigger is the currently selected LED trigger.
+	ActiveTrigger string `json:"active_trigger"`
+	// Triggers lists triggers supported by the LED.
+	Triggers []string `json:"triggers"`
+	// Brightness is the current LED brightness.
+	Brightness int `json:"brightness"`
+	// MaxBrightness is the maximum LED brightness.
+	MaxBrightness int `json:"max_brightness"`
 }
 
 // USBInfo contains connected USB devices and ports.
@@ -73,8 +78,10 @@ type USBDevice struct {
 
 // USBPort describes a USB port.
 type USBPort struct {
-	Device any    `json:"device"`
-	Port   string `json:"port"`
+	// Device contains the device attached to this port, if any.
+	Device any `json:"device"`
+	// Port is the USB port name.
+	Port string `json:"port"`
 }
 
 // BlockDevice describes a block device.
@@ -111,14 +118,22 @@ type MountPoint struct {
 
 // Process describes a running system process.
 type Process struct {
-	User    string           `json:"USER"`
-	Stat    string           `json:"STAT"`
-	VSZ     string           `json:"VSZ"`
-	CPU     string           `json:"%CPU"`
-	Mem     string           `json:"%MEM"`
-	Command string           `json:"COMMAND"`
-	PID     goubus.StringInt `json:"PID"`
-	PPID    goubus.StringInt `json:"PPID"`
+	// User is the process owner.
+	User string `json:"USER"`
+	// Stat is the process state.
+	Stat string `json:"STAT"`
+	// VSZ is the virtual memory size.
+	VSZ string `json:"VSZ"`
+	// CPU is the CPU utilization percentage.
+	CPU string `json:"%CPU"`
+	// Mem is the memory utilization percentage.
+	Mem string `json:"%MEM"`
+	// Command is the process command line.
+	Command string `json:"COMMAND"`
+	// PID is the process identifier.
+	PID goubus.StringInt `json:"PID"`
+	// PPID is the parent process identifier.
+	PPID goubus.StringInt `json:"PPID"`
 }
 
 // RealtimeStats contains interface traffic counters.
@@ -255,9 +270,12 @@ type HostHint struct {
 
 // BoardJSON contains device board and network information.
 type BoardJSON struct {
-	WLAN    map[string]BoardWLAN `json:"wlan"`
-	Model   BoardModel           `json:"model"`
-	Network BoardNetwork         `json:"network"`
+	// WLAN contains wireless hardware and capability information.
+	WLAN map[string]BoardWLAN `json:"wlan"`
+	// Model contains the board model identifiers.
+	Model BoardModel `json:"model"`
+	// Network contains the board's network interfaces.
+	Network BoardNetwork `json:"network"`
 }
 
 // BoardModel contains board model identifiers.
@@ -362,56 +380,92 @@ type DHCPv6Lease struct {
 
 // WirelessDevice describes a wireless radio and its interfaces.
 type WirelessDevice struct {
-	Config           map[string]any      `json:"config"`
-	IWInfo           *WirelessIWInfo     `json:"iwinfo,omitempty"`
-	Interfaces       []WirelessInterface `json:"interfaces"`
-	Up               goubus.Bool         `json:"up"`
-	Pending          goubus.Bool         `json:"pending"`
-	Autostart        goubus.Bool         `json:"autostart"`
-	Disabled         goubus.Bool         `json:"disabled"`
-	RetrySetupFailed goubus.Bool         `json:"retry_setup_failed"`
+	// Config contains the wireless device configuration.
+	Config map[string]any `json:"config"`
+	// IWInfo contains wireless hardware information.
+	IWInfo *WirelessIWInfo `json:"iwinfo,omitempty"`
+	// Interfaces lists interfaces configured on the device.
+	Interfaces []WirelessInterface `json:"interfaces"`
+	// Up reports whether the device is up.
+	Up goubus.Bool `json:"up"`
+	// Pending reports whether a device operation is pending.
+	Pending goubus.Bool `json:"pending"`
+	// Autostart reports whether the device starts automatically.
+	Autostart goubus.Bool `json:"autostart"`
+	// Disabled reports whether the device is disabled.
+	Disabled goubus.Bool `json:"disabled"`
+	// RetrySetupFailed reports whether device setup retries failed.
+	RetrySetupFailed goubus.Bool `json:"retry_setup_failed"`
 }
 
 // WirelessInterface describes a configured wireless interface.
 type WirelessInterface struct {
-	Config   map[string]any  `json:"config"`
-	IWInfo   *WirelessIWInfo `json:"iwinfo,omitempty"`
-	Section  string          `json:"section"`
-	IfName   string          `json:"ifname"`
-	VLANs    []any           `json:"vlans"`
-	Stations []any           `json:"stations"`
+	// Config contains the wireless interface configuration.
+	Config map[string]any `json:"config"`
+	// IWInfo contains wireless interface information.
+	IWInfo *WirelessIWInfo `json:"iwinfo,omitempty"`
+	// Section is the UCI section name.
+	Section string `json:"section"`
+	// IfName is the operating system interface name.
+	IfName string `json:"ifname"`
+	// VLANs lists VLANs assigned to the interface.
+	VLANs []any `json:"vlans"`
+	// Stations lists stations associated with the interface.
+	Stations []any `json:"stations"`
 }
 
 // WirelessIWInfo contains wireless radio or interface capabilities.
 type WirelessIWInfo struct {
-	Encryption      *WirelessEncryption `json:"encryption,omitempty"`
-	Hardware        *WirelessHardware   `json:"hardware"`
-	HWModesText     string              `json:"hwmodes_text"`
-	Country         string              `json:"country"`
-	PHY             string              `json:"phy"`
-	BSSID           string              `json:"bssid"`
-	Mode            string              `json:"mode"`
-	HTModes         []string            `json:"htmodes"`
-	HWModes         []string            `json:"hwmodes"`
-	TxPower         int                 `json:"txpower"`
-	FrequencyOffset int                 `json:"frequency_offset"`
-	Frequency       int                 `json:"frequency"`
-	QualityMax      int                 `json:"quality_max"`
-	TxPowerOffset   int                 `json:"txpower_offset"`
-	Noise           int                 `json:"noise"`
-	Channel         int                 `json:"channel"`
+	// Encryption contains wireless encryption details.
+	Encryption *WirelessEncryption `json:"encryption,omitempty"`
+	// Hardware contains the radio hardware identity.
+	Hardware *WirelessHardware `json:"hardware"`
+	// HWModesText contains the human-readable hardware modes.
+	HWModesText string `json:"hwmodes_text"`
+	// Country is the configured wireless country code.
+	Country string `json:"country"`
+	// PHY is the wireless physical device name.
+	PHY string `json:"phy"`
+	// BSSID is the basic service set identifier.
+	BSSID string `json:"bssid"`
+	// Mode is the wireless operating mode.
+	Mode string `json:"mode"`
+	// HTModes lists supported 802.11n modes.
+	HTModes []string `json:"htmodes"`
+	// HWModes lists supported hardware modes.
+	HWModes []string `json:"hwmodes"`
+	// TxPower is the transmit power in dBm.
+	TxPower int `json:"txpower"`
+	// FrequencyOffset is the frequency offset in kHz.
+	FrequencyOffset int `json:"frequency_offset"`
+	// Frequency is the operating frequency in MHz.
+	Frequency int `json:"frequency"`
+	// QualityMax is the maximum signal quality.
+	QualityMax int `json:"quality_max"`
+	// TxPowerOffset is the transmit power offset in dB.
+	TxPowerOffset int `json:"txpower_offset"`
+	// Noise is the measured noise level in dBm.
+	Noise int `json:"noise"`
+	// Channel is the wireless channel number.
+	Channel int `json:"channel"`
 }
 
 // WirelessHardware identifies wireless hardware.
 type WirelessHardware struct {
+	// Name is the wireless hardware name.
 	Name string `json:"name"`
-	ID   []int  `json:"id"`
+	// ID contains the hardware identifier values.
+	ID []int `json:"id"`
 }
 
 // WirelessEncryption describes wireless encryption capabilities.
 type WirelessEncryption struct {
-	WPA            []int       `json:"wpa"`
-	Authentication []string    `json:"authentication"`
-	Ciphers        []string    `json:"ciphers"`
-	Enabled        goubus.Bool `json:"enabled"`
+	// WPA lists supported WPA protocol versions.
+	WPA []int `json:"wpa"`
+	// Authentication lists supported authentication methods.
+	Authentication []string `json:"authentication"`
+	// Ciphers lists supported encryption ciphers.
+	Ciphers []string `json:"ciphers"`
+	// Enabled reports whether encryption is enabled.
+	Enabled goubus.Bool `json:"enabled"`
 }

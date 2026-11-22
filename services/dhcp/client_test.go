@@ -15,19 +15,20 @@ var errUnrelatedDUIDFailure = errors.New("unrelated failure")
 
 func TestLeaseFixtures(t *testing.T) {
 	ctx := context.Background()
-	for _, device := range []string{"rax3000m", "x86_generic"} {
-		for _, fixture := range []struct {
-			file   string
-			method string
-		}{
-			{"dhcp_ipv4leases.json", "ipv4leases"},
-			{"dhcp_ipv6leases.json", "ipv6leases"},
-			{"dhcp_ipv6ra.json", "ipv6ra"},
-		} {
-			raw := readFixture(t, device, fixture.file)
-			if len(raw) == 0 {
-				continue
-			}
+	fixtures := []struct {
+		device string
+		file   string
+		method string
+	}{
+		{"rax3000m", "dhcp_ipv6leases.json", "ipv6leases"},
+		{"rax3000m", "dhcp_ipv6ra.json", "ipv6ra"},
+		{"x86_generic", "dhcp_ipv4leases.json", "ipv4leases"},
+		{"x86_generic", "dhcp_ipv6leases.json", "ipv6leases"},
+		{"x86_generic", "dhcp_ipv6ra.json", "ipv6ra"},
+	}
+	for _, fixture := range fixtures {
+		t.Run(fixture.device+"/"+fixture.file, func(t *testing.T) {
+			raw := readFixture(t, fixture.device, fixture.file)
 			client := New(goubus.CallerFunc(func(context.Context, string, string, any) (goubus.Result, error) {
 				return goubus.NewJSONResult(raw), nil
 			}))
@@ -35,26 +36,26 @@ func TestLeaseFixtures(t *testing.T) {
 			case "ipv4leases":
 				leases, err := client.IPv4Leases(ctx)
 				if err != nil {
-					t.Fatalf("%s/%s: %v", device, fixture.file, err)
+					t.Fatalf("%s/%s: %v", fixture.device, fixture.file, err)
 				}
-				assertInterfaces(t, device, leaseInterfaces4(leases))
+				assertInterfaces(t, fixture.device, leaseInterfaces4(leases))
 			case "ipv6leases":
 				leases, err := client.IPv6Leases(ctx)
 				if err != nil {
-					t.Fatalf("%s/%s: %v", device, fixture.file, err)
+					t.Fatalf("%s/%s: %v", fixture.device, fixture.file, err)
 				}
-				assertInterfaces(t, device, leaseInterfaces6(leases))
+				assertInterfaces(t, fixture.device, leaseInterfaces6(leases))
 			case "ipv6ra":
 				entries, err := client.IPv6RA(ctx)
 				if err != nil {
-					t.Fatalf("%s/%s: %v", device, fixture.file, err)
+					t.Fatalf("%s/%s: %v", fixture.device, fixture.file, err)
 				}
-				assertInterfaces(t, device, raInterfaces(entries))
-				if device == "x86_generic" && len(entries) > 0 && entries[0].Length != 60 {
+				assertInterfaces(t, fixture.device, raInterfaces(entries))
+				if fixture.device == "x86_generic" && len(entries) > 0 && entries[0].Length != 60 {
 					t.Fatalf("x86 prefix length = %d, want 60", entries[0].Length)
 				}
 			}
-		}
+		})
 	}
 }
 

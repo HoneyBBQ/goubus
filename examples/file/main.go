@@ -1,3 +1,4 @@
+// Package main demonstrates goubus file service operations.
 package main
 
 import (
@@ -6,7 +7,7 @@ import (
 	"os"
 
 	"github.com/honeybbq/goubus/v2"
-	"github.com/honeybbq/goubus/v2/profiles/x86_generic/file"
+	"github.com/honeybbq/goubus/v2/services/file"
 )
 
 func main() {

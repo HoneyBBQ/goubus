@@ -176,13 +176,20 @@ type Limits struct {
 
 // SetRequest contains parameters for configuring a service.
 type SetRequest struct {
+	// Instances contains instance-specific service configuration.
 	Instances map[string]any `json:"instances,omitempty"`
-	Data      map[string]any `json:"data,omitempty"`
-	Name      string         `json:"name"`
-	Script    string         `json:"script,omitempty"`
-	Triggers  []any          `json:"triggers,omitempty"`
-	Validate  []any          `json:"validate,omitempty"`
-	Autostart goubus.Bool    `json:"autostart,omitempty"`
+	// Data contains service configuration data.
+	Data map[string]any `json:"data,omitempty"`
+	// Name is the service name.
+	Name string `json:"name"`
+	// Script identifies the service script.
+	Script string `json:"script,omitempty"`
+	// Triggers contains service event triggers.
+	Triggers []any `json:"triggers,omitempty"`
+	// Validate contains validation constraints.
+	Validate []any `json:"validate,omitempty"`
+	// Autostart reports whether the service starts automatically.
+	Autostart goubus.Bool `json:"autostart,omitempty"`
 }
 
 // EventRequest contains parameters for a service event.

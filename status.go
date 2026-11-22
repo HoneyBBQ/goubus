@@ -25,29 +25,6 @@ const (
 	StatusUnknown = 9
 	// StatusConnectionFailed indicates that the connection failed.
 	StatusConnectionFailed = 10
-
-	// UbusStatusOK aliases StatusOK.
-	UbusStatusOK = StatusOK
-	// UbusStatusInvalidCommand aliases StatusInvalidCommand.
-	UbusStatusInvalidCommand = StatusInvalidCommand
-	// UbusStatusInvalidParameter aliases StatusInvalidParameter.
-	UbusStatusInvalidParameter = StatusInvalidParameter
-	// UbusStatusMethodNotFound aliases StatusMethodNotFound.
-	UbusStatusMethodNotFound = StatusMethodNotFound
-	// UbusStatusNotFound aliases StatusNotFound.
-	UbusStatusNotFound = StatusNotFound
-	// UbusStatusNoData aliases StatusNoData.
-	UbusStatusNoData = StatusNoData
-	// UbusStatusPermissionDenied aliases StatusPermissionDenied.
-	UbusStatusPermissionDenied = StatusPermissionDenied
-	// UbusStatusTimeout aliases StatusTimeout.
-	UbusStatusTimeout = StatusTimeout
-	// UbusStatusNotSupported aliases StatusNotSupported.
-	UbusStatusNotSupported = StatusNotSupported
-	// UbusStatusUnknown aliases StatusUnknown.
-	UbusStatusUnknown = StatusUnknown
-	// UbusStatusConnectionFailed aliases StatusConnectionFailed.
-	UbusStatusConnectionFailed = StatusConnectionFailed
 )
 
 var ubusErrorMap = map[int]error{
@@ -71,9 +48,4 @@ func StatusError(code int) error {
 	}
 
 	return errs.Wrapf(ErrUnknown, "unknown ubus error code: %d", code)
-}
-
-// MapUbusCodeToError maps a ubus status code to its sentinel error.
-func MapUbusCodeToError(code int) error {
-	return StatusError(code)
 }

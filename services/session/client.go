@@ -114,9 +114,12 @@ func (c *Client) Login(ctx context.Context, req LoginRequest) (*Data, error) {
 
 // Data contains session information.
 type Data struct {
-	ExpireTime     time.Time `json:"-"`
-	UbusRPCSession string    `json:"ubus_rpc_session"`
-	Timeout        int       `json:"timeout"`
+	// ExpireTime is the calculated session expiration time.
+	ExpireTime time.Time `json:"-"`
+	// UbusRPCSession is the ubus session identifier.
+	UbusRPCSession string `json:"ubus_rpc_session"`
+	// Timeout is the session timeout in seconds.
+	Timeout int `json:"timeout"`
 }
 
 // ACLs contains session access control lists.
@@ -129,8 +132,11 @@ type ACLs struct {
 
 // GrantRequest contains parameters for granting or revoking access.
 type GrantRequest struct {
-	Session string   `json:"ubus_rpc_session"`
-	Scope   string   `json:"scope"`
+	// Session is the session identifier.
+	Session string `json:"ubus_rpc_session"`
+	// Scope is the access control scope.
+	Scope string `json:"scope"`
+	// Objects lists the ubus objects covered by the grant.
 	Objects []string `json:"objects"`
 }
 

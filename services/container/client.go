@@ -96,11 +96,18 @@ func (c *Client) ConsoleAttach(ctx context.Context, name, instance string) error
 
 // SetRequest contains parameters for adding or configuring a container.
 type SetRequest struct {
+	// Instances contains instance-specific configuration.
 	Instances map[string]any `json:"instances,omitempty"`
-	Data      map[string]any `json:"data,omitempty"`
-	Name      string         `json:"name"`
-	Script    string         `json:"script,omitempty"`
-	Triggers  []any          `json:"triggers,omitempty"`
-	Validate  []any          `json:"validate,omitempty"`
-	Autostart goubus.Bool    `json:"autostart,omitempty"`
+	// Data contains container configuration data.
+	Data map[string]any `json:"data,omitempty"`
+	// Name is the container name.
+	Name string `json:"name"`
+	// Script identifies the container script.
+	Script string `json:"script,omitempty"`
+	// Triggers contains container event triggers.
+	Triggers []any `json:"triggers,omitempty"`
+	// Validate contains validation constraints.
+	Validate []any `json:"validate,omitempty"`
+	// Autostart reports whether the container starts automatically.
+	Autostart goubus.Bool `json:"autostart,omitempty"`
 }

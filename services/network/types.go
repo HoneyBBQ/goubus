@@ -11,32 +11,58 @@ type InterfaceInfo struct {
 
 // InterfaceDetails contains detailed network interface status.
 type InterfaceDetails struct {
-	Data                 Data         `json:"data"`
-	L3Device             string       `json:"l3_device"`
-	Zone                 string       `json:"zone"`
-	Device               string       `json:"device"`
-	Proto                string       `json:"proto"`
-	Inactive             Inactive     `json:"inactive"`
-	DNSServer            []string     `json:"dns-server"`
-	DNSSearch            []string     `json:"dns-search"`
-	IPv4Address          []Address    `json:"ipv4-address"`
-	Updated              []string     `json:"updated"`
-	Delegates            []string     `json:"delegates"`
-	IPv6AddressGenerated []Address    `json:"ipv6-address-generated"`
-	Route                []Route      `json:"route"`
+	// Data contains protocol-specific interface data.
+	Data Data `json:"data"`
+	// L3Device is the layer 3 device backing the interface.
+	L3Device string `json:"l3_device"`
+	// Zone is the firewall zone assigned to the interface.
+	Zone string `json:"zone"`
+	// Device is the network device backing the interface.
+	Device string `json:"device"`
+	// Proto is the interface protocol.
+	Proto string `json:"proto"`
+	// Inactive contains inactive address and route data.
+	Inactive Inactive `json:"inactive"`
+	// DNSServer lists the interface's DNS servers.
+	DNSServer []string `json:"dns-server"`
+	// DNSSearch lists the interface's DNS search domains.
+	DNSSearch []string `json:"dns-search"`
+	// IPv4Address lists the interface's IPv4 addresses.
+	IPv4Address []Address `json:"ipv4-address"`
+	// Updated lists the interface properties updated by the last operation.
+	Updated []string `json:"updated"`
+	// Delegates lists prefixes delegated to the interface.
+	Delegates []string `json:"delegates"`
+	// IPv6AddressGenerated lists generated IPv6 addresses.
+	IPv6AddressGenerated []Address `json:"ipv6-address-generated"`
+	// Route lists routes associated with the interface.
+	Route []Route `json:"route"`
+	// IPv6PrefixAssignment lists IPv6 prefix assignments.
 	IPv6PrefixAssignment []IPv6Prefix `json:"ipv6-prefix-assignment"`
-	IPv6Prefix           []IPv6Prefix `json:"ipv6-prefix"`
-	Neighbors            []Neighbor   `json:"neighbors"`
-	IPv6Address          []Address    `json:"ipv6-address"`
-	Metric               int          `json:"metric"`
-	DNSMetric            int          `json:"dns_metric"`
-	Uptime               int          `json:"uptime"`
-	Up                   goubus.Bool  `json:"up"`
-	Pending              goubus.Bool  `json:"pending"`
-	Available            goubus.Bool  `json:"available"`
-	Autostart            goubus.Bool  `json:"autostart"`
-	Dynamic              goubus.Bool  `json:"dynamic"`
-	Delegation           goubus.Bool  `json:"delegation"`
+	// IPv6Prefix lists IPv6 prefixes associated with the interface.
+	IPv6Prefix []IPv6Prefix `json:"ipv6-prefix"`
+	// Neighbors lists IPv6 neighbor entries.
+	Neighbors []Neighbor `json:"neighbors"`
+	// IPv6Address lists the interface's IPv6 addresses.
+	IPv6Address []Address `json:"ipv6-address"`
+	// Metric is the interface route metric.
+	Metric int `json:"metric"`
+	// DNSMetric is the interface DNS route metric.
+	DNSMetric int `json:"dns_metric"`
+	// Uptime is the interface uptime in seconds.
+	Uptime int `json:"uptime"`
+	// Up reports whether the interface is up.
+	Up goubus.Bool `json:"up"`
+	// Pending reports whether an interface operation is pending.
+	Pending goubus.Bool `json:"pending"`
+	// Available reports whether the interface is available.
+	Available goubus.Bool `json:"available"`
+	// Autostart reports whether the interface starts automatically.
+	Autostart goubus.Bool `json:"autostart"`
+	// Dynamic reports whether the interface was created dynamically.
+	Dynamic goubus.Bool `json:"dynamic"`
+	// Delegation reports whether IPv6 prefix delegation is enabled.
+	Delegation goubus.Bool `json:"delegation"`
 }
 
 // Address represents an IP address and its prefix mask.
@@ -108,18 +134,30 @@ type Data struct{}
 
 // Device represents a network device status.
 type Device struct {
-	FlowControl            *DeviceFlowControl `json:"flow-control,omitempty"`
-	Speed                  string             `json:"speed"`
-	Type                   string             `json:"type"`
-	MacAddr                string             `json:"macaddr"`
-	Devtype                string             `json:"devtype"`
-	LinkAdvertising        []string           `json:"link-advertising"`
-	LinkPartnerAdvertising []string           `json:"link-partner-advertising"`
-	LinkSupported          []string           `json:"link-supported"`
-	Statistics             DeviceStatistic    `json:"statistics"`
-	MTU                    int                `json:"mtu"`
-	Up                     goubus.Bool        `json:"up"`
-	Carrier                goubus.Bool        `json:"carrier"`
+	// FlowControl contains Ethernet flow-control settings.
+	FlowControl *DeviceFlowControl `json:"flow-control,omitempty"`
+	// Speed is the link speed.
+	Speed string `json:"speed"`
+	// Type is the device type.
+	Type string `json:"type"`
+	// MacAddr is the device hardware address.
+	MacAddr string `json:"macaddr"`
+	// Devtype is the device class.
+	Devtype string `json:"devtype"`
+	// LinkAdvertising lists advertised link modes.
+	LinkAdvertising []string `json:"link-advertising"`
+	// LinkPartnerAdvertising lists the link partner's advertised modes.
+	LinkPartnerAdvertising []string `json:"link-partner-advertising"`
+	// LinkSupported lists supported link modes.
+	LinkSupported []string `json:"link-supported"`
+	// Statistics contains device traffic counters.
+	Statistics DeviceStatistic `json:"statistics"`
+	// MTU is the maximum transmission unit.
+	MTU int `json:"mtu"`
+	// Up reports whether the device is up.
+	Up goubus.Bool `json:"up"`
+	// Carrier reports whether the device has a carrier signal.
+	Carrier goubus.Bool `json:"carrier"`
 }
 
 // DeviceStatistic contains device traffic counters.
