@@ -106,13 +106,13 @@ func probeAllTransports(cfg waitConfig, tlsHTTPClient *http.Client) error {
 		return fmt.Errorf("socket: %w", err)
 	}
 
-	httpCli, err := goubus.NewRpcClient(ctx, cfg.httpURL, cfg.user, cfg.password)
+	httpCli, err := goubus.NewRPCClient(ctx, cfg.httpURL, cfg.user, cfg.password)
 	if err != nil {
 		return fmt.Errorf("http rpc: %w", err)
 	}
 	_ = httpCli.Close()
 
-	httpsCli, err := goubus.NewRpcClient(
+	httpsCli, err := goubus.NewRPCClient(
 		ctx,
 		cfg.httpsURL,
 		cfg.user,

@@ -150,8 +150,8 @@ type Device struct {
 	Speed string `json:"speed"`
 	// Type is the device type.
 	Type string `json:"type"`
-	// MacAddr is the device hardware address.
-	MacAddr string `json:"macaddr"`
+	// MACAddr is the device hardware address.
+	MACAddr string `json:"macaddr"`
 	// Devtype is the device class.
 	Devtype string `json:"devtype"`
 	// Conduit is the network device carrying this device's traffic.
@@ -236,8 +236,8 @@ type RadioInterface struct {
 	Config map[string]any `json:"config"`
 	// Section is the UCI section name.
 	Section string `json:"section"`
-	// Ifname is the operating system interface name.
-	Ifname string `json:"ifname"`
+	// IfName is the operating system interface name.
+	IfName string `json:"ifname"`
 }
 
 // HostRouteRequest contains parameters for adding a host route.

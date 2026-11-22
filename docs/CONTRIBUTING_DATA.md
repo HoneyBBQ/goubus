@@ -27,7 +27,7 @@ curl --fail --silent --show-error \
   https://router.example/ubus > dhcp_list.json
 ```
 
-Keep the full JSON-RPC envelope when reporting an `RpcClient` parser bug, or extract `.result` for a signature-only fixture. When testing over the local socket only, `ubus -v list` text is sufficient.
+Keep the full JSON-RPC envelope when reporting an `RPCClient` parser bug, or extract `.result` for a signature-only fixture. When testing over the local socket only, `ubus -v list` text is sufficient.
 
 ## Add a regression test
 

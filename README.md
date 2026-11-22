@@ -65,7 +65,7 @@ func main() {
 		err  error
 	)
 	if host := os.Getenv("UBUS_URL"); host != "" {
-		conn, err = goubus.NewRpcClient(ctx, host, os.Getenv("UBUS_USER"), os.Getenv("UBUS_PASSWORD"))
+		conn, err = goubus.NewRPCClient(ctx, host, os.Getenv("UBUS_USER"), os.Getenv("UBUS_PASSWORD"))
 	} else {
 		conn, err = goubus.NewSocketClient(ctx, "")
 	}
@@ -97,17 +97,17 @@ if err != nil {
 defer conn.Close()
 ```
 
-When your program runs on another machine, connect to `uhttpd-mod-ubus` over HTTP or HTTPS. If the URL has no path, `NewRpcClient` uses `/ubus`, logs in through `session.login`, refreshes the `rpcd` session when its timeout expires, and calls `session.destroy` on `Close`:
+When your program runs on another machine, connect to `uhttpd-mod-ubus` over HTTP or HTTPS. If the URL has no path, `NewRPCClient` uses `/ubus`, logs in through `session.login`, refreshes the `rpcd` session when its idle timeout expires, and calls `session.destroy` on `Close`. `Call` returns `ErrPermissionDenied` without retrying; call `Authenticate(ctx)` to force a fresh login.
 
 ```go
-conn, err := goubus.NewRpcClient(ctx, "https://192.168.1.1", "root", os.Getenv("UBUS_PASSWORD"))
+conn, err := goubus.NewRPCClient(ctx, "https://192.168.1.1", "root", os.Getenv("UBUS_PASSWORD"))
 if err != nil {
 	return err
 }
 defer conn.Close()
 ```
 
-Both `*SocketClient` and `*RpcClient` implement `goubus.Transport` (`Caller` plus `Close`). Service clients accept `goubus.Caller` and never close the underlying transport.
+Both `*SocketClient` and `*RPCClient` implement `goubus.Transport` (`Caller` plus `Close`). Service clients accept `goubus.Caller` and never close the underlying transport.
 
 ### Typed service packages (`services/<pkg>`)
 
@@ -194,7 +194,7 @@ fmt.Println(objects["dhcp"]["add_lease"]) // map[duid:array ip:string ...]
 
 | Import | ubus objects | What it covers |
 | --- | --- | --- |
-| `github.com/honeybbq/goubus/v2` | any | `SocketClient`, `RpcClient`, `Caller`, `Call[T]`, `List`, `*CallError`, status sentinels, `Bool`, `StringOrSlice`, `StringInt`, `UnixTime` |
+| `github.com/honeybbq/goubus/v2` | any | `SocketClient`, `RPCClient`, `Caller`, `Call[T]`, `List`, `*CallError`, status sentinels, `Bool`, `StringOrSlice`, `StringInt`, `UnixTime` |
 | `github.com/honeybbq/goubus/v2/services/container` | `container` | Procd container instances, state, features, and console |
 | `github.com/honeybbq/goubus/v2/services/dhcp` | `dhcp` | `odhcpd` / `dnsmasq` IPv4 and IPv6 leases, IPv6 RA prefixes, and `add_lease` |
 | `github.com/honeybbq/goubus/v2/services/file` | `file` | File read/write, directory listings, `stat`/`lstat`, MD5, and command execution |
@@ -215,7 +215,7 @@ fmt.Println(objects["dhcp"]["add_lease"]) // map[duid:array ip:string ...]
 
 The full API reference is on [pkg.go.dev](https://pkg.go.dev/github.com/honeybbq/goubus/v2).
 
-- [Architecture](docs/architecture.md): package tree, dependency rules, and how `RpcClient` and `SocketClient` execute calls on the wire.
+- [Architecture](docs/architecture.md): package tree, dependency rules, and how `RPCClient` and `SocketClient` execute calls on the wire.
 - [Design](docs/design.md): ownership (`Caller` vs `Transport`), middleware, `*CallError` mapping, `List` normalization, OpenWrt 24.10/25.12 quirks, credential redaction, and `api/*.txt` snapshots.
 - [Examples](examples/): standalone programs for `system`, `network`, `uci`, `file`, `service`, `session`, and transport benchmarks.
 - [Changelog](CHANGELOG.md): release history and the migration guide from `v2.0.0-alpha1` / `v2.0.0-alpha2`.

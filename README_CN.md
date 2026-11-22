@@ -26,7 +26,7 @@
 
 ## 核心特性
 
-- **本地 Socket 与远程 RPC 共用同一套调用接口。** 程序直接跑在路由器上时，用 `NewSocketClient` 连 `/tmp/run/ubus/ubus.sock` 与 `ubusd` 通信，内置纯 Go 的 `blobmsg` 二进制编解码，不依赖 CGO 或第三方库，可直接交叉编译到 MIPS/ARM 路由固件；从外部机器远程管理路由器时，用 `NewRpcClient` 走 `uhttpd-mod-ubus` 的 HTTP/HTTPS JSON-RPC 接口。
+- **本地 Socket 与远程 RPC 共用同一套调用接口。** 程序直接跑在路由器上时，用 `NewSocketClient` 连 `/tmp/run/ubus/ubus.sock` 与 `ubusd` 通信，内置纯 Go 的 `blobmsg` 二进制编解码，不依赖 CGO 或第三方库，可直接交叉编译到 MIPS/ARM 路由固件；从外部机器远程管理路由器时，用 `NewRPCClient` 走 `uhttpd-mod-ubus` 的 HTTP/HTTPS JSON-RPC 接口。
 - **15 个独立的类型化服务子包。** 每个 ubus 领域对应独立的 `services/<pkg>` 子包且互不依赖，编译进路由器 Flash 的小工具按需引入，未使用的服务不会打进二进制。
 - **运行时抹平跨版本固件差异。** OpenWrt 24.10 的 `luci` 提供 `getLocaltime`，25.12 改为 `getUnixtime`；`luci.Client.Time` 会自动探测并缓存可用方法，也可通过 `luci.WithTimeMethod` 直接指定。`dhcp.Client.AddLease` 会查询 `ubus list` 签名来决定 `duid` 传单元素数组还是字符串。`rpcd` 与 `ubusd` 常见的 JSON 类型漂移（布尔值写成 `"1"`/`0`、单字符串与数组混用、数字带引号、时间戳混用秒数与 RFC3339）分别由 `Bool`、`StringOrSlice`、`StringInt`、`UnixTime` 处理。
 - **未封装的第三方插件一行调用。** 遇到 `services/` 尚未内置的 OpenWrt 插件（如 `mwan3`、`banip` 或自定义 `rpcd` 脚本），直接在当前连接上调用 `goubus.Call[T]` 即可按结构体解码返回值。
@@ -65,7 +65,7 @@ func main() {
 		err  error
 	)
 	if host := os.Getenv("UBUS_URL"); host != "" {
-		conn, err = goubus.NewRpcClient(ctx, host, os.Getenv("UBUS_USER"), os.Getenv("UBUS_PASSWORD"))
+		conn, err = goubus.NewRPCClient(ctx, host, os.Getenv("UBUS_USER"), os.Getenv("UBUS_PASSWORD"))
 	} else {
 		conn, err = goubus.NewSocketClient(ctx, "")
 	}
@@ -97,17 +97,17 @@ if err != nil {
 defer conn.Close()
 ```
 
-程序运行在其他主机时，通过 HTTP 或 HTTPS 连接路由器的 `uhttpd-mod-ubus`。地址未写路径时默认请求 `/ubus`；`NewRpcClient` 会在初始化时调用 `session.login` 获取令牌，会话过期后自动续期，并在 `Close` 时调用 `session.destroy` 销毁会话：
+程序运行在其他主机时，通过 HTTP 或 HTTPS 连接路由器的 `uhttpd-mod-ubus`。地址未写路径时默认请求 `/ubus`；`NewRPCClient` 会在初始化时调用 `session.login` 获取令牌，在 rpcd 空闲超时后重新登录，并在 `Close` 时调用 `session.destroy`。`Call` 遇到 `ErrPermissionDenied` 会直接返回，不会重发；需要强制重新登录时调用 `Authenticate(ctx)`。
 
 ```go
-conn, err := goubus.NewRpcClient(ctx, "https://192.168.1.1", "root", os.Getenv("UBUS_PASSWORD"))
+conn, err := goubus.NewRPCClient(ctx, "https://192.168.1.1", "root", os.Getenv("UBUS_PASSWORD"))
 if err != nil {
 	return err
 }
 defer conn.Close()
 ```
 
-`*SocketClient` 与 `*RpcClient` 均实现 `goubus.Transport`（即 `Caller` 加 `Close`）。各业务客户端只接收 `goubus.Caller`，不接管也不关闭底层连接。
+`*SocketClient` 与 `*RPCClient` 均实现 `goubus.Transport`（即 `Caller` 加 `Close`）。各业务客户端只接收 `goubus.Caller`，不接管也不关闭底层连接。
 
 ### 使用类型化服务包（`services/<pkg>`）
 
@@ -194,7 +194,7 @@ fmt.Println(objects["dhcp"]["add_lease"]) // map[duid:array ip:string ...]
 
 | 导入路径 | 对应 ubus 对象 | 功能范围 |
 | --- | --- | --- |
-| `github.com/honeybbq/goubus/v2` | 任意对象 | `SocketClient`、`RpcClient`、`Caller`、`Call[T]`、`List`、`*CallError`、状态哨兵错误，以及 `Bool`、`StringOrSlice`、`StringInt`、`UnixTime` |
+| `github.com/honeybbq/goubus/v2` | 任意对象 | `SocketClient`、`RPCClient`、`Caller`、`Call[T]`、`List`、`*CallError`、状态哨兵错误，以及 `Bool`、`StringOrSlice`、`StringInt`、`UnixTime` |
 | `github.com/honeybbq/goubus/v2/services/container` | `container` | `procd` 容器配置、运行状态、特性查询与控制台操作 |
 | `github.com/honeybbq/goubus/v2/services/dhcp` | `dhcp` | `odhcpd` / `dnsmasq` 的 IPv4/IPv6 租约、IPv6 RA 前缀与 `add_lease` 静态租约下发 |
 | `github.com/honeybbq/goubus/v2/services/file` | `file` | 文件读写、目录列举、`stat`/`lstat`、MD5 计算与命令执行 |
@@ -215,7 +215,7 @@ fmt.Println(objects["dhcp"]["add_lease"]) // map[duid:array ip:string ...]
 
 完整的公开类型与函数签名见 [pkg.go.dev](https://pkg.go.dev/github.com/honeybbq/goubus/v2)。
 
-- [架构说明](docs/architecture.md)：目录分层、包依赖方向，以及 `RpcClient` 和 `SocketClient` 的底层收发流程。
+- [架构说明](docs/architecture.md)：目录分层、包依赖方向，以及 `RPCClient` 和 `SocketClient` 的底层收发流程。
 - [设计约定](docs/design.md)：连接所有权、中间件、`*CallError` 错误映射、`List` 类型归一、OpenWrt 24.10/25.12 兼容细节、凭据脱敏边界与 `api/*.txt` 快照校验。
 - [示例程序](examples/)：`system`、`network`、`uci`、`file`、`service`、`session` 的可运行代码与传输层基准测试。
 - [变更日志](CHANGELOG.md)：版本记录，以及从 `v2.0.0-alpha1` / `v2.0.0-alpha2` 迁移的对照表。

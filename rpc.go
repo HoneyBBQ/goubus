@@ -34,8 +34,8 @@ const (
 	ubusEndpointPath   = "/ubus"
 )
 
-// RpcClient calls ubus through the JSON-RPC endpoint and manages its session.
-type RpcClient struct {
+// RPCClient calls ubus through the JSON-RPC endpoint and manages its session.
+type RPCClient struct {
 	logger      *slog.Logger
 	httpClient  *http.Client
 	host        string
@@ -48,23 +48,23 @@ type RpcClient struct {
 	closed      bool
 }
 
-var _ Transport = (*RpcClient)(nil)
-var _ Lister = (*RpcClient)(nil)
+var _ Transport = (*RPCClient)(nil)
+var _ Lister = (*RPCClient)(nil)
 
-type rpcOptionFunc func(*RpcClient)
+type rpcOptionFunc func(*RPCClient)
 
-func (f rpcOptionFunc) apply(client *RpcClient) {
+func (f rpcOptionFunc) apply(client *RPCClient) {
 	f(client)
 }
 
-// RpcOption configures an RpcClient.
-type RpcOption interface {
-	apply(client *RpcClient)
+// RPCOption configures an RPCClient.
+type RPCOption interface {
+	apply(client *RPCClient)
 }
 
-// WithRpcLogger configures the RPC client's logger.
-func WithRpcLogger(logger *slog.Logger) RpcOption {
-	return rpcOptionFunc(func(client *RpcClient) {
+// WithRPCLogger configures the RPC client's logger.
+func WithRPCLogger(logger *slog.Logger) RPCOption {
+	return rpcOptionFunc(func(client *RPCClient) {
 		if logger == nil {
 			client.logger = logging.Discard()
 
@@ -74,23 +74,23 @@ func WithRpcLogger(logger *slog.Logger) RpcOption {
 	})
 }
 
-// WithHTTPClient replaces the HTTP client used by RpcClient.
-func WithHTTPClient(client *http.Client) RpcOption {
-	return rpcOptionFunc(func(rpcClient *RpcClient) {
+// WithHTTPClient replaces the HTTP client used by RPCClient.
+func WithHTTPClient(client *http.Client) RPCOption {
+	return rpcOptionFunc(func(rpcClient *RPCClient) {
 		rpcClient.httpClient = client
 	})
 }
 
-// WithRpcEndpoint sets the path used for JSON-RPC requests.
-func WithRpcEndpoint(path string) RpcOption {
-	return rpcOptionFunc(func(client *RpcClient) {
+// WithRPCEndpoint sets the path used for JSON-RPC requests.
+func WithRPCEndpoint(path string) RPCOption {
+	return rpcOptionFunc(func(client *RPCClient) {
 		client.endpoint = path
 	})
 }
 
-// NewRpcClient creates an authenticated RPC client.
-func NewRpcClient(ctx context.Context, host, username, password string, opts ...RpcOption) (*RpcClient, error) {
-	client := &RpcClient{
+// NewRPCClient creates an authenticated RPC client.
+func NewRPCClient(ctx context.Context, host, username, password string, opts ...RPCOption) (*RPCClient, error) {
+	client := &RPCClient{
 		host:       host,
 		username:   username,
 		password:   password,
@@ -113,7 +113,7 @@ func NewRpcClient(ctx context.Context, host, username, password string, opts ...
 	}
 	client.endpoint = endpoint
 
-	err = client.authenticate(ctx)
+	err = client.Authenticate(ctx)
 	if err != nil {
 		return nil, errs.Wrapf(err, "failed to authenticate")
 	}
@@ -144,7 +144,7 @@ func normalizeRPCEndpoint(host, endpointPath string) (string, error) {
 }
 
 // Call invokes one method using the current ubus session.
-func (client *RpcClient) Call(ctx context.Context, service, method string, data any) (Result, error) {
+func (client *RPCClient) Call(ctx context.Context, service, method string, data any) (Result, error) {
 	client.rwMutex.RLock()
 	closed := client.closed
 	client.rwMutex.RUnlock()
@@ -157,11 +157,33 @@ func (client *RpcClient) Call(ctx context.Context, service, method string, data 
 		return nil, err
 	}
 
-	return client.rawCall(ctx, sessionID, service, method, data)
+	result, err := client.rawCall(ctx, sessionID, service, method, data)
+	if err != nil {
+		return nil, err
+	}
+
+	client.rwMutex.Lock()
+	if !client.closed && client.sessionData.UbusRPCSession == sessionID && client.sessionData.Timeout > 0 {
+		client.sessionData.ExpireTime = time.Now().Add(time.Duration(client.sessionData.Timeout) * time.Second)
+	}
+	client.rwMutex.Unlock()
+
+	return result, nil
+}
+
+// Authenticate forces a session.login request and replaces the current session.
+func (client *RPCClient) Authenticate(ctx context.Context) error {
+	client.rwMutex.Lock()
+	defer client.rwMutex.Unlock()
+	if client.closed {
+		return ErrClosed
+	}
+
+	return client.authenticateLocked(ctx)
 }
 
 // Close destroys the current session and clears its credentials.
-func (client *RpcClient) Close() error {
+func (client *RPCClient) Close() error {
 	client.rwMutex.Lock()
 	defer client.rwMutex.Unlock()
 
@@ -182,21 +204,21 @@ func (client *RpcClient) Close() error {
 }
 
 // String formats the client without exposing its password or session ID.
-func (client *RpcClient) String() string {
+func (client *RPCClient) String() string {
 	client.rwMutex.RLock()
 	defer client.rwMutex.RUnlock()
 
-	return fmt.Sprintf("RpcClient{host:%q, username:%q, password:%q, session:%q}",
+	return fmt.Sprintf("RPCClient{host:%q, username:%q, password:%q, session:%q}",
 		client.host, client.username, "<redacted>", "<redacted>")
 }
 
 // GoString formats the client for Go-syntax formatting without exposing secrets.
-func (client *RpcClient) GoString() string {
+func (client *RPCClient) GoString() string {
 	return client.String()
 }
 
 // LogValue returns structured client attributes with credentials redacted.
-func (client *RpcClient) LogValue() slog.Value {
+func (client *RPCClient) LogValue() slog.Value {
 	client.rwMutex.RLock()
 	defer client.rwMutex.RUnlock()
 
@@ -212,7 +234,7 @@ func (client *RpcClient) LogValue() slog.Value {
 	)
 }
 
-func (client *RpcClient) getValidSessionID(ctx context.Context) (string, error) {
+func (client *RPCClient) getValidSessionID(ctx context.Context) (string, error) {
 	client.rwMutex.RLock()
 	if client.closed {
 		client.rwMutex.RUnlock()
@@ -227,7 +249,7 @@ func (client *RpcClient) getValidSessionID(ctx context.Context) (string, error) 
 	}
 	client.rwMutex.RUnlock()
 
-	err := client.authenticate(ctx)
+	err := client.ensureAuthenticated(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -244,7 +266,7 @@ func (client *RpcClient) getValidSessionID(ctx context.Context) (string, error) 
 	return sessionID, nil
 }
 
-func (client *RpcClient) authenticate(ctx context.Context) error {
+func (client *RPCClient) ensureAuthenticated(ctx context.Context) error {
 	client.rwMutex.Lock()
 	defer client.rwMutex.Unlock()
 	if client.closed {
@@ -254,6 +276,10 @@ func (client *RpcClient) authenticate(ctx context.Context) error {
 		return nil
 	}
 
+	return client.authenticateLocked(ctx)
+}
+
+func (client *RPCClient) authenticateLocked(ctx context.Context) error {
 	loginData := map[string]string{"username": client.username, "password": client.password}
 	result, err := client.rawCall(ctx, ubusAuthSessionID, "session", "login", loginData)
 	if err != nil {
@@ -275,7 +301,7 @@ func (client *RpcClient) authenticate(ctx context.Context) error {
 	return nil
 }
 
-func (client *RpcClient) rawCall(ctx context.Context, sessionID, service, method string, data any) (Result, error) {
+func (client *RPCClient) rawCall(ctx context.Context, sessionID, service, method string, data any) (Result, error) {
 	payload, err := client.callRequest(sessionID, service, method, data)
 	if err != nil {
 		return nil, err
@@ -294,7 +320,7 @@ func (client *RpcClient) rawCall(ctx context.Context, sessionID, service, method
 	return client.parseUbusResponse(body, service, method)
 }
 
-func (client *RpcClient) callRequest(sessionID, service, method string, data any) ([]byte, error) {
+func (client *RPCClient) callRequest(sessionID, service, method string, data any) ([]byte, error) {
 	var rawData json.RawMessage
 	switch value := data.(type) {
 	case nil:
@@ -353,7 +379,7 @@ func hoistRPCSessionID(sessionID string, rawData json.RawMessage) (string, json.
 	return sessionID, cleaned, nil
 }
 
-func (client *RpcClient) requestBody(method string, params any) ([]byte, error) {
+func (client *RPCClient) requestBody(method string, params any) ([]byte, error) {
 	id := client.id.Add(1)
 	payload := map[string]any{
 		"jsonrpc": jsonRPCVersion,
@@ -369,7 +395,7 @@ func (client *RpcClient) requestBody(method string, params any) ([]byte, error) 
 	return body, nil
 }
 
-func (client *RpcClient) post(ctx context.Context, payload []byte, redactResponse bool) ([]byte, error) {
+func (client *RPCClient) post(ctx context.Context, payload []byte, redactResponse bool) ([]byte, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, client.endpoint, strings.NewReader(string(payload)))
 	if err != nil {
 		return nil, errs.Wrapf(ErrConnectionFailed, "create request: %v", err)
@@ -411,7 +437,7 @@ func (client *RpcClient) post(ctx context.Context, payload []byte, redactRespons
 	return body, nil
 }
 
-func (client *RpcClient) parseUbusResponse(body []byte, service, method string) (Result, error) {
+func (client *RPCClient) parseUbusResponse(body []byte, service, method string) (Result, error) {
 	var response rpc.UbusResponse
 	err := json.Unmarshal(body, &response)
 	if err != nil {
@@ -468,7 +494,7 @@ func mapJSONRPCError(code int) error {
 	}
 }
 
-func (client *RpcClient) isClosed() bool {
+func (client *RPCClient) isClosed() bool {
 	client.rwMutex.RLock()
 	defer client.rwMutex.RUnlock()
 

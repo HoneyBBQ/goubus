@@ -2,7 +2,7 @@
 # package wireless (import "github.com/honeybbq/goubus/v2/services/wireless")
 func New(caller goubus.Caller) *Client
 type Assoc struct
-field Assoc.Mac string "json:\"mac\""
+field Assoc.MAC string "json:\"mac\""
 field Assoc.Rx AssocRate "json:\"rx\""
 field Assoc.Tx AssocRate "json:\"tx\""
 field Assoc.Signal int "json:\"signal\""

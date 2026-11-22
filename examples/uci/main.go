@@ -58,14 +58,14 @@ func main() {
 
 func initTransport(ctx context.Context, cfg connectionConfig, verbose bool) (goubus.Transport, string) {
 	if cfg.Host != "" && cfg.Username != "" && cfg.Password != "" {
-		var opts []goubus.RpcOption
+		var opts []goubus.RPCOption
 
 		if verbose {
 			handler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})
-			opts = append(opts, goubus.WithRpcLogger(slog.New(handler)))
+			opts = append(opts, goubus.WithRPCLogger(slog.New(handler)))
 		}
 
-		rpcClient, err := goubus.NewRpcClient(ctx, cfg.Host, cfg.Username, cfg.Password, opts...)
+		rpcClient, err := goubus.NewRPCClient(ctx, cfg.Host, cfg.Username, cfg.Password, opts...)
 		if err != nil {
 			slog.Error("failed to create RPC client", "error", err)
 			os.Exit(1)

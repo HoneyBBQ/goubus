@@ -137,8 +137,8 @@ type Instance struct {
 	Jail *Jail `json:"jail"`
 	// Command is the process command line.
 	Command []string `json:"command"`
-	// Pid is the process identifier.
-	Pid int `json:"pid"`
+	// PID is the process identifier.
+	PID int `json:"pid"`
 	// ExitCode is the process exit code.
 	ExitCode int `json:"exit_code"`
 	// TermTimeout is the process termination timeout in seconds.
@@ -161,12 +161,6 @@ type Respawn struct {
 type Jail struct {
 	// Name is the jail name.
 	Name string `json:"name"`
-}
-
-// Limits contains service resource limits.
-type Limits struct {
-	// NoFile is the open file descriptor limit.
-	NoFile string `json:"nofile,omitempty"`
 }
 
 // SetRequest contains parameters for configuring a service.

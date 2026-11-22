@@ -84,8 +84,8 @@ func leaseParams(request AddLeaseRequest) map[string]any {
 	if request.IP != "" {
 		params["ip"] = request.IP
 	}
-	if request.Mac != "" {
-		params["mac"] = []string{request.Mac}
+	if request.MAC != "" {
+		params["mac"] = []string{request.MAC}
 	}
 	if request.HostID != "" {
 		params["hostid"] = request.HostID

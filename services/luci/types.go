@@ -302,8 +302,8 @@ type BoardInterface struct {
 	Protocol string `json:"protocol"`
 	// IPAddr is the configured IPv4 address.
 	IPAddr string `json:"ipaddr,omitempty"`
-	// MacAddr is the interface hardware address.
-	MacAddr string `json:"macaddr"`
+	// MACAddr is the interface hardware address.
+	MACAddr string `json:"macaddr"`
 	// Ports lists switch ports assigned to the interface.
 	Ports []string `json:"ports,omitempty"`
 }

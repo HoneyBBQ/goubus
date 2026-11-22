@@ -20,7 +20,7 @@ type Device struct
 field Device.FlowControl *DeviceFlowControl "json:\"flow-control,omitempty\""
 field Device.Speed string "json:\"speed\""
 field Device.Type string "json:\"type\""
-field Device.MacAddr string "json:\"macaddr\""
+field Device.MACAddr string "json:\"macaddr\""
 field Device.Devtype string "json:\"devtype\""
 field Device.Conduit string "json:\"conduit\""
 field Device.BridgeMembers []string "json:\"bridge-members,omitempty\""
@@ -138,7 +138,7 @@ field NetnsUpDownRequest.Start goubus.Bool "json:\"start\""
 type RadioInterface struct
 field RadioInterface.Config map[string]any "json:\"config\""
 field RadioInterface.Section string "json:\"section\""
-field RadioInterface.Ifname string "json:\"ifname\""
+field RadioInterface.IfName string "json:\"ifname\""
 type RadioStatus struct
 field RadioStatus.Config map[string]any "json:\"config\""
 field RadioStatus.Interfaces []RadioInterface "json:\"interfaces\""

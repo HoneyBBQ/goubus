@@ -20,14 +20,14 @@ type rpcListTestState struct {
 	calls  int
 }
 
-func TestRpcClientList(t *testing.T) {
+func TestRPCClientList(t *testing.T) {
 	state := &rpcListTestState{}
 	client := newRPCListTestClient(t, state)
 	checkRPCListPatterns(t, client, state)
 	checkRPCListInvalidPattern(t, client, state)
 }
 
-func newRPCListTestClient(t *testing.T, state *rpcListTestState) *goubus.RpcClient {
+func newRPCListTestClient(t *testing.T, state *rpcListTestState) *goubus.RPCClient {
 	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		body := decodeRPCRequestBody(request)
@@ -53,7 +53,7 @@ func newRPCListTestClient(t *testing.T, state *rpcListTestState) *goubus.RpcClie
 	}))
 	t.Cleanup(server.Close)
 
-	client, err := goubus.NewRpcClient(context.Background(), server.URL, "user", "password")
+	client, err := goubus.NewRPCClient(context.Background(), server.URL, "user", "password")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func newRPCListTestClient(t *testing.T, state *rpcListTestState) *goubus.RpcClie
 	return client
 }
 
-func checkRPCListPatterns(t *testing.T, client *goubus.RpcClient, state *rpcListTestState) {
+func checkRPCListPatterns(t *testing.T, client *goubus.RPCClient, state *rpcListTestState) {
 	t.Helper()
 	objects, err := client.List(context.Background())
 	if err != nil {
@@ -95,7 +95,7 @@ func checkRPCListPatterns(t *testing.T, client *goubus.RpcClient, state *rpcList
 	}
 }
 
-func checkRPCListInvalidPattern(t *testing.T, client *goubus.RpcClient, state *rpcListTestState) {
+func checkRPCListInvalidPattern(t *testing.T, client *goubus.RPCClient, state *rpcListTestState) {
 	t.Helper()
 	before := state.calls
 	_, err := client.List(context.Background(), "system", "")
@@ -107,7 +107,7 @@ func checkRPCListInvalidPattern(t *testing.T, client *goubus.RpcClient, state *r
 	}
 }
 
-func TestRpcClientListReturnsClosed(t *testing.T) {
+func TestRPCClientListReturnsClosed(t *testing.T) {
 	state := &rpcListTestState{}
 	client := newRPCListTestClient(t, state)
 	closeErr := client.Close()
@@ -125,7 +125,7 @@ func TestRpcClientListReturnsClosed(t *testing.T) {
 	}
 }
 
-func TestRpcClientListEmptyResultIsNonNil(t *testing.T) {
+func TestRPCClientListEmptyResultIsNonNil(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		body := decodeRPCRequestBody(request)
 		if body["method"] == "call" {
@@ -136,7 +136,7 @@ func TestRpcClientListEmptyResultIsNonNil(t *testing.T) {
 		_, _ = fmt.Fprint(writer, `{"jsonrpc":"2.0","result":{}}`)
 	}))
 	defer server.Close()
-	client, err := goubus.NewRpcClient(context.Background(), server.URL, "u", "p")
+	client, err := goubus.NewRPCClient(context.Background(), server.URL, "u", "p")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +165,7 @@ func TestArgTypeUnmarshalJSON(t *testing.T) {
 	}
 }
 
-func TestRpcClientRedactsCredentials(t *testing.T) {
+func TestRPCClientRedactsCredentials(t *testing.T) {
 	var logs strings.Builder
 	logger := slog.New(slog.NewTextHandler(&logs, nil))
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
@@ -173,8 +173,8 @@ func TestRpcClientRedactsCredentials(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, err := goubus.NewRpcClient(
-		context.Background(), server.URL, "user", "password-secret", goubus.WithRpcLogger(logger),
+	client, err := goubus.NewRPCClient(
+		context.Background(), server.URL, "user", "password-secret", goubus.WithRPCLogger(logger),
 	)
 	if err != nil {
 		t.Fatal(err)

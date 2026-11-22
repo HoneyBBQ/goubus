@@ -27,7 +27,7 @@ curl --fail --silent --show-error \
   https://router.example/ubus > dhcp_list.json
 ```
 
-排查 `RpcClient` 协议层解析问题时保留完整 JSON-RPC 报文；仅验证参数签名时提取其中的 `result` 字段即可。只走本地 Unix Socket 的环境直接贴 `ubus -v list` 文本就够用。
+排查 `RPCClient` 协议层解析问题时保留完整 JSON-RPC 报文；仅验证参数签名时提取其中的 `result` 字段即可。只走本地 Unix Socket 的环境直接贴 `ubus -v list` 文本就够用。
 
 ## 编写回归测试
 

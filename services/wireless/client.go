@@ -192,8 +192,8 @@ type ScanResult struct {
 
 // Assoc contains information about an associated wireless station.
 type Assoc struct {
-	// Mac is the station MAC address.
-	Mac string `json:"mac"`
+	// MAC is the station MAC address.
+	MAC string `json:"mac"`
 	// Rx contains receive rate information.
 	Rx AssocRate `json:"rx"`
 	// Tx contains transmit rate information.

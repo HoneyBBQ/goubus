@@ -16,7 +16,7 @@ type BoardInterface struct
 field BoardInterface.Device string "json:\"device\""
 field BoardInterface.Protocol string "json:\"protocol\""
 field BoardInterface.IPAddr string "json:\"ipaddr,omitempty\""
-field BoardInterface.MacAddr string "json:\"macaddr\""
+field BoardInterface.MACAddr string "json:\"macaddr\""
 field BoardInterface.Ports []string "json:\"ports,omitempty\""
 type BoardJSON struct
 field BoardJSON.WLAN map[string]BoardWLAN "json:\"wlan\""

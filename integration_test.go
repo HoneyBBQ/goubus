@@ -132,9 +132,9 @@ func liveTransports(env liveEnv) []liveTransport {
 			name: "rpc-http",
 			open: func(t *testing.T) goubus.Transport {
 				t.Helper()
-				cli, err := goubus.NewRpcClient(t.Context(), env.httpURL, env.user, env.password)
+				cli, err := goubus.NewRPCClient(t.Context(), env.httpURL, env.user, env.password)
 				if err != nil {
-					t.Fatalf("NewRpcClient(HTTP %q): %v", env.httpURL, err)
+					t.Fatalf("NewRPCClient(HTTP %q): %v", env.httpURL, err)
 				}
 				t.Cleanup(func() { _ = cli.Close() })
 
@@ -145,7 +145,7 @@ func liveTransports(env liveEnv) []liveTransport {
 			name: "rpc-https",
 			open: func(t *testing.T) goubus.Transport {
 				t.Helper()
-				cli, err := goubus.NewRpcClient(
+				cli, err := goubus.NewRPCClient(
 					t.Context(),
 					env.httpsURL,
 					env.user,
@@ -153,7 +153,7 @@ func liveTransports(env liveEnv) []liveTransport {
 					goubus.WithHTTPClient(env.tlsHTTPClient),
 				)
 				if err != nil {
-					t.Fatalf("NewRpcClient(HTTPS %q): %v", env.httpsURL, err)
+					t.Fatalf("NewRPCClient(HTTPS %q): %v", env.httpsURL, err)
 				}
 				t.Cleanup(func() { _ = cli.Close() })
 
@@ -207,12 +207,12 @@ func TestLiveAuthAndErrorSemantics(t *testing.T) {
 	env := mustLoadLiveEnv(t)
 
 	t.Run("rpc-wrong-password", func(t *testing.T) {
-		_, err := goubus.NewRpcClient(t.Context(), env.httpURL, env.user, env.password+"-wrong")
+		_, err := goubus.NewRPCClient(t.Context(), env.httpURL, env.user, env.password+"-wrong")
 		if !errors.Is(err, goubus.ErrPermissionDenied) {
 			t.Fatalf("HTTP wrong password error = %v, want ErrPermissionDenied", err)
 		}
 
-		_, err = goubus.NewRpcClient(
+		_, err = goubus.NewRPCClient(
 			t.Context(),
 			env.httpsURL,
 			env.user,
@@ -225,7 +225,7 @@ func TestLiveAuthAndErrorSemantics(t *testing.T) {
 	})
 
 	t.Run("https-untrusted-ca-rejected", func(t *testing.T) {
-		_, err := goubus.NewRpcClient(t.Context(), env.httpsURL, env.user, env.password)
+		_, err := goubus.NewRPCClient(t.Context(), env.httpsURL, env.user, env.password)
 		if !errors.Is(err, goubus.ErrConnectionFailed) {
 			t.Fatalf("HTTPS without custom RootCAs error = %v, want ErrConnectionFailed", err)
 		}

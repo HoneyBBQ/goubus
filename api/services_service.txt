@@ -26,14 +26,12 @@ field Instance.Limits map[string]any "json:\"limits\""
 field Instance.Respawn *Respawn "json:\"respawn\""
 field Instance.Jail *Jail "json:\"jail\""
 field Instance.Command []string "json:\"command\""
-field Instance.Pid int "json:\"pid\""
+field Instance.PID int "json:\"pid\""
 field Instance.ExitCode int "json:\"exit_code\""
 field Instance.TermTimeout int "json:\"term_timeout\""
 field Instance.Running goubus.Bool "json:\"running\""
 type Jail struct
 field Jail.Name string "json:\"name\""
-type Limits struct
-field Limits.NoFile string "json:\"nofile,omitempty\""
 type Respawn struct
 field Respawn.Threshold int "json:\"threshold\""
 field Respawn.Timeout int "json:\"timeout\""

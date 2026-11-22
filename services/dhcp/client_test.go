@@ -147,7 +147,7 @@ func runDUIDFormatTest(t *testing.T, name string, signature goubus.ArgType, opti
 		})
 		caller := listCaller{Caller: base, signature: signature, onList: func() { lists++ }}
 		client := New(caller, option)
-		request := AddLeaseRequest{IP: "1.2.3.4", Mac: "aa", DUID: "duid"}
+		request := AddLeaseRequest{IP: "1.2.3.4", MAC: "aa", DUID: "duid"}
 		err := client.AddLease(context.Background(), request)
 		if err != nil {
 			t.Fatal(err)

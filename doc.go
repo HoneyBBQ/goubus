@@ -2,7 +2,7 @@
 // JSON-RPC.
 //
 // Open a connection with [NewSocketClient] on the router (talking to ubusd
-// over /tmp/run/ubus/ubus.sock in pure Go) or [NewRpcClient] from another host
+// over /tmp/run/ubus/ubus.sock in pure Go) or [NewRPCClient] from another host
 // (talking to uhttpd-mod-ubus and rpcd over HTTP or HTTPS). Both implement
 // [Transport], which combines [Caller] with Close.
 //

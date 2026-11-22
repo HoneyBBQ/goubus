@@ -21,7 +21,7 @@ func main() {
 	var err error
 
 	if host != "" {
-		caller, err = goubus.NewRpcClient(ctx, host, os.Getenv("OPENWRT_USERNAME"), os.Getenv("OPENWRT_PASSWORD"))
+		caller, err = goubus.NewRPCClient(ctx, host, os.Getenv("OPENWRT_USERNAME"), os.Getenv("OPENWRT_PASSWORD"))
 	} else {
 		caller, err = goubus.NewSocketClient(ctx, "")
 	}
@@ -53,7 +53,7 @@ func main() {
 		slog.Info("uhttpd service details")
 
 		for name, inst := range srv.Instances {
-			slog.Info("instance", "name", name, "running", inst.Running, "pid", inst.Pid)
+			slog.Info("instance", "name", name, "running", inst.Running, "pid", inst.PID)
 		}
 	}
 }

@@ -7,7 +7,7 @@ func New(caller goubus.Caller, opts ...Option) *Client
 func WithDUIDFormat(format DUIDFormat) Option
 type AddLeaseRequest struct
 field AddLeaseRequest.IP string
-field AddLeaseRequest.Mac string
+field AddLeaseRequest.MAC string
 field AddLeaseRequest.DUID string
 field AddLeaseRequest.HostID string
 field AddLeaseRequest.LeaseTime string

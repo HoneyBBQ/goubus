@@ -24,7 +24,7 @@ func main() {
 	if host != "" {
 		user := os.Getenv("OPENWRT_USERNAME")
 		pass := os.Getenv("OPENWRT_PASSWORD")
-		caller, err = goubus.NewRpcClient(ctx, host, user, pass)
+		caller, err = goubus.NewRPCClient(ctx, host, user, pass)
 	} else {
 		caller, err = goubus.NewSocketClient(ctx, "")
 	}

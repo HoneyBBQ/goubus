@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-func TestRpcClientAuthenticateSerializesRefresh(t *testing.T) {
+func TestRPCClientAuthenticateSerializesRefresh(t *testing.T) {
 	client, logins := newRPCSessionStateClient(t)
 	client.rwMutex.Lock()
 	client.sessionData.ExpireTime = time.Now().Add(-time.Second)
@@ -26,14 +26,14 @@ func TestRpcClientAuthenticateSerializesRefresh(t *testing.T) {
 	for range callers {
 		go func() {
 			defer wait.Done()
-			errCh <- client.authenticate(context.Background())
+			errCh <- client.ensureAuthenticated(context.Background())
 		}()
 	}
 	wait.Wait()
 	close(errCh)
 	for err := range errCh {
 		if err != nil {
-			t.Errorf("authenticate(): %v", err)
+			t.Errorf("ensureAuthenticated(): %v", err)
 		}
 	}
 	if got := logins.Load(); got != 2 {
@@ -41,7 +41,7 @@ func TestRpcClientAuthenticateSerializesRefresh(t *testing.T) {
 	}
 }
 
-func TestRpcClientCloseClearsCredentialsAndBlocksAuthentication(t *testing.T) {
+func TestRPCClientCloseClearsCredentialsAndBlocksAuthentication(t *testing.T) {
 	client, logins := newRPCSessionStateClient(t)
 	closeErr := client.Close()
 	if closeErr != nil {
@@ -52,20 +52,43 @@ func TestRpcClientCloseClearsCredentialsAndBlocksAuthentication(t *testing.T) {
 	}
 
 	loginCount := logins.Load()
-	err := client.authenticate(context.Background())
+	err := client.Authenticate(context.Background())
 	if !errors.Is(err, ErrClosed) {
-		t.Errorf("authenticate() after Close() = %v, want ErrClosed", err)
+		t.Errorf("Authenticate() after Close() = %v, want ErrClosed", err)
 	}
 	sessionID, err := client.getValidSessionID(context.Background())
 	if sessionID != "" || !errors.Is(err, ErrClosed) {
 		t.Errorf("getValidSessionID() after Close() = %q, %v; want ErrClosed", sessionID, err)
 	}
 	if logins.Load() != loginCount {
-		t.Error("authenticate() after Close() sent another login")
+		t.Error("Authenticate() after Close() sent another login")
 	}
 }
 
-func newRPCSessionStateClient(t *testing.T) (*RpcClient, *atomic.Int32) {
+func TestRPCClientSuccessfulCallSlidesIdleTimeout(t *testing.T) {
+	client, _ := newRPCSessionStateClient(t)
+	client.rwMutex.RLock()
+	originalExpiry := client.sessionData.ExpireTime
+	client.rwMutex.RUnlock()
+
+	_, err := client.Call(context.Background(), "system", "info", nil)
+	if err != nil {
+		t.Fatalf("Call(): %v", err)
+	}
+
+	client.rwMutex.RLock()
+	updatedExpiry := client.sessionData.ExpireTime
+	timeout := client.sessionData.Timeout
+	client.rwMutex.RUnlock()
+	if timeout <= 0 {
+		t.Fatalf("session timeout = %d, want positive timeout", timeout)
+	}
+	if !updatedExpiry.After(originalExpiry) {
+		t.Errorf("session expiry = %v, want after original expiry %v", updatedExpiry, originalExpiry)
+	}
+}
+
+func newRPCSessionStateClient(t *testing.T) (*RPCClient, *atomic.Int32) {
 	t.Helper()
 
 	var logins atomic.Int32
@@ -94,7 +117,7 @@ func newRPCSessionStateClient(t *testing.T) (*RpcClient, *atomic.Int32) {
 	}))
 	t.Cleanup(server.Close)
 
-	client, err := NewRpcClient(context.Background(), server.URL, "user", "password")
+	client, err := NewRPCClient(context.Background(), server.URL, "user", "password")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -9,7 +9,7 @@ import (
 )
 
 // List queries the sessionless JSON-RPC introspection method.
-func (client *RpcClient) List(ctx context.Context, patterns ...string) (map[string]ObjectSignatures, error) {
+func (client *RPCClient) List(ctx context.Context, patterns ...string) (map[string]ObjectSignatures, error) {
 	if client.isClosed() {
 		return nil, ErrClosed
 	}

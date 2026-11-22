@@ -111,7 +111,7 @@ func (ra *IPv6RA) UnmarshalJSON(data []byte) error {
 		Length    uint64          `json:"length"`
 		Valid     uint64          `json:"valid"`
 		Preferred uint64          `json:"preferred"`
-		Stale     goubus.Bool    `json:"stale"`
+		Stale     goubus.Bool     `json:"stale"`
 	}
 	err := json.Unmarshal(data, &decoded)
 	if err != nil {
@@ -163,8 +163,8 @@ func parsePrefix(raw json.RawMessage) (string, uint64, error) {
 type AddLeaseRequest struct {
 	// IP is the leased IP address.
 	IP string
-	// Mac is the client's MAC address.
-	Mac string
+	// MAC is the client's MAC address.
+	MAC string
 	// DUID is the client's DHCP unique identifier.
 	DUID string
 	// HostID is the client's host identifier.

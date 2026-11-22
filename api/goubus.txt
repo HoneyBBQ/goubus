@@ -37,15 +37,15 @@ func Call[T any](ctx context.Context, caller Caller, service string, method stri
 func ChainMiddleware(caller Caller, middlewares ...CallMiddleware) Caller
 func List(ctx context.Context, caller Caller, patterns ...string) (map[string]ObjectSignatures, error)
 func NewJSONResult(raw json.RawMessage) Result
-func NewRpcClient(ctx context.Context, host string, username string, password string, opts ...RpcOption) (*RpcClient, error)
+func NewRPCClient(ctx context.Context, host string, username string, password string, opts ...RPCOption) (*RPCClient, error)
 func NewSocketClient(ctx context.Context, sockPath string, opts ...SocketOption) (*SocketClient, error)
 func NewSocketClientFromConn(ctx context.Context, conn net.Conn, opts ...SocketOption) (*SocketClient, error)
 func StatusError(code int) error
 func WithDialTimeout(timeout time.Duration) SocketOption
-func WithHTTPClient(client *http.Client) RpcOption
+func WithHTTPClient(client *http.Client) RPCOption
+func WithRPCEndpoint(path string) RPCOption
+func WithRPCLogger(logger *slog.Logger) RPCOption
 func WithReadTimeout(timeout time.Duration) SocketOption
-func WithRpcEndpoint(path string) RpcOption
-func WithRpcLogger(logger *slog.Logger) RpcOption
 func WithSocketLogger(logger *slog.Logger) SocketOption
 func WithWriteTimeout(timeout time.Duration) SocketOption
 type ArgType string
@@ -71,17 +71,18 @@ type Lister interface
 method (Lister) List(ctx context.Context, patterns ...string) (map[string]ObjectSignatures, error)
 type MethodSignature map[string]ArgType
 type ObjectSignatures map[string]MethodSignature
+type RPCClient struct
+method (*RPCClient) Authenticate(ctx context.Context) error
+method (*RPCClient) Call(ctx context.Context, service string, method string, data any) (Result, error)
+method (*RPCClient) Close() error
+method (*RPCClient) GoString() string
+method (*RPCClient) List(ctx context.Context, patterns ...string) (map[string]ObjectSignatures, error)
+method (*RPCClient) LogValue() slog.Value
+method (*RPCClient) String() string
+type RPCOption interface
+sealed RPCOption
 type Result interface
 method (Result) Unmarshal(target any) error
-type RpcClient struct
-method (*RpcClient) Call(ctx context.Context, service string, method string, data any) (Result, error)
-method (*RpcClient) Close() error
-method (*RpcClient) GoString() string
-method (*RpcClient) List(ctx context.Context, patterns ...string) (map[string]ObjectSignatures, error)
-method (*RpcClient) LogValue() slog.Value
-method (*RpcClient) String() string
-type RpcOption interface
-sealed RpcOption
 type SocketClient struct
 method (*SocketClient) Call(ctx context.Context, service string, method string, data any) (Result, error)
 method (*SocketClient) Close() error

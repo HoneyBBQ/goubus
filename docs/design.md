@@ -12,7 +12,7 @@ type Caller interface {
 }
 ```
 
-`Transport` embeds `Caller` and adds `Close() error`. Service clients (`system.New`, `uci.New`, `network.New`, ...) take a `Caller` rather than a `Transport`: they borrow the connection and never close it. The code that called `NewSocketClient` or `NewRpcClient` owns `Close`.
+`Transport` embeds `Caller` and adds `Close() error`. Service clients (`system.New`, `uci.New`, `network.New`, ...) take a `Caller` rather than a `Transport`: they borrow the connection and never close it. The code that called `NewSocketClient` or `NewRPCClient` owns `Close`.
 
 Because `Caller` has one method, unit tests for code built on typed service clients do not need a router or a mock socket. Combine `CallerFunc` with `NewJSONResult`:
 
@@ -84,15 +84,50 @@ if callErr, ok := errors.AsType[*goubus.CallError](err); ok {
 
 Every network or socket method honors `ctx`. The two transports differ in what happens to the connection after cancellation:
 
-- **`RpcClient`:** cancelling `ctx` aborts only the in-flight `http.Request`. The `RpcClient` and its cached `rpcd` session remain usable for later calls.
+- **`RPCClient`:** cancelling `ctx` aborts only the in-flight `http.Request`. The `RPCClient` and its cached `rpcd` session remain usable for later calls.
 - **`SocketClient`:** ubus socket frames travel sequentially over one stream connection. If `ctx` is cancelled while the client is blocked in the `HELLO` handshake or waiting for a call/lookup reply, `SocketClient` closes the underlying `net.Conn` via `context.AfterFunc` so the blocked read returns immediately with `ctx.Err()`. Once cancelled mid-flight, that `SocketClient` is closed and a new one must be opened.
+
+## Session lifetime and re-authentication
+
+`uhttpd-mod-ubus` reports `-32002 Access denied` both when the session was removed or `rpcd` restarted and when the user's ACL denies the operation. The SDK cannot distinguish those cases. Automatically logging in and replaying the call could lose session keys stored with `session.Set`, or conceal UCI staged changes lost during a restart. `RPCClient.Call` therefore returns `ErrPermissionDenied` without retrying the business call.
+
+`rpcd` treats the session timeout as an idle timeout and resets it when a valid session ID is used. After each successful `Call`, `RPCClient` moves its local expiry forward by the session timeout. Calls whose cached session has expired locally use a guarded login. `(*RPCClient).Authenticate(ctx)` is also available to force a login and replace the cached session, even before its local expiry.
+
+Monitoring programs that keep no state between requests and use an account with the required full permissions can opt into one retry on `ErrPermissionDenied`:
+
+```go
+import (
+	"context"
+	"errors"
+
+	"github.com/honeybbq/goubus/v2"
+)
+
+func reauthenticateOnPermissionDenied(client *goubus.RPCClient) goubus.CallMiddleware {
+	return func(next goubus.Caller) goubus.Caller {
+		return goubus.CallerFunc(func(ctx context.Context, service, method string, data any) (goubus.Result, error) {
+			result, err := next.Call(ctx, service, method, data)
+			if !errors.Is(err, goubus.ErrPermissionDenied) {
+				return result, err
+			}
+			if err := client.Authenticate(ctx); err != nil {
+				return nil, err
+			}
+
+			return next.Call(ctx, service, method, data)
+		})
+	}
+}
+
+caller := goubus.ChainMiddleware(client, reauthenticateOnPermissionDenied(client))
+```
 
 ## Object discovery (`List`)
 
 `goubus.List(ctx, caller, patterns...)` inspects registered objects and their method argument signatures:
 
 - Passing no patterns or `"*"` lists every visible object. Passing an empty string `""` returns `ErrInvalidParameter`.
-- `RpcClient.List` invokes the sessionless JSON-RPC `"list"` method.
+- `RPCClient.List` invokes the sessionless JSON-RPC `"list"` method.
 - `SocketClient.List` sends `UBUS_MSG_LOOKUP` frames, ignores `ErrNotFound` on literal patterns that are not registered (matching JSON-RPC `"list"`), and records each returned `objpath -> objid` entry in its lookup cache.
 
 Wire argument types differ between `uhttpd-mod-ubus` (strings such as `"integer"`, `"int32"`, `"table"`, `"int8"`) and `ubusd` (numeric `blobmsg` type IDs). Both normalize to `ArgType`:
@@ -134,19 +169,19 @@ luciClient := luci.New(conn, luci.WithTimeMethod(luci.TimeMethodLocaltime))
 dhcpClient := dhcp.New(conn, dhcp.WithDUIDFormat(dhcp.DUIDString))
 ```
 
-All `Option` interfaces (`RpcOption`, `SocketOption`, `luci.Option`, `dhcp.Option`) are sealed with unexported methods so new internal fields can be added without breaking callers.
+All `Option` interfaces (`RPCOption`, `SocketOption`, `luci.Option`, `dhcp.Option`) are sealed with unexported methods so new internal fields can be added without breaking callers.
 
 ## Logging and credentials
 
-Both transports discard logs by default. Pass `WithRpcLogger(logger)` or `WithSocketLogger(logger)` to emit `log/slog` records.
+Both transports discard logs by default. Pass `WithRPCLogger(logger)` or `WithSocketLogger(logger)` to emit `log/slog` records.
 
 Credential redaction covers the RPC session lifecycle:
 
-- `RpcClient.String()`, `GoString()`, and `LogValue()` format `password` and `ubus_rpc_session` as `"<redacted>"`.
-- `RpcClient` debug logs always redact outgoing JSON-RPC request bodies (which carry the session ID and, during login, the password) and redact responses to any call on the `"session"` service.
-- `RpcClient.Close()` clears `password` and `sessionData` in memory and sends `session.destroy`.
+- `RPCClient.String()`, `GoString()`, and `LogValue()` format `password` and `ubus_rpc_session` as `"<redacted>"`.
+- `RPCClient` debug logs always redact outgoing JSON-RPC request bodies (which carry the session ID and, during login, the password) and redact responses to any call on the `"session"` service.
+- `RPCClient.Close()` clears `password` and `sessionData` in memory and sends `session.destroy`.
 
-Debug logging is not a general-purpose secret scrubber: non-`"session"` RPC response previews (capped at 512 bytes) and `SocketClient` debug logs (truncated JSON and hex frame previews) include ordinary ubus payloads, which can contain Wi-Fi keys, PPPoE passwords, or UCI secrets when querying those objects. Keep debug logs out of shared outputs unless reviewed, use HTTPS for remote `RpcClient` connections, and do not embed credentials in URLs.
+Debug logging is not a general-purpose secret scrubber: non-`"session"` RPC response previews (capped at 512 bytes) and `SocketClient` debug logs (truncated JSON and hex frame previews) include ordinary ubus payloads, which can contain Wi-Fi keys, PPPoE passwords, or UCI secrets when querying those objects. Keep debug logs out of shared outputs unless reviewed, use HTTPS for remote `RPCClient` connections, and do not embed credentials in URLs.
 
 ## Stability and API snapshots
 

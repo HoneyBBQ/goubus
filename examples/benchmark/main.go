@@ -121,7 +121,7 @@ func initTransport(ctx context.Context, transportType, socketPath, host, usernam
 	case "socket":
 		caller, err = goubus.NewSocketClient(ctx, socketPath)
 	case "rpc":
-		caller, err = goubus.NewRpcClient(ctx, host, username, password)
+		caller, err = goubus.NewRPCClient(ctx, host, username, password)
 	default:
 		log.Fatalf("Unknown transport type: %s", transportType)
 	}
