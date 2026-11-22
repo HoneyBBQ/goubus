@@ -1,159 +1,146 @@
-<div align="center">
-  <h1>goubus</h1>
-  <p><strong>OpenWrt ubus Go Client</strong></p>
+# goubus
 
-  <p>
-    <a href="https://github.com/honeybbq/goubus/actions/workflows/ci.yml"><img src="https://github.com/honeybbq/goubus/actions/workflows/ci.yml/badge.svg" alt="CI Status"></a>
-    <a href="https://codecov.io/gh/honeybbq/goubus"><img src="https://codecov.io/gh/honeybbq/goubus/branch/main/graph/badge.svg" alt="Coverage"></a>
-    <a href="https://goreportcard.com/report/github.com/honeybbq/goubus"><img src="https://goreportcard.com/badge/github.com/honeybbq/goubus" alt="Go Report Card"></a>
-    <a href="https://pkg.go.dev/github.com/honeybbq/goubus"><img src="https://pkg.go.dev/badge/github.com/honeybbq/goubus.svg" alt="Go Reference"></a>
-  </p>
+A Go client for OpenWrt ubus over HTTP JSON-RPC and Unix sockets.
 
-  <p>
-    <a href="https://github.com/honeybbq/goubus/releases"><img src="https://img.shields.io/github/v/release/honeybbq/goubus?display_name=tag" alt="Release"></a>
-    <a href="https://golang.org/"><img src="https://img.shields.io/badge/go-1.25-blue" alt="Go Version"></a>
-    <a href="LICENSE"><img src="https://img.shields.io/github/license/honeybbq/goubus" alt="License"></a>
-    <a href="https://github.com/honeybbq/goubus/graphs/contributors"><img src="https://img.shields.io/github/contributors/honeybbq/goubus" alt="Contributors"></a>
-  </p>
+[![Go Reference](https://pkg.go.dev/badge/github.com/honeybbq/goubus/v2.svg)](https://pkg.go.dev/github.com/honeybbq/goubus/v2) [![CI](https://github.com/honeybbq/goubus/actions/workflows/ci.yml/badge.svg)](https://github.com/honeybbq/goubus/actions/workflows/ci.yml) [![Codecov](https://codecov.io/gh/honeybbq/goubus/branch/main/graph/badge.svg)](https://codecov.io/gh/honeybbq/goubus) [![Release](https://img.shields.io/github/v/release/honeybbq/goubus?include_prereleases&sort=semver)](https://github.com/honeybbq/goubus/releases) [![Go version](https://img.shields.io/github/go-mod/go-version/honeybbq/goubus)](go.mod) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-  <p>
-    <a href="https://github.com/honeybbq/goubus/issues"><img src="https://img.shields.io/github/issues/honeybbq/goubus" alt="Issues"></a>
-    <a href="https://github.com/honeybbq/goubus/pulls"><img src="https://img.shields.io/github/issues-pr/honeybbq/goubus" alt="Pull Requests"></a>
-    <a href="https://github.com/honeybbq/goubus/stargazers"><img src="https://img.shields.io/github/stars/honeybbq/goubus" alt="Stars"></a>
-    <img src="https://img.shields.io/github/repo-size/honeybbq/goubus" alt="Repo Size">
-  </p>
+[Docs](https://pkg.go.dev/github.com/honeybbq/goubus/v2) · [Architecture](docs/architecture.md) · [Design](docs/design.md) · [Examples](examples/) · [Changelog](CHANGELOG.md) · [中文文档](README_CN.md)
 
-  <p>
-    <code>goubus</code> provides an interface to interact with OpenWrt's <strong>ubus</strong> (micro bus) system, using a <strong>Profile</strong> system to support hardware-specific differences (like CMCC RAX3000M) while maintaining a consistent base implementation.
-  </p>
+## Why this library
 
-  <p>
-    <a href="README_CN.md">中文文档</a> | 
-    <a href="https://github.com/honeybbq/goubus/tree/main/examples">Examples</a> | 
-    <a href="https://pkg.go.dev/github.com/honeybbq/goubus/v2">Documentation</a>
-  </p>
-</div>
+- **One `Caller`, two transports.** Use HTTP or HTTPS JSON-RPC through `uhttpd-mod-ubus` remotely, or talk directly to `ubusd` over a Unix socket. The binary `blobmsg` codec is pure Go, with no CGO or third-party dependencies.
+- **Typed services.** Import any of the 15 `services/<pkg>` packages on its own, or use `services.Client` to share one caller across all of them.
+- **Runtime introspection.** `goubus.List` exposes `ubus list` object and method signatures in the same format on both transports.
+- **Firmware differences.** Clients adapt to method and argument differences at runtime. `Bool`, `StringOrSlice`, `StringInt`, and `UnixTime` decode fields whose JSON representation varies.
+- **Middleware and logging.** `CallMiddleware` wraps calls independently of the transport. `log/slog` logging is off by default; RPC client formatting and RPC credential-bearing traffic are redacted as described in [Design](docs/design.md#logging-and-credentials).
 
----
+## Install
 
-## Key Features
-
-- **Device Profiles**: Native support for hardware-specific dialects (e.g., **CMCC RAX3000M**, **X86 Generic**).
-- **Selective Imports**: Import only what you need, avoiding overhead.
-- **Dual Transport**: Supports both **HTTP JSON-RPC** (remote) and **Unix Socket** (local).
-- **Type-Safe API**: Fully typed requests and responses.
-- **Context Aware**: Support for `context.Context` cancellation and timeouts.
-
-## Installation
-
-```bash
+```sh
 go get github.com/honeybbq/goubus/v2
 ```
 
-## Quick Start
+Until `v2.0.0` is released, select a prerelease explicitly, for example `go get github.com/honeybbq/goubus/v2@v2.0.0-alpha2`, or use a newer prerelease tag from [Releases](https://github.com/honeybbq/goubus/releases). The examples below use the redesigned API: `alpha2` predates it. Use a checkout of this source or a tag that includes the redesign when building the examples.
 
-### 1. Initialize Transport
+## Quick start
+
+Run this program on the router to use the default socket (`/tmp/run/ubus/ubus.sock`). For remote use, set `UBUS_URL` to the router's HTTPS URL and set `UBUS_USERNAME` and `UBUS_PASSWORD` for an `rpcd` account with access to the methods you call. The RPC path defaults to `/ubus` when the URL has no path.
 
 ```go
+package main
+
 import (
-    "context"
-    "github.com/honeybbq/goubus/v2"
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"time"
+
+	"github.com/honeybbq/goubus/v2"
+	"github.com/honeybbq/goubus/v2/services"
+	"github.com/honeybbq/goubus/v2/services/system"
 )
 
-ctx := context.Background()
+func main() {
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
 
-// Remote via RPC (Requires rpcd and proper ACLs)
-caller, _ := goubus.NewRpcClient(ctx, "192.168.1.1", "root", "password")
+func run() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-// Local via Unix Socket (Running on the device)
-caller, _ := goubus.NewSocketClient(ctx, "/var/run/ubus/ubus.sock")
+	var conn goubus.Transport
+	var err error
+	if url := os.Getenv("UBUS_URL"); url != "" {
+		conn, err = goubus.NewRpcClient(ctx, url, os.Getenv("UBUS_USERNAME"), os.Getenv("UBUS_PASSWORD"))
+	} else {
+		conn, err = goubus.NewSocketClient(ctx, "")
+	}
+	if err != nil {
+		return err
+	}
+	defer func() { _ = conn.Close() }()
+
+	board, err := system.New(conn).Board(ctx)
+	if err != nil {
+		return err
+	}
+	fmt.Println(board.Model)
+
+	info, err := services.New(conn).System().Info(ctx)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Uptime: %d s\n", info.Uptime)
+
+	objects, err := goubus.List(ctx, conn)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Objects: %d\n", len(objects))
+
+	if _, ok := objects["example.stats"]["read"]; ok {
+		type stats struct {
+			Requests int `json:"requests"`
+		}
+		result, err := goubus.Call[stats](ctx, conn, "example.stats", "read", nil)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Requests: %d\n", result.Requests)
+	}
+	return nil
+}
 ```
 
-### 2. Use Device Specific Managers
+Use `system.New(conn)` if you only need the system client, or `services.New(conn)` to keep one instance of each client. `List` reports the objects visible to the transport, not the permissions for invoking each method. The last call shows how to decode a custom object, `example.stats`, if the router provides it.
 
-Import the profile matching your hardware:
+## Packages
 
-```go
-import (
-    "github.com/honeybbq/goubus/v2/profiles/cmcc_rax3000m/system"
-    "github.com/honeybbq/goubus/v2/profiles/cmcc_rax3000m/network"
-)
+| Import | Purpose |
+| --- | --- |
+| `github.com/honeybbq/goubus/v2` | Transports, call and list interfaces, status errors, and flexible JSON types. |
+| `github.com/honeybbq/goubus/v2/services` | One client collection for all typed services. |
+| `github.com/honeybbq/goubus/v2/services/container` | Container configuration, state, and console operations. |
+| `github.com/honeybbq/goubus/v2/services/dhcp` | DHCP leases, static lease creation, and IPv6 router advertisements. |
+| `github.com/honeybbq/goubus/v2/services/file` | File access, metadata, and command execution through the `file` object. |
+| `github.com/honeybbq/goubus/v2/services/hostapd` | Access point status, connected clients, and channel control. |
+| `github.com/honeybbq/goubus/v2/services/log` | Read and write system log entries. |
+| `github.com/honeybbq/goubus/v2/services/luci` | LuCI system information and `luci-rpc` board, network, and lease data. |
+| `github.com/honeybbq/goubus/v2/services/network` | Network interfaces, devices, routes, and radio configuration and status. |
+| `github.com/honeybbq/goubus/v2/services/rc` | List init scripts and run init actions. |
+| `github.com/honeybbq/goubus/v2/services/rpcsys` | Installed package information and system maintenance through `rpc-sys`. |
+| `github.com/honeybbq/goubus/v2/services/service` | Service instances, configuration, and lifecycle. |
+| `github.com/honeybbq/goubus/v2/services/session` | rpcd sessions, session data, and access controls. |
+| `github.com/honeybbq/goubus/v2/services/system` | Board information, runtime status, and system operations. |
+| `github.com/honeybbq/goubus/v2/services/uci` | Read and update UCI packages, sections, and options. |
+| `github.com/honeybbq/goubus/v2/services/wireless` | `iwinfo` device status, scans, and station information. |
+| `github.com/honeybbq/goubus/v2/services/wpasupplicant` | `wpa_supplicant` station status and control. |
 
-// Initialize Managers
-sysSvc := system.New(caller)
-netSvc := network.New(caller)
+## Documentation
 
-// Fetch System Board Info
-board, _ := sysSvc.Board(ctx)
-fmt.Printf("Model: %s, Kernel: %s\n", board.Model, board.Kernel)
+- [API reference](https://pkg.go.dev/github.com/honeybbq/goubus/v2): public types, options, and methods.
+- [Architecture](docs/architecture.md): package layout and dependencies.
+- [Design](docs/design.md): calls, errors, discovery, firmware differences, and API stability.
+- [Examples](examples/): complete programs for individual services.
+- [Changelog](CHANGELOG.md): release history and migration from the hardware profiles.
 
-// Dump all network interfaces
-ifaces, _ := netSvc.Dump(ctx)
-```
+## Compatibility
 
-### 3. Debugging & Logging
+| Target | Coverage |
+| --- | --- |
+| OpenWrt 24.10 | Real-world response fixtures from x86 generic (24.10.5). |
+| OpenWrt 25.12 | Real-world response fixtures from CMCC RAX3000M (25.12.0-rc1). |
+| Go | 1.25 and newer; pure Go, no CGO. |
 
-`goubus` natively supports `log/slog`. You can inject your own logger to see raw ubus interactions (requests and responses):
+Available objects depend on installed OpenWrt packages and configuration. Remote invocation also depends on rpcd ACLs.
 
-```go
-import "log/slog"
+## Contributing
 
-// Create a debug logger
-logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
-
-// Inject it into the transport
-caller.SetLogger(logger)
-```
-
-## Implemented Objects
-
-| Object        | Description                                             |
-| :------------ | :------------------------------------------------------ |
-| **System**    | Board, Info, Reboot, Watchdog, Signal, Sysupgrade       |
-| **Network**   | Interface control, Device status, Routing, Namespaces   |
-| **Wireless**  | IWInfo (Scan, Assoclist), Wireless radio control        |
-| **UCI**       | Full CRUD, Commit/Rollback, State tracking              |
-| **DHCP**      | IPv4/v6 Leases, IPv6 RA, Static Lease management        |
-| **Service**   | Service lifecycle, Validation, Custom data              |
-| **Session**   | Login, Access control, Grant/Revoke                     |
-| **Container** | LxC container management, Console access                |
-| **Hostapd**   | Low-level AP management (Kick clients, Switch channels) |
-| **RPC-SYS**   | Package management, Factory reset, Firmware validation  |
-
-## Project Architecture
-
-`goubus` is designed with a multi-layer architecture for code reuse:
-
-- **Core Layer (`goubus/`)**: Contains the transport implementations (HTTP RPC and Unix Socket), raw ubus message handling (`blobmsg`), results parsing, and error definitions.
-- **Base Layer (`goubus/internal/base/`)**: Provides generic, reusable implementations for standard ubus objects (e.g., system, network, uci). This layer encapsulates the common logic that applies to most OpenWrt devices.
-- **Profile Layer (`goubus/profiles/`)**: The public API entry point. Profiles (e.g., `cmcc_rax3000m`, `generic`) use **Dialects** to handle hardware-specific quirks (like parameter types or special method names) while exposing a consistent, high-level interface.
-- **Examples & TestData (`examples/`, `internal/testdata/`)**: Full integration tests using real hardware data and usage examples.
-
-## Comparison
-
-| Feature         | HTTP (JSON-RPC)   | Unix Socket    |
-| --------------- | ----------------- | -------------- |
-| **Use Case**    | Remote management | On-device apps |
-| **Auth**        | Required          | Not required   |
-| **Performance** | Network overhead  | Low latency    |
-
-## Contributing & Device Support
-
-This repository includes Profiles for RAX3000M and x86. The x86 Profile is derived from virtual machine data; given the diversity of x86 hardware and drivers, the implementation is undergoing further refinement.
-
-Contributions of **Profiles** or **testdata** for other hardware are welcome.
-
-### How to help out
-1. **Copy**: Copy `profiles/x86_generic` to a new folder.
-2. **Test**: Run tests using your real hardware data to find parsing errors.
-3. **Fix**: Use a **Dialect** to handle the differences.
-
-Guide on how to dump test data: [Contributing Test Data Guide](docs/CONTRIBUTING_DATA.md).
+See [Contributing test data](docs/CONTRIBUTING_DATA.md) to capture responses and signatures and add a regression test.
 
 ## License
 
-MIT License - See [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-Inspired by [Kubernetes client-go](https://github.com/kubernetes/client-go) and [moby/moby](https://github.com/moby/moby).
+[MIT](LICENSE)

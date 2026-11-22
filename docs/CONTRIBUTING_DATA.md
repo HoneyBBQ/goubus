@@ -1,46 +1,60 @@
-# Guide: Contributing Real-World Test Data
+# Contributing test data
 
-Due to the vast diversity of OpenWrt hardware, we rely on real `ubus` data to ensure `goubus` parsing logic is accurate.
+[中文](CONTRIBUTING_DATA_CN.md)
 
-You can help us improve by following these steps:
+A response that fails to decode, or a method signature that differs across
+firmware versions, is enough for a contribution. Record the device model, exact
+OpenWrt version (including the revision), and any relevant package version.
 
-## 1. Export Raw Data
+## Capture responses and signatures
 
-Log in to your router (SSH) and run the following commands to export ubus object data into JSON files. You can choose the modules you are interested in:
+On the router, run the read-only call that demonstrates the problem. Save one
+command per file and keep the JSON returned by `ubus call` without adding an
+RPC envelope. For example:
 
-```bash
-# System Info
-ubus call system board > system_board.json
-ubus call system info > system_info.json
-
-# Network Interfaces
-ubus call network.interface dump > network_interface_dump.json
-ubus call network.device status > network_device_status.json
-
-# Wireless Status (iwinfo)
-ubus call iwinfo devices > iwinfo_devices.json
-# Assuming a device named phy0-ap0
-ubus call iwinfo info '{"device": "phy0-ap0"}' > iwinfo_info_phy0.json
-
-# DHCP Leases (Critical area for differences)
-ubus call dhcp ipv4leases > dhcp_ipv4leases.json
-ubus call luci-rpc getDHCPLeases > luci_rpc_getDHCPLeases.json
-
-# UCI Configs
-ubus call uci configs > uci_configs.json
+```sh
+ubus call system board > /tmp/system_board.json
+ubus call network.interface dump > /tmp/network_interface_dump.json
+ubus call luci-rpc getDHCPLeases > /tmp/luci_rpc_getDHCPLeases.json
+ubus -v list dhcp > /tmp/dhcp_list.txt
 ```
 
-## 2. How to Contribute
+Keep the command and its arguments with the report. If the call fails, record
+its stderr and exit status instead of submitting an empty JSON fixture.
+`ubus -v list` prints a human-readable signature, not JSON; keep it as `.txt`.
+When the router already exposes an HTTPS `/ubus` endpoint that allows the
+JSON-RPC `list` method, capture the JSON signature response instead:
 
-### A. Submit an Issue
-Paste JSON contents into an Issue with your device model and firmware version.
+```sh
+curl --fail --silent --show-error \
+  -H 'Content-Type: application/json' \
+  --data '{"jsonrpc":"2.0","id":1,"method":"list","params":["dhcp"]}' \
+  https://router.example/ubus > dhcp_list.json
+```
 
-### B. Create a Profile (Recommended)
-1. Copy `profiles/x86_generic` to a new folder (e.g., `profiles/tplink_ax6000`).
-2. Place JSONs in `internal/testdata/<your_device>/`.
-3. Update `manager_test.go` in the new Profile to point to your JSONs.
-4. Run `go test`. If it fails, implement a new `Dialect` to handle the differences.
-5. Submit a PR.
+Replace the example hostname with the router's hostname and use a trusted TLS
+certificate. Keep the full envelope for an RPC wire-format regression, or use
+its `result` for a signature-only fixture. For a socket-only setup, the CLI
+text is enough to report the difference.
 
-## Privacy
-Data may contain MAC addresses or hostnames. Feel free to replace them with generic values (e.g., `AA:BB:CC:DD:EE:FF`) before submitting.
+## Add a regression test
+
+1. Redact passwords, wireless keys, session tokens, addresses, hostnames, and
+   other private data before sharing. Preserve field names, JSON types, and
+   the shape that caused the problem. Do not upload raw configuration dumps.
+2. Add the sanitized sample under `internal/testdata/<firmware_or_device>/`
+   with a name such as `network_interface_dump.json`. If you only have a
+   sample, open an issue with it and the capture details instead.
+3. Add a table-driven case to the affected client test, for example
+   `services/network/client_test.go`. For responses, use `goubus.CallerFunc`
+   and `goubus.NewJSONResult` to send the fixture through the typed client.
+   For JSON-RPC signatures, serve the fixture from the test HTTP handler as
+   in `rpc_list_test.go`. Assert the decoded field or selected method or
+   argument format that differed, not just that decoding succeeds.
+4. Run these checks from the repository root:
+
+   ```sh
+   golangci-lint run ./...
+   go test -race ./...
+   go run ./internal/tools/apidump -check
+   ```
