@@ -1,67 +1,92 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+All notable changes to this module are documented here. This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
 ### Added
-- Added `Caller`, `Transport`, call middleware, generic result decoding, and `Lister` interfaces for a transport-independent core API.
-- Added `goubus.List` to inspect objects and method argument signatures over both HTTP JSON-RPC and Unix sockets, with normalized argument types.
-- Added flexible JSON types for boolean, scalar-or-list, quoted integer, and Unix timestamp representations.
-- Added 15 independent typed service packages and the `services.Client` facade for sharing one caller across the service clients.
-- Added runtime compatibility handling for LuCI time methods and DHCP DUID argument formats, with options to pin known firmware behavior.
-- Added an API snapshot gate, leak checks, fixture-driven service tests, and redesigned architecture and design documentation.
+
+- `Caller` (`Call(ctx, service, method, data) (Result, error)`), `CallerFunc`, and `NewJSONResult`: narrow call contract accepted by every service client and `Call[T]`, decoupling callers that borrow a connection from `Transport` (`Caller` plus `Close() error`).
+- `CallMiddleware` and `ChainMiddleware(caller, middlewares...)` to wrap ubus calls in arrival order across both transports.
+- `goubus.List(ctx, caller, patterns...)` and `Lister`, implemented by both `*RpcClient` and `*SocketClient`, returning `map[string]ObjectSignatures` with wire argument types normalized to `ArgType` (`ArgTypeString`, `ArgTypeNumber`, `ArgTypeBoolean`, `ArgTypeArray`, `ArgTypeObject`, `ArgTypeUnknown`). `SocketClient.List` also populates its `objpath -> objid` lookup cache.
+- 15 hardware-independent typed service packages under `services/` (`container`, `dhcp`, `file`, `hostapd`, `log`, `luci`, `network`, `rc`, `rpcsys`, `service`, `session`, `system`, `uci`, `wireless`, `wpasupplicant`), plus `services.New(caller, opts...)` returning a `*services.Client` that shares one `Caller` across all 15 clients.
+- Runtime adaptation for firmware differences, verified against fixtures from OpenWrt 24.10.5 (`x86_generic`) and OpenWrt 25.12.0-rc1 (CMCC RAX3000M):
+  - `luci.Client.Time` tries `getUnixtime` (25.12), falls back to `getLocaltime` (24.10) on `ErrMethodNotFound`, `ErrInvalidCommand`, or `ErrPermissionDenied`, and atomically caches the working method. `luci.WithTimeMethod` (or `services.WithLuCI`) pins one explicitly.
+  - `dhcp.Client.AddLease` inspects `goubus.List(ctx, caller, "dhcp")` to send `duid` as `[]string` or `string`, falling back to array-then-string probing on `ErrInvalidParameter` when signature lookup is unavailable. `dhcp.WithDUIDFormat` (or `services.WithDHCP`) pins `DUIDString` or `DUIDArray`.
+  - `StringOrSlice`, `StringInt`, and `UnixTime` alongside `Bool` (`BoolValue`) in the root package to decode scalar-or-array strings, quoted integers, Unix-second or RFC3339 timestamps, and numeric or string booleans.
+- `*goubus.CallError` (`Service`, `Method`, `Code`, `Message`, `Err`), `ErrCall`, `StatusOK` through `StatusConnectionFailed` (`0`..`10`), and `StatusError(code)` in the root package. `*CallError` unwraps to both `ErrCall` and the mapped status sentinel.
+- `WithHTTPClient` and `WithRpcEndpoint` on `NewRpcClient`; `DialTimeout()`, `ReadTimeout()`, `WriteTimeout()`, and `PeerID()` accessors on `*SocketClient`; `Values` and `StateValues` on `*uci.OptionContext`.
+- Public API snapshot gate (`api/*.txt` and `internal/tools/apidump` with internal-type leak checks), exported GoDoc coverage test (`doc_coverage_test.go`), and architecture/design documentation (`docs/architecture.md`, `docs/design.md`).
 
 ### Changed
-- **BREAKING:** Replaced hardware-specific `profiles/<device>/<service>` imports with `github.com/honeybbq/goubus/v2/services/<service>`. Construct a service with its package's `New(caller)`, or use `services.New(caller)` for the complete facade. No per-device profile is required.
-- **BREAKING:** Replaced the old transport-oriented call contract with `Caller.Call(ctx, service, method, data) (Result, error)`. Transports implement `Caller`; `Transport` adds `Close` for connection owners. Configure transports with constructor options instead of `SetLogger`.
-- Moved public call errors and status sentinels to the root `goubus` package. Call failures now include `*CallError` before payload decoding, including status-only calls; inspect causes with `errors.Is` and fields with `errors.As`.
-- Added real response coverage for OpenWrt 24.10 and 25.12 samples. Regression tests now decode network interface/device and wireless status, LuCI features and process data, mount/block/USB/board data, DHCP lease variants, and other captured service responses across the fixture sets.
-- Set default transport logging to discard and redact RPC credentials and session data in the documented logging paths.
-- Updated CI and releases to pin GitHub Actions by SHA, check the public API snapshot, run race tests before release, and generate release notes from the matching changelog section.
+
+- **Breaking:** Hardware-specific `profiles/<device>/<service>` packages are replaced by `github.com/honeybbq/goubus/v2/services/<service>` (`wpa_supplicant` is now `wpasupplicant`). Every service type is named `Client` instead of `Manager`, constructed with `New(caller)`.
+- **Breaking:** `Transport.SetLogger` is removed. Transports discard logs by default; pass `WithRpcLogger(logger)` to `NewRpcClient` or `WithSocketLogger(logger)` to `NewSocketClient` / `NewSocketClientFromConn`. `RpcOption`, `SocketOption`, `services.Option`, `luci.Option`, and `dhcp.Option` are now sealed interfaces rather than function types.
+- **Breaking:** Root sentinels (`ErrNotFound`, `ErrPermissionDenied`, `ErrInvalidParameter`, and the rest) move from `errdefs` to `github.com/honeybbq/goubus/v2`. Match them with `errors.Is` instead of `errdefs.Is*` helpers.
+- **Breaking:** Redundant `Get` prefixes are dropped on service methods (`luci.Client.Version`, `Time`, `Processes`, `Features`, `BlockDevices`, `USBDevices`, `BoardJSON`, `DHCPLeases`, ...; `container.Client.Features`; `network.Client.ProtoHandlers` and `Wireless().Validate`; `service.Client.Data`; `hostapd.AP(name).Clients` and `Status`; `uci.Package(name).All` and `Section.First`).
+- **Breaking:** `luci.Client.Features` returns `map[string]luci.Feature` (supporting both boolean flags on 24.10 and subfeature maps on 25.12), `BlockDevices` returns `map[string]luci.BlockDevice` keyed by device name, and `USBDevices` returns `*luci.USBInfo` (`Devices` and `Ports`).
+- **Breaking:** `uci.SectionValues` encapsulates its internal map; read and `MarshalJSON` methods use value receivers so non-addressable `SectionValues` marshal cleanly, while mutators (`Set`, `SetList`, `SetScalar`, `Append`, `Delete`) use pointer receivers.
+- `RpcClient` formats `String()`, `GoString()`, and `LogValue()` with `password` and `ubus_rpc_session` redacted, redacts outgoing RPC request bodies and `"session"` responses in debug logs, and calls `session.destroy` on `Close()`.
+- CI and release workflows pin GitHub Actions by commit SHA, run `go test -race ./...` and `apidump -check`, and build GitHub release notes from `CHANGELOG.md` via `scripts/release-notes.sh`.
 
 ### Fixed
-- Check ubus response status before returning a result, so `*CallError` is reported even when a caller does not decode a response body.
-- Decode firmware response variants covered by real fixtures, including scalar or object LuCI feature flags, string-valued process fields, unsigned mount/device counters, board port lists, and differing DHCPv6 address keys and nesting.
-- Adapt interface status to fall back to the interface dump when `network.interface.<name>.status` is unavailable.
+
+- Both `RpcClient.Call` and `SocketClient.Call` now inspect the ubus status code (and JSON-RPC `error` object) before returning a `Result`, so status-only calls such as `system.Reboot` and `uci.Commit` report `*CallError` instead of silently succeeding on non-zero status codes.
+- `SocketClient` applies read/write deadlines per round trip, honors `Call` context cancellation during in-flight socket reads, and decodes integer-encoded boolean attributes in `blobmsg` payloads.
+- `dhcp` lease decoders unwrap outer `"device"` and `"interfaces"` maps, stamp `Interface` onto returned leases, accept `"ip6addr"`, `"address"`, `"ipv6"`, and `"ipv6-addr"` keys on `IPv6Lease`, and accept both string addresses and numeric lengths in `IPv6RA.Prefix`.
+- `network.InterfaceContext.Status` falls back to matching the interface in `network.interface` `dump` when `network.interface.<name>` `status` fails.
+- `luci` decodes string-quoted `PID`/`PPID` values in `Processes`, unsigned 64-bit byte counters in `MountPoint` and `BlockDevice`, and `Ports` lists on `BoardInterface`.
 
 ### Removed
-- Removed `profiles/*` and the duplicated `internal/base` service-manager layer. Migrate imports to the matching `services/<name>` package; use `services.New(caller)` when one aggregate is more convenient.
-- Removed the legacy public `errdefs` package and its helper functions. Import error sentinels from `github.com/honeybbq/goubus/v2` and use the standard `errors.Is` / `errors.As` APIs.
-- Removed GoReleaser configuration. The release workflow now builds and tests the module, checks the API snapshot, and publishes notes extracted from `CHANGELOG.md`.
+
+- `profiles/x86_generic/*`, `profiles/cmcc_rax3000m/*`, and `internal/base/*`.
+- Public `errdefs` package and its `Is*` / `Wrapf` helpers.
+- `.goreleaser.yaml` (goubus is a Go library module without release binaries).
+
+### Migrating from v2.0.0-alpha1 and v2.0.0-alpha2
+
+| Before (`v2.0.0-alpha1` / `alpha2`) | Now |
+| --- | --- |
+| `github.com/honeybbq/goubus/v2/profiles/<device>/<svc>` | `github.com/honeybbq/goubus/v2/services/<svc>` (or `services.New(caller)` for all 15) |
+| `profiles/<device>/wpa_supplicant` | `github.com/honeybbq/goubus/v2/services/wpasupplicant` |
+| `*<svc>.Manager` (`system.New(transport)`) | `*<svc>.Client` (`system.New(caller)`) |
+| `transport.SetLogger(logger)` | `goubus.WithRpcLogger(logger)` / `goubus.WithSocketLogger(logger)` in constructor |
+| `errdefs.ErrNotFound`, `errdefs.ErrPermissionDenied`, ... | `goubus.ErrNotFound`, `goubus.ErrPermissionDenied`, ... |
+| `errdefs.IsNotFound(err)`, `errdefs.IsPermissionDenied(err)`, ... | `errors.Is(err, goubus.ErrNotFound)`, `errors.Is(err, goubus.ErrPermissionDenied)`, ... |
+| Unstructured call error string | `errors.Is(err, goubus.ErrCall)` and `var callErr *goubus.CallError; errors.As(err, &callErr)` |
+| `luci` `GetLocaltime(ctx)` / `GetUnixtime(ctx)` | `luci.Client.Time(ctx)` (probes automatically, or pin with `luci.WithTimeMethod`) |
+| `luci` `GetVersion`, `GetProcessList`, `GetBoardJSON`, `GetDHCPLeases`, ... | `Version`, `Processes`, `BoardJSON`, `DHCPLeases` (`Get` prefix removed across `luci`) |
+| `luci` `GetFeatures` -> `map[string]goubus.Bool` | `Features` -> `map[string]luci.Feature` (`.Enabled`, `.Subfeatures`) |
+| `luci` `GetBlockDevices` -> `[]BlockDevice`, `GetUSBDevices` -> `[]USBDevice` | `BlockDevices` -> `map[string]luci.BlockDevice`, `USBDevices` -> `*luci.USBInfo` |
+| Per-device `dhcp` DUID dialect | `dhcp.Client.AddLease` (detects via `goubus.List` or fallback, or pin with `dhcp.WithDUIDFormat`) |
+| `container.GetFeatures`, `service.GetData` | `container.Client.Features`, `service.Client.Data` |
+| `network.GetProtoHandlers`, `network.Wireless().GetValidate` | `network.Client.ProtoHandlers`, `network.Client.Wireless().Validate` |
+| `hostapd.AP(name).GetClients` / `GetStatus` | `hostapd.Client.AP(name).Clients` / `Status` |
+| `uci.Package(name).GetAll`, `section.GetFirst(opt)` | `uci.Client.Package(name).All`, `section.First(opt)` |
 
 ## v2.0.0-alpha2 (2026-08-01)
 
 ### Added
-- Added `NewSocketClientFromConn` for creating a socket transport from an existing connection. Thanks to [@mook](https://github.com/mook) for the contribution in [#6](https://github.com/HoneyBBQ/goubus/pull/6).
+- `NewSocketClientFromConn` for creating a `SocketClient` from an existing `net.Conn`. Contributed by [@mook](https://github.com/mook) in [#6](https://github.com/HoneyBBQ/goubus/pull/6).
 
 ### Fixed
-- Made the socket HELLO handshake honor context cancellation and close the owned connection when initialization fails.
-- Restored reproducible lint checks by pinning `golangci-lint` to v2.12.2 and resolving the existing findings.
+- `SocketClient` honors context cancellation during the `HELLO` handshake and closes the owned connection when initialization fails.
+- Pinned `golangci-lint` to `v2.12.2` in CI and resolved existing lint findings.
 
 ### Changed
-- Updated the GitHub Actions used for checkout, Go setup, coverage uploads, and releases.
+- Updated GitHub Actions for checkout, Go setup, coverage upload, and release workflows.
 
 ## v2.0.0-alpha1 (2026-01-18)
 
 ### Added
-- Explicit hardware profile architecture: different hardware/firmware versions are now separated into their own packages under `profiles/` (e.g., `goubus/profiles/x86_generic`, `goubus/profiles/cmcc_rax3000m`).
-- `internal/base` core layer: shared service logic is centralized and configurable via dialects.
-- Strong type definitions for hardware-specific requests (e.g., `dhcp.AddLeaseRequest`).
-- Structured logging support using `log/slog` throughout the library and examples.
-- Comprehensive GoDoc documentation for all public APIs.
-- Improved error handling with a specialized `errdefs` package and consistent error wrapping.
+- Hardware profile packages under `profiles/` (`profiles/x86_generic`, `profiles/cmcc_rax3000m`) backed by shared dialect logic in `internal/base`.
+- Request and response types for service calls (such as `dhcp.AddLeaseRequest`), `log/slog` transport logging, GoDoc comments across public packages, and the `errdefs` sentinel package.
 
 ### Changed
-- **BREAKING:** Module path updated to `github.com/honeybbq/goubus/v2`.
-- **BREAKING:** Unified `Transport` interface for better abstraction.
-- **BREAKING:** Relocated transport implementations from `transport/` subpackage to the root `goubus` package for cleaner API access.
-- Switched from Apache License 2.0 to MIT.
-- Refactored examples to use `slog` instead of `fmt` or `log`.
-- Updated the Go version requirement to 1.25.
+- **Breaking:** Module path changed to `github.com/honeybbq/goubus/v2`.
+- **Breaking:** Unified `Transport` interface and moved `RpcClient` and `SocketClient` from `transport/` to the root `goubus` package.
+- Switched license from Apache-2.0 to MIT.
+- Updated minimum Go version to 1.25 and switched `examples/` to `log/slog`.
 
 ### Removed
-- Removed the old `transport/` package.
+- `transport/` subpackage.

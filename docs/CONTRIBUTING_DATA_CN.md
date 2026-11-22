@@ -2,20 +2,23 @@
 
 [English](CONTRIBUTING_DATA.md)
 
-一份解码失败的响应，或一个随固件版本变化的方法签名，就可以作为贡献。请记录设备型号、OpenWrt 完整版本（含修订号）和相关软件包版本。
+遇到字段解码报错、返回值漏解析，或者不同固件版本的方法签名不一致时，提交一份脱敏后的实机输出即可定位问题。请一并附上设备型号、`/etc/openwrt_release` 中的完整版本号（含 `DISTRIB_RELEASE` 与 `DISTRIB_REVISION`），以及对应软件包版本（`opkg list-installed` 或 25.12+ 的 `apk info`）。
 
-## 采集响应和签名
+## 采集响应与方法签名
 
-在路由器上运行能复现问题的只读命令。每条命令单独保存一个文件，保留 `ubus call` 输出的原始 JSON，不要另外包一层 RPC 响应。例如：
+在路由器上执行触发问题的只读命令，每条命令单独存成一个文件。直接保留 `ubus call` 标准输出的原始 JSON，不要手动套一层 JSON-RPC 外壳：
 
 ```sh
+cat /etc/openwrt_release
 ubus call system board > /tmp/system_board.json
 ubus call network.interface dump > /tmp/network_interface_dump.json
 ubus call luci-rpc getDHCPLeases > /tmp/luci_rpc_getDHCPLeases.json
 ubus -v list dhcp > /tmp/dhcp_list.txt
 ```
 
-提交时请附上命令及参数。调用失败时记录标准错误和退出状态，不要提交空的 JSON 样本。`ubus -v list` 输出的是便于人阅读的签名文本，不是 JSON，请保存为 `.txt`。如果路由器已经提供 HTTPS `/ubus` 端点并允许 JSON-RPC `list` 方法，也可以采集 JSON 签名响应：
+提交时注明完整命令与参数；如果命令本身报错退出，请记录 stderr 与退出码，不要提交空的 JSON 文件。
+
+`ubus -v list` 输出的是纯文本签名而非 JSON，保存为 `.txt` 即可。如果路由器已开启 HTTPS `/ubus` 端点且允许免会话的 JSON-RPC `list` 请求，也可以直接抓取原始签名报文：
 
 ```sh
 curl --fail --silent --show-error \
@@ -24,17 +27,17 @@ curl --fail --silent --show-error \
   https://router.example/ubus > dhcp_list.json
 ```
 
-将示例主机名替换为路由器的主机名，并使用可信的 TLS 证书。测试 RPC 报文格式时保留完整响应；只测试签名时可以提取 `result`。如果只使用 Unix 套接字，附上 CLI 文本就足以报告签名差异。
+排查 `RpcClient` 协议层解析问题时保留完整 JSON-RPC 报文；仅验证参数签名时提取其中的 `result` 字段即可。只走本地 Unix Socket 的环境直接贴 `ubus -v list` 文本就够用。
 
-## 添加回归测试
+## 编写回归测试
 
-1. 分享前请脱敏密码、无线密钥、会话令牌、地址、主机名和其他隐私数据。保留字段名、JSON 类型和触发问题的数据结构。不要上传未经处理的配置转储。
-2. 将脱敏样本放到 `internal/testdata/<firmware_or_device>/`，文件名如 `network_interface_dump.json`。如果只准备了样本，也可以连同采集信息一起提交 Issue。
-3. 在受影响的客户端测试中添加表驱动用例，例如 `services/network/client_test.go`。对于调用响应，使用 `goubus.CallerFunc` 和 `goubus.NewJSONResult` 将样本交给类型化客户端；对于 JSON-RPC 签名，参考 `rpc_list_test.go`，让测试 HTTP handler 返回样本。断言有差异的解码字段、选用的方法或参数格式，不要只检查解码是否成功。
-4. 在仓库根目录运行以下检查：
+1. 上传前务必清理敏感信息：管理员密码、Wi-Fi 密钥、PPPoE 账号密码、WireGuard 私钥、`ubus_rpc_session` 令牌、真实 MAC 地址、公网 IPv4/IPv6 地址与前缀以及设备主机名。脱敏时保留原有的键名、JSON 数据类型和嵌套层级，切勿直接上传未处理的 `/etc/config` 配置备份。
+2. 将脱敏样本放入 `internal/testdata/<固件目标或机型>/` 目录（例如 `internal/testdata/x86_generic/network_interface_dump.json`）。如果只方便提供样本、不打算改 Go 代码，直接连同固件版本信息发在 Issue 里即可。
+3. 在对应服务包的测试文件（如 `services/network/client_test.go`）中用 `goubus.CallerFunc` 搭配 `goubus.NewJSONResult` 喂入样本；若是 JSON-RPC `list` 样本，参考 `rpc_list_test.go` 用 `httptest.Server` 返回。断言时请直接校验存在差异的具体字段值、探测选中的方法名或请求参数格式，不要只断言 `err == nil`。
+4. 在仓库根目录执行与 CI 一致的检查：
 
-   ```sh
-   golangci-lint run ./...
-   go test -race ./...
-   go run ./internal/tools/apidump -check
-   ```
+```sh
+golangci-lint run ./...
+go test -race ./...
+go run ./internal/tools/apidump -check
+```
