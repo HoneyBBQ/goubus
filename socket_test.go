@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/honeybbq/goubus/v2"
-	"github.com/honeybbq/goubus/v2/errdefs"
 	"github.com/honeybbq/goubus/v2/internal/blobmsg"
 	"github.com/honeybbq/goubus/v2/internal/logging"
 )
@@ -111,7 +110,7 @@ func assertClientClosed(t *testing.T, client *goubus.SocketClient) {
 	t.Helper()
 
 	_, err := client.Call(context.Background(), "other.service", "info", nil)
-	if !errors.Is(err, errdefs.ErrClosed) {
+	if !errors.Is(err, goubus.ErrClosed) {
 		t.Fatalf("expected closed client error, got %v", err)
 	}
 }
@@ -386,7 +385,7 @@ func TestSocketClient_NewSocketClientFromConnRejectsNil(t *testing.T) {
 		t.Fatal("expected nil client")
 	}
 
-	if !errdefs.IsInvalidParameter(err) {
+	if !errors.Is(err, goubus.ErrInvalidParameter) {
 		t.Fatalf("expected invalid parameter error, got %v", err)
 	}
 }
@@ -650,11 +649,12 @@ func TestSocketClient_Timeout(t *testing.T) {
 }
 
 func TestSocketClient_Options(t *testing.T) {
-	client := &goubus.SocketClient{}
-	goubus.WithSocketLogger(logging.Discard())(client)
-	goubus.WithDialTimeout(time.Second)(client)
-	goubus.WithReadTimeout(time.Second)(client)
-	goubus.WithWriteTimeout(time.Second)(client)
+	client := newPipeSocketClient(t, systemMockHandler,
+		goubus.WithSocketLogger(logging.Discard()),
+		goubus.WithDialTimeout(time.Second),
+		goubus.WithReadTimeout(time.Second),
+		goubus.WithWriteTimeout(time.Second),
+	)
 
 	if client.DialTimeout() != time.Second {
 		t.Errorf("dialTimeout mismatch")
@@ -774,7 +774,7 @@ func TestSocketClient_CallTimeoutCauseClosesConnection(t *testing.T) {
 	}
 
 	_, err := client.Call(context.Background(), testSystemService, testInfoMethod, nil)
-	if !errors.Is(err, errdefs.ErrClosed) {
+	if !errors.Is(err, goubus.ErrClosed) {
 		t.Fatalf("expected closed connection after timed-out round trip, got %v", err)
 	}
 }
@@ -857,7 +857,7 @@ func TestSocketClient_LookupStatusErrorKeepsConnection(t *testing.T) {
 	client := newPipeSocketClient(t, missingServiceMockHandler)
 
 	_, err := client.Call(t.Context(), "missing.service", testInfoMethod, nil)
-	if !errors.Is(err, errdefs.ErrNotFound) {
+	if !errors.Is(err, goubus.ErrNotFound) {
 		t.Fatalf("expected not found error, got %v", err)
 	}
 
@@ -919,7 +919,7 @@ func TestSocketClient_NewSocketClientFromConnRejectsNonHello(t *testing.T) {
 	go sendHello(serverConn, blobmsg.UbusMsgStatus)
 
 	_, err := goubus.NewSocketClientFromConn(t.Context(), fault)
-	if !errdefs.IsInvalidResponse(err) {
+	if !errors.Is(err, goubus.ErrInvalidResponse) {
 		t.Fatalf("expected invalid response, got %v", err)
 	}
 
@@ -933,7 +933,7 @@ func TestSocketClient_NewSocketClientFromConnEOFCloses(t *testing.T) {
 	fault := newFaultConn(clientConn)
 
 	_, err := goubus.NewSocketClientFromConn(t.Context(), fault)
-	if !errdefs.IsConnectionFailed(err) {
+	if !errors.Is(err, goubus.ErrConnectionFailed) {
 		t.Fatalf("expected connection failure, got %v", err)
 	}
 
@@ -960,7 +960,7 @@ func TestSocketClient_NewSocketClientFromConnDeadlineFailuresClose(t *testing.T)
 			go sendHello(serverConn, blobmsg.UbusMsgHello)
 
 			_, err := goubus.NewSocketClientFromConn(t.Context(), fault)
-			if !errdefs.IsConnectionFailed(err) {
+			if !errors.Is(err, goubus.ErrConnectionFailed) {
 				t.Fatalf("expected connection failure, got %v", err)
 			}
 
@@ -1051,7 +1051,7 @@ func TestSocketClient_CallQueuedAfterCloseReturnsClosed(t *testing.T) {
 	}
 
 	queuedErr := waitForError(t, bDone, "queued call did not finish")
-	if !errors.Is(queuedErr, errdefs.ErrClosed) {
+	if !errors.Is(queuedErr, goubus.ErrClosed) {
 		t.Fatalf("expected queued call to report closed, got %v", queuedErr)
 	}
 }
@@ -1065,7 +1065,7 @@ func TestSocketClient_CallAfterCloseReturnsClosed(t *testing.T) {
 	}
 
 	_, err := client.Call(t.Context(), "other.service", "info", nil)
-	if !errors.Is(err, errdefs.ErrClosed) {
+	if !errors.Is(err, goubus.ErrClosed) {
 		t.Fatalf("expected closed client error, got %v", err)
 	}
 }
@@ -1110,7 +1110,7 @@ func TestSocketClient_RoundTripDeadlineAndWriteFailuresClose(t *testing.T) {
 			}
 
 			_, err := client.Call(t.Context(), testSystemService, testInfoMethod, nil)
-			if !errdefs.IsConnectionFailed(err) {
+			if !errors.Is(err, goubus.ErrConnectionFailed) {
 				t.Fatalf("expected connection failure, got %v", err)
 			}
 
@@ -1151,7 +1151,7 @@ func assertCorruptResponseCloses(t *testing.T, lookup bool) {
 	}
 
 	_, err := client.Call(t.Context(), testSystemService, testInfoMethod, nil)
-	if !errdefs.IsInvalidResponse(err) {
+	if !errors.Is(err, goubus.ErrInvalidResponse) {
 		t.Fatalf("expected invalid response, got %v", err)
 	}
 

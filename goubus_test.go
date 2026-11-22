@@ -52,7 +52,7 @@ type callTestCase struct {
 var callTestCases = []callTestCase{
 	{
 		name: "Success",
-		mock: func(ctx context.Context, service, method string, data any) (goubus.Result, error) {
+		mock: func(_ context.Context, _ string, _ string, _ any) (goubus.Result, error) {
 			return &mockResult{
 				unmarshalFunc: func(target any) error {
 					resp, ok := target.(*callTestResponse)
@@ -70,16 +70,16 @@ var callTestCases = []callTestCase{
 	},
 	{
 		name: "Transport Error",
-		mock: func(ctx context.Context, service, method string, data any) (goubus.Result, error) {
+		mock: func(_ context.Context, _ string, _ string, _ any) (goubus.Result, error) {
 			return nil, errMockTransport
 		},
 		wantErr: true,
 	},
 	{
 		name: "Unmarshal Error",
-		mock: func(ctx context.Context, service, method string, data any) (goubus.Result, error) {
+		mock: func(_ context.Context, _ string, _ string, _ any) (goubus.Result, error) {
 			return &mockResult{
-				unmarshalFunc: func(target any) error {
+				unmarshalFunc: func(_ any) error {
 					return errMockUnmarshal
 				},
 			}, nil

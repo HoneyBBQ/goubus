@@ -3,6 +3,7 @@ package goubus_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -11,7 +12,6 @@ import (
 	"time"
 
 	"github.com/honeybbq/goubus/v2"
-	"github.com/honeybbq/goubus/v2/errdefs"
 )
 
 const (
@@ -54,7 +54,7 @@ func TestRpcClient_Call(t *testing.T) {
 	sessionID := "12345678901234567890123456789012"
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		handleRpcCall(t, w, r, sessionID)
+		handleRPCCall(t, w, r, sessionID)
 	}))
 	defer server.Close()
 
@@ -85,7 +85,7 @@ func TestRpcClient_Call(t *testing.T) {
 	}
 }
 
-func handleRpcCall(t *testing.T, writer http.ResponseWriter, request *http.Request, sessionID string) {
+func handleRPCCall(t *testing.T, writer http.ResponseWriter, request *http.Request, sessionID string) {
 	t.Helper()
 
 	var reqBody map[string]any
@@ -197,71 +197,77 @@ func TestRpcClient_SessionExpiry(t *testing.T) {
 
 func TestRpcClient_ErrorHandling(t *testing.T) {
 	tests := []struct {
-		wantErr  error
-		name     string
-		response string
+		wantErr       error
+		name          string
+		response      string
+		wantCallError bool
 	}{
 		{
-			name:     "Method Not Found",
-			response: `{"jsonrpc":"2.0","id":1,"error":{"code":3,"message":"Method not found"}}`,
-			wantErr:  errdefs.ErrMethodNotFound,
+			name:          "Method Not Found",
+			response:      `{"jsonrpc":"2.0","id":2,"error":{"code":-32601,"message":"Method not found"}}`,
+			wantErr:       goubus.ErrMethodNotFound,
+			wantCallError: true,
 		},
 		{
-			name:     "Ubus Not Found",
-			response: `{"jsonrpc":"2.0","id":1,"result":[4]}`,
-			wantErr:  errdefs.ErrNotFound,
+			name:          "Ubus Not Found",
+			response:      `{"jsonrpc":"2.0","id":2,"result":[4]}`,
+			wantErr:       goubus.ErrNotFound,
+			wantCallError: true,
 		},
 		{
 			name:     "Invalid Response",
 			response: `invalid json`,
-			wantErr:  errdefs.ErrInvalidResponse,
+			wantErr:  goubus.ErrInvalidResponse,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			runRpcErrorHandlingCase(t, tt)
+			runRPCErrorHandlingCase(t, tt)
 		})
 	}
 }
 
-func runRpcErrorHandlingCase(t *testing.T, testCase struct {
-	wantErr  error
-	name     string
-	response string
+func runRPCErrorHandlingCase(t *testing.T, testCase struct {
+	wantErr       error
+	name          string
+	response      string
+	wantCallError bool
 }) {
 	t.Helper()
 
-	server := newRpcErrorHandlingServer(t, testCase.response)
+	server := newRPCErrorHandlingServer(t, testCase.response)
 	defer server.Close()
 
 	host := strings.TrimPrefix(server.URL, "http://")
-
 	client, err := goubus.NewRpcClient(context.Background(), host, "u", "p")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	result, err := client.Call(context.Background(), "s", "m", nil)
-	if err != nil {
-		assertErrorContains(t, err, testCase.wantErr)
-
-		return
-	}
-
-	err = result.Unmarshal(&struct{}{})
+	_, err = client.Call(context.Background(), "s", "m", nil)
 	if err == nil {
-		t.Fatal("expected error from Unmarshal, got nil")
+		t.Fatal("expected Call to fail before Unmarshal")
 	}
-
-	assertErrorContains(t, err, testCase.wantErr)
+	if !errors.Is(err, testCase.wantErr) {
+		t.Errorf("Call() error = %v, want errors.Is(_, %v)", err, testCase.wantErr)
+	}
+	if testCase.wantCallError {
+		var callErr *goubus.CallError
+		if !errors.As(err, &callErr) {
+			t.Fatalf("Call() error = %T, want *goubus.CallError", err)
+		}
+		if !errors.Is(err, goubus.ErrCall) {
+			t.Errorf("Call() error %v does not include ErrCall", err)
+		}
+	}
 }
 
-func newRpcErrorHandlingServer(t *testing.T, response string) *httptest.Server {
+func newRPCErrorHandlingServer(t *testing.T, response string) *httptest.Server {
 	t.Helper()
 
 	return httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		reqBody := decodeRpcRequestBody(request)
+		reqBody := decodeRPCRequestBody(request)
 		if reqBody == nil {
 			return
 		}
@@ -282,7 +288,7 @@ func newRpcErrorHandlingServer(t *testing.T, response string) *httptest.Server {
 	}))
 }
 
-func decodeRpcRequestBody(request *http.Request) map[string]any {
+func decodeRPCRequestBody(request *http.Request) map[string]any {
 	reqBody := map[string]any{}
 
 	err := json.NewDecoder(request.Body).Decode(&reqBody)
@@ -291,16 +297,4 @@ func decodeRpcRequestBody(request *http.Request) map[string]any {
 	}
 
 	return reqBody
-}
-
-func assertErrorContains(t *testing.T, got error, want error) {
-	t.Helper()
-
-	if want == nil {
-		return
-	}
-
-	if !strings.Contains(strings.ToLower(got.Error()), strings.ToLower(want.Error())) {
-		t.Errorf("expected error containing %v, got %v", want, got)
-	}
 }

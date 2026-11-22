@@ -102,22 +102,15 @@ func TestBoolValue(t *testing.T) {
 func TestBool_Format(t *testing.T) {
 	boolValue := goubus.Bool(true)
 
-	str := fmt.Sprintf("%t", &boolValue)
+	str := fmt.Sprintf("%t", boolValue)
 	if str != jsonTrue {
 		t.Errorf("fmt.Sprintf(%%t) got = %s, want true", str)
 	}
 
 	boolValue = goubus.Bool(false)
 
-	str = fmt.Sprintf("%t", &boolValue)
+	str = fmt.Sprintf("%t", boolValue)
 	if str != jsonFalse {
 		t.Errorf("fmt.Sprintf(%%t) got = %s, want false", str)
-	}
-
-	var nb *goubus.Bool
-
-	str = fmt.Sprintf("%t", nb)
-	if str != jsonFalse {
-		t.Errorf("fmt.Sprintf(%%t) for nil got = %s, want false", str)
 	}
 }

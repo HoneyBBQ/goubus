@@ -312,7 +312,7 @@ func TestRemainingFunctions(t *testing.T) {
 		}
 	})
 	t.Run("CreateBlobmsgData", testRemainingCreateBlobmsgData)
-	t.Run("EncodeJsonNumber", testRemainingEncodeJsonNumber)
+	t.Run("EncodeJSONNumber", testRemainingEncodeJSONNumber)
 	t.Run("EncodeUnsignedValue", testRemainingEncodeUnsignedValue)
 	t.Run("DecodeInt16", func(t *testing.T) {
 		if blobmsg.DecodeInt16([]byte{0, 1}) != 1 {
@@ -348,20 +348,20 @@ func testRemainingCreateBlobmsgData(t *testing.T) {
 	}
 }
 
-func testRemainingEncodeJsonNumber(t *testing.T) {
-	_, _, err := blobmsg.EncodeJsonNumber(json.Number("123"))
+func testRemainingEncodeJSONNumber(t *testing.T) {
+	_, _, err := blobmsg.EncodeJSONNumber(json.Number("123"))
 	if err != nil {
-		t.Errorf("EncodeJsonNumber(int) failed")
+		t.Errorf("EncodeJSONNumber(int) failed")
 	}
 
-	_, _, err = blobmsg.EncodeJsonNumber(json.Number("123.45"))
+	_, _, err = blobmsg.EncodeJSONNumber(json.Number("123.45"))
 	if err != nil {
-		t.Errorf("EncodeJsonNumber(float) failed")
+		t.Errorf("EncodeJSONNumber(float) failed")
 	}
 
-	_, _, err = blobmsg.EncodeJsonNumber(json.Number("invalid"))
+	_, _, err = blobmsg.EncodeJSONNumber(json.Number("invalid"))
 	if err == nil {
-		t.Errorf("EncodeJsonNumber(invalid) should fail")
+		t.Errorf("EncodeJSONNumber(invalid) should fail")
 	}
 }
 

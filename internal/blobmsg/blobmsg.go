@@ -1,6 +1,7 @@
 // Copyright (c) 2026 honeybbq
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+// Package blobmsg encodes and decodes ubus and blobmsg wire frames.
 package blobmsg
 
 import (
@@ -18,15 +19,17 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/honeybbq/goubus/v2/errdefs"
+	"github.com/honeybbq/goubus/v2/internal/errs"
 )
 
+// Align is the wire alignment used for blob attributes.
 const (
 	Align     = 4
 	MinLen    = 4
 	HeaderLen = 4
 )
 
+// Uint32Size and related constants are the encoded widths of unsigned integers.
 const (
 	Uint32Size = 4
 	Uint16Size = 2
@@ -63,6 +66,7 @@ const (
 	UbusMsgMonitor      = 11
 )
 
+// AttrIDMask and related constants describe blob attribute headers.
 const (
 	AttrIDMask       = 0x7f000000
 	AttrIDShift      = 24
@@ -92,6 +96,7 @@ const (
 	UbusAttrGroup       = 13
 )
 
+// UbusMessageHeader is the fixed header of an ubus message.
 type UbusMessageHeader struct {
 	Version uint8
 	Type    uint8
@@ -99,6 +104,7 @@ type UbusMessageHeader struct {
 	Peer    uint32
 }
 
+// AttrHeader describes a parsed blob attribute header.
 type AttrHeader struct {
 	ID         uint32
 	AttrType   uint32
@@ -106,15 +112,18 @@ type AttrHeader struct {
 	IsExtended bool
 }
 
+// BlobReader iterates over aligned blob attributes.
 type BlobReader struct {
 	Data   []byte
 	Offset int
 }
 
+// HasNext reports whether the reader has another attribute.
 func (r *BlobReader) HasNext() bool {
 	return r.Offset < len(r.Data)
 }
 
+// Next reads the next attribute and its payload.
 func (r *BlobReader) Next() (*AttrHeader, []byte, error) {
 	if r.Offset+MinAttrLen > len(r.Data) {
 		return nil, nil, io.EOF
@@ -130,7 +139,7 @@ func (r *BlobReader) Next() (*AttrHeader, []byte, error) {
 	}
 
 	if attrLen < MinAttrLen || r.Offset+attrLen > len(r.Data) {
-		return nil, nil, errdefs.Wrapf(errdefs.ErrInvalidBlobLength, "length %d", attrLen)
+		return nil, nil, errs.Wrapf(errs.ErrInvalidBlobLength, "length %d", attrLen)
 	}
 
 	header := &AttrHeader{
@@ -147,6 +156,7 @@ func (r *BlobReader) Next() (*AttrHeader, []byte, error) {
 	return header, payload, nil
 }
 
+// CreateBlobMessage encodes a top-level ubus message payload.
 func CreateBlobMessage(attrs map[uint32]any, ordered []uint32) ([]byte, error) {
 	keys := GetSortedKeys(attrs, ordered)
 
@@ -165,7 +175,7 @@ func CreateBlobMessage(attrs map[uint32]any, ordered []uint32) ([]byte, error) {
 	}
 
 	if totalLen64 < 0 || totalLen64 > math.MaxUint32 {
-		return nil, errdefs.ErrInvalidBlobLength
+		return nil, errs.ErrInvalidBlobLength
 	}
 
 	totalLen := uint32(totalLen64)
@@ -173,6 +183,7 @@ func CreateBlobMessage(attrs map[uint32]any, ordered []uint32) ([]byte, error) {
 	return BuildBlobBuffer(totalLen, items)
 }
 
+// GetSortedKeys orders attribute IDs using the requested prefix order.
 func GetSortedKeys(attrs map[uint32]any, ordered []uint32) []uint32 {
 	keys := make([]uint32, 0, len(attrs))
 
@@ -193,6 +204,7 @@ func GetSortedKeys(attrs map[uint32]any, ordered []uint32) []uint32 {
 	return keys
 }
 
+// BuildBlobBuffer joins a length header and encoded attributes.
 func BuildBlobBuffer(totalLen uint32, items [][]byte) ([]byte, error) {
 	var buf bytes.Buffer
 
@@ -211,6 +223,7 @@ func BuildBlobBuffer(totalLen uint32, items [][]byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// EncodeUbusAttribute encodes a single top-level ubus attribute.
 func EncodeUbusAttribute(attrID uint32, value any) ([]byte, error) {
 	attrValue, err := EncodeAttributeValue(attrID, value)
 	if err != nil {
@@ -219,7 +232,7 @@ func EncodeUbusAttribute(attrID uint32, value any) ([]byte, error) {
 
 	attrLen64 := int64(MinAttrLen) + int64(len(attrValue))
 	if attrLen64 < 0 || attrLen64 > math.MaxUint32 {
-		return nil, errdefs.ErrInvalidBlobLength
+		return nil, errs.ErrInvalidBlobLength
 	}
 
 	attrLen := uint32(attrLen64)
@@ -240,6 +253,7 @@ func EncodeUbusAttribute(attrID uint32, value any) ([]byte, error) {
 	return AlignBuffer(buf.Bytes()), nil
 }
 
+// EncodeAttributeValue encodes an attribute value without its header.
 func EncodeAttributeValue(attrID uint32, value any) ([]byte, error) {
 	switch _value := value.(type) {
 	case string:
@@ -251,14 +265,16 @@ func EncodeAttributeValue(attrID uint32, value any) ([]byte, error) {
 	case int:
 		return EncodeIntAttributeValue(_value)
 	default:
-		return nil, errdefs.Wrapf(errdefs.ErrUnsupportedAttributeType, "%T", value)
+		return nil, errs.Wrapf(errs.ErrUnsupportedAttributeType, "%T", value)
 	}
 }
 
-func EncodeByteAttributeValue(attrID uint32, value []byte) ([]byte, error) {
+// EncodeByteAttributeValue returns a byte attribute payload.
+func EncodeByteAttributeValue(_ uint32, value []byte) ([]byte, error) {
 	return value, nil
 }
 
+// EncodeUintAttributeValue encodes an unsigned top-level attribute value.
 func EncodeUintAttributeValue(value any) ([]byte, error) {
 	switch _value := value.(type) {
 	case uint32:
@@ -268,22 +284,25 @@ func EncodeUintAttributeValue(value any) ([]byte, error) {
 	case uint8:
 		return EncodeUint32(uint32(_value)), nil
 	default:
-		return nil, errdefs.Wrapf(errdefs.ErrUnsupportedAttributeType, "%T", value)
+		return nil, errs.Wrapf(errs.ErrUnsupportedAttributeType, "%T", value)
 	}
 }
 
+// EncodeIntAttributeValue encodes a non-negative integer attribute value.
 func EncodeIntAttributeValue(value int) ([]byte, error) {
 	if value >= 0 && value <= math.MaxUint32 {
 		return EncodeUint32(uint32(value)), nil
 	}
 
-	return nil, errdefs.Wrapf(errdefs.ErrInvalidParameter, "int value %d out of uint32 range", value)
+	return nil, errs.Wrapf(errs.ErrInvalidParameter, "int value %d out of uint32 range", value)
 }
 
+// EncodeStringValue encodes a null-terminated string.
 func EncodeStringValue(value string) []byte {
 	return append([]byte(value), StringTerminator)
 }
 
+// EncodeUint32 encodes an unsigned 32-bit integer in network byte order.
 func EncodeUint32(value uint32) []byte {
 	data := make([]byte, Uint32Size)
 	binary.BigEndian.PutUint32(data, value)
@@ -291,6 +310,7 @@ func EncodeUint32(value uint32) []byte {
 	return data
 }
 
+// PadToAlign appends zero bytes to the next blob alignment boundary.
 func PadToAlign(data []byte) []byte {
 	paddedLen := Align4(len(data))
 	if paddedLen == len(data) {
@@ -302,6 +322,7 @@ func PadToAlign(data []byte) []byte {
 	return append(data, padding...)
 }
 
+// AlignBuffer pads data to a blob alignment boundary.
 func AlignBuffer(data []byte) []byte {
 	paddedLen := Align4(len(data))
 	if paddedLen == len(data) {
@@ -313,10 +334,12 @@ func AlignBuffer(data []byte) []byte {
 	return append(data, padding...)
 }
 
+// Align4 rounds a length up to a four-byte boundary.
 func Align4(n int) int {
 	return (n + (Align - 1)) &^ (Align - 1)
 }
 
+// CreateBlobmsgData encodes a table of ubus method arguments.
 func CreateBlobmsgData(args map[string]any) ([]byte, error) {
 	if len(args) == 0 {
 		return []byte{}, nil
@@ -334,6 +357,7 @@ func CreateBlobmsgData(args map[string]any) ([]byte, error) {
 	return body[BlobHeaderBytes:], nil
 }
 
+// CreateBlobmsgTable encodes a blobmsg table.
 func CreateBlobmsgTable(values map[string]any) ([]byte, error) {
 	keys := GetSortedMapKeys(values)
 
@@ -352,12 +376,13 @@ func CreateBlobmsgTable(values map[string]any) ([]byte, error) {
 	}
 
 	if totalLen64 < 0 || totalLen64 > math.MaxUint32 {
-		return nil, errdefs.ErrInvalidBlobLength
+		return nil, errs.ErrInvalidBlobLength
 	}
 
 	return BuildBlobBuffer(uint32(totalLen64), entries)
 }
 
+// GetSortedMapKeys returns map keys in deterministic order.
 func GetSortedMapKeys(values map[string]any) []string {
 	keys := make([]string, 0, len(values))
 	for k := range values {
@@ -369,6 +394,7 @@ func GetSortedMapKeys(values map[string]any) []string {
 	return keys
 }
 
+// CreateBlobmsgArray encodes a blobmsg array.
 func CreateBlobmsgArray(values []any) ([]byte, error) {
 	var entries [][]byte
 
@@ -385,12 +411,13 @@ func CreateBlobmsgArray(values []any) ([]byte, error) {
 	}
 
 	if totalLen64 < 0 || totalLen64 > math.MaxUint32 {
-		return nil, errdefs.ErrInvalidBlobLength
+		return nil, errs.ErrInvalidBlobLength
 	}
 
 	return BuildBlobBuffer(uint32(totalLen64), entries)
 }
 
+// CreateBlobmsgEntry encodes one named blobmsg value.
 func CreateBlobmsgEntry(name string, value any) ([]byte, error) {
 	blobType, valueData, err := EncodeBlobmsgValue(value)
 	if err != nil {
@@ -399,7 +426,7 @@ func CreateBlobmsgEntry(name string, value any) ([]byte, error) {
 
 	nameLen := len(name)
 	if nameLen > math.MaxUint16 {
-		return nil, errdefs.Wrapf(errdefs.ErrInvalidParameter, "name length %d exceeds uint16", nameLen)
+		return nil, errs.Wrapf(errs.ErrInvalidParameter, "name length %d exceeds uint16", nameLen)
 	}
 
 	attrLen, err := CalculateAttrLen(nameLen, len(valueData))
@@ -427,7 +454,7 @@ func CalculateAttrLen(nameLen, valueLen int) (uint32, error) {
 
 	attrLen64 := int64(MinAttrLen) + int64(nameHeaderLen) + int64(valueLen)
 	if attrLen64 < 0 || attrLen64 > math.MaxUint32 {
-		return 0, errdefs.ErrInvalidBlobLength
+		return 0, errs.ErrInvalidBlobLength
 	}
 
 	return uint32(attrLen64), nil
@@ -445,7 +472,7 @@ func EncodeBlobmsgHeader(buf *bytes.Buffer, blobType uint8, attrLen uint32, name
 	if nameLen >= 0 && nameLen <= math.MaxUint16 {
 		nameLen16 = uint16(nameLen)
 	} else {
-		return errdefs.Wrapf(errdefs.ErrInvalidParameter, "name length %d out of uint16 range", nameLen)
+		return errs.Wrapf(errs.ErrInvalidParameter, "name length %d out of uint16 range", nameLen)
 	}
 
 	err = binary.Write(buf, binary.BigEndian, nameLen16)
@@ -509,13 +536,13 @@ func EncodeBasicValue(value any) (uint8, []byte, error) {
 		return u8, buf, nil
 	}
 
-	return 0, nil, errdefs.Wrapf(errdefs.ErrUnsupportedAttributeType, "%T", value)
+	return 0, nil, errs.Wrapf(errs.ErrUnsupportedAttributeType, "%T", value)
 }
 
 func EncodeNumericValue(value any) (uint8, []byte, error) {
 	switch _value := value.(type) {
 	case json.Number:
-		return EncodeJsonNumber(_value)
+		return EncodeJSONNumber(_value)
 	case int, int8, int16, int32, int64:
 		return EncodeIntegerValue(ReflectInt64(_value))
 	case uint, uint8, uint16, uint32, uint64:
@@ -523,7 +550,7 @@ func EncodeNumericValue(value any) (uint8, []byte, error) {
 	case float32, float64:
 		return EncodeFloatValue(_value)
 	default:
-		return 0, nil, errdefs.Wrapf(errdefs.ErrUnsupportedAttributeType, "%T", value)
+		return 0, nil, errs.Wrapf(errs.ErrUnsupportedAttributeType, "%T", value)
 	}
 }
 
@@ -536,7 +563,7 @@ func EncodeComplexValue(value any) (uint8, []byte, error) {
 		return EncodeArrayValue(a)
 	}
 
-	return 0, nil, errdefs.Wrapf(errdefs.ErrUnsupportedAttributeType, "%T", value)
+	return 0, nil, errs.Wrapf(errs.ErrUnsupportedAttributeType, "%T", value)
 }
 
 func EncodeBoolValue(value bool) (uint8, []byte) {
@@ -569,7 +596,7 @@ func EncodeFloatValue(value any) (uint8, []byte, error) {
 	case float64:
 		f64 = _value
 	default:
-		return 0, nil, errdefs.Wrapf(errdefs.ErrInvalidParameter, "expected float, got %T", value)
+		return 0, nil, errs.Wrapf(errs.ErrInvalidParameter, "expected float, got %T", value)
 	}
 
 	return TypeDouble, EncodeFloat64(f64), nil
@@ -593,7 +620,7 @@ func EncodeArrayValue(value []any) (uint8, []byte, error) {
 	return TypeArray, array[BlobHeaderBytes:], nil
 }
 
-func EncodeJsonNumber(value json.Number) (uint8, []byte, error) {
+func EncodeJSONNumber(value json.Number) (uint8, []byte, error) {
 	i64, err := value.Int64()
 	if err == nil {
 		return EncodeIntegerValue(i64)
@@ -604,36 +631,63 @@ func EncodeJsonNumber(value json.Number) (uint8, []byte, error) {
 		return TypeDouble, EncodeFloat64(f64), nil
 	}
 
-	return 0, nil, errdefs.Wrapf(errdefs.ErrInvalidParameter, "invalid number: %s", value.String())
+	return 0, nil, errs.Wrapf(errs.ErrInvalidParameter, "invalid number: %s", value.String())
 }
 
 func EncodeReflectValue(value any) (uint8, []byte, error) {
-	_value := ReflectValue(value)
-	switch _value.Kind() {
-	case reflect.Map:
-		return EncodeReflectMap(_value)
-	case reflect.Slice, reflect.Array:
-		return EncodeReflectSlice(_value)
-	case reflect.Struct:
-		return EncodeReflectStruct(_value)
-	case reflect.Invalid, reflect.Bool,
-		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
-		reflect.Uintptr, reflect.Float32, reflect.Float64,
-		reflect.Complex64, reflect.Complex128,
-		reflect.Chan, reflect.Func, reflect.Interface, reflect.Pointer,
-		reflect.String, reflect.UnsafePointer:
-		fallthrough
-	default:
-		return 0, nil, errdefs.Wrapf(errdefs.ErrUnsupportedAttributeType, "%T", value)
+	if marshaler, ok := value.(json.Marshaler); ok {
+		return encodeMarshaledValue(value, marshaler)
 	}
+
+	reflected := ReflectValue(value)
+	switch reflected.Kind() {
+	case reflect.Map:
+		return EncodeReflectMap(reflected)
+	case reflect.Slice, reflect.Array:
+		return EncodeReflectSlice(reflected)
+	case reflect.Struct:
+		return EncodeReflectStruct(reflected)
+	case reflect.Bool:
+		return EncodeBasicValue(reflected.Bool())
+	case reflect.String:
+		return EncodeBasicValue(reflected.String())
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return EncodeIntegerValue(reflected.Int())
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return EncodeUnsignedValue(reflected.Uint())
+	case reflect.Float32, reflect.Float64:
+		return EncodeFloatValue(reflected.Float())
+	case reflect.Invalid, reflect.Complex64, reflect.Complex128, reflect.Chan,
+		reflect.Func, reflect.Interface, reflect.Pointer, reflect.UnsafePointer:
+		return 0, nil, errs.Wrapf(errs.ErrUnsupportedAttributeType, "%T", value)
+	}
+
+	return 0, nil, errs.Wrapf(errs.ErrUnsupportedAttributeType, "%T", value)
+}
+
+func encodeMarshaledValue(value any, marshaler json.Marshaler) (uint8, []byte, error) {
+	data, err := marshaler.MarshalJSON()
+	if err != nil {
+		return 0, nil, errs.Wrapf(errs.ErrInvalidParameter, "marshal %T: %v", value, err)
+	}
+
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+
+	var decoded any
+	decodeErr := decoder.Decode(&decoded)
+	if decodeErr != nil {
+		return 0, nil, errs.Wrapf(errs.ErrInvalidParameter, "decode marshaled %T: %v", value, decodeErr)
+	}
+
+	return EncodeBlobmsgValue(decoded)
 }
 
 func EncodeReflectMap(value reflect.Value) (uint8, []byte, error) {
 	if value.Type().Key().Kind() != reflect.String {
 		return 0, nil,
-			errdefs.Wrapf(
-				errdefs.ErrUnsupportedAttributeType,
+			errs.Wrapf(
+				errs.ErrUnsupportedAttributeType,
 				"map key must be string, got %s",
 				value.Type().Key(),
 			)
@@ -652,14 +706,13 @@ func EncodeReflectMap(value reflect.Value) (uint8, []byte, error) {
 
 func EncodeReflectSlice(value reflect.Value) (uint8, []byte, error) {
 	if value.Type().Elem().Kind() == reflect.Uint8 {
+		data := make([]byte, value.Len()+1)
+		reflect.Copy(reflect.ValueOf(data[:value.Len()]), value)
 		if value.Len() == 0 {
 			return TypeUnspec, []byte{}, nil
 		}
 
-		data := make([]byte, 0, value.Len())
-		data = append(data, value.Bytes()...)
-
-		return TypeString, append(data, StringTerminator), nil
+		return TypeString, data, nil
 	}
 
 	length := value.Len()
@@ -749,7 +802,7 @@ func ParseTopLevelAttributes(data []byte) (map[string]any, error) {
 
 	totalLen := binary.BigEndian.Uint32(data[:BlobHeaderBytes])
 	if totalLen == 0 || int(totalLen) > len(data) {
-		return nil, errdefs.ErrInvalidBlobLength
+		return nil, errs.ErrInvalidBlobLength
 	}
 
 	reader := BlobReader{Data: data[HeaderLen:int(totalLen)]}
@@ -798,7 +851,7 @@ func ParseAttribute(header *AttrHeader, payload []byte) (any, error) {
 
 func DecodeUint(payload []byte) (uint32, error) {
 	if len(payload) < Uint32Size {
-		return 0, errdefs.Wrapf(errdefs.ErrInvalidBlobLength, "payload too short for uint32: %d", len(payload))
+		return 0, errs.Wrapf(errs.ErrInvalidBlobLength, "payload too short for uint32: %d", len(payload))
 	}
 
 	return binary.BigEndian.Uint32(payload[:Uint32Size]), nil
@@ -866,7 +919,7 @@ func ParseBlobmsgArrayEntries(reader *BlobReader) ([]any, error) {
 		}
 
 		if !header.IsExtended {
-			return nil, errdefs.ErrArrayEntryNotExtended
+			return nil, errs.ErrArrayEntryNotExtended
 		}
 
 		_, value, err := ParseBlobmsgEntry(header.AttrType, data)
@@ -894,7 +947,7 @@ func ParseBlobmsgTableEntries(reader *BlobReader) (map[string]any, error) {
 		}
 
 		if !header.IsExtended {
-			return nil, errdefs.ErrTableEntryNotExtended
+			return nil, errs.ErrTableEntryNotExtended
 		}
 
 		name, value, err := ParseBlobmsgEntry(header.AttrType, data)
@@ -910,14 +963,14 @@ func ParseBlobmsgTableEntries(reader *BlobReader) (map[string]any, error) {
 
 func ParseBlobmsgEntry(blobType uint32, payload []byte) (string, any, error) {
 	if len(payload) < Uint16Size {
-		return "", nil, errdefs.ErrBlobmsgPayloadTooShort
+		return "", nil, errs.ErrBlobmsgPayloadTooShort
 	}
 
 	nameLen := int(binary.BigEndian.Uint16(payload[:Uint16Size]))
 
 	headerLen := Align4(Uint16Size + nameLen + 1)
 	if len(payload) < headerLen {
-		return "", nil, errdefs.ErrInvalidBlobmsgHeaderLength
+		return "", nil, errs.ErrInvalidBlobmsgHeaderLength
 	}
 
 	nameBytes := payload[Uint16Size : Uint16Size+nameLen]
@@ -1113,21 +1166,21 @@ func ReadMessage(reader io.Reader) (*UbusMessageHeader, []byte, error) {
 
 	_, err = io.ReadFull(reader, headerBytesBuf)
 	if err != nil {
-		return nil, nil, errdefs.Wrapf(errdefs.ErrConnectionFailed, "read header: %v", err)
+		return nil, nil, errs.Wrapf(errs.ErrConnectionFailed, "read header: %v", err)
 	}
 
 	hdr := &UbusMessageHeader{}
 
 	err = binary.Read(bytes.NewReader(headerBytesBuf), binary.BigEndian, hdr)
 	if err != nil {
-		return nil, nil, errdefs.Wrapf(errdefs.ErrInvalidResponse, "decode header: %v", err)
+		return nil, nil, errs.Wrapf(errs.ErrInvalidResponse, "decode header: %v", err)
 	}
 
 	blobHeader := make([]byte, BlobHeaderBytes)
 
 	_, err = io.ReadFull(reader, blobHeader)
 	if err != nil {
-		return nil, nil, errdefs.Wrapf(errdefs.ErrConnectionFailed, "read blob header: %v", err)
+		return nil, nil, errs.Wrapf(errs.ErrConnectionFailed, "read blob header: %v", err)
 	}
 
 	blobLen := binary.BigEndian.Uint32(blobHeader)
@@ -1140,7 +1193,7 @@ func ReadMessage(reader io.Reader) (*UbusMessageHeader, []byte, error) {
 
 		_, err = io.ReadFull(reader, body)
 		if err != nil {
-			return nil, nil, errdefs.Wrapf(errdefs.ErrConnectionFailed, "read blob body: %v", err)
+			return nil, nil, errs.Wrapf(errs.ErrConnectionFailed, "read blob body: %v", err)
 		}
 
 		payload = append(payload, body...)
@@ -1203,7 +1256,7 @@ func ReadUint(value any) (uint32, bool) {
 	case float64:
 		return readFloat64(value)
 	case json.Number:
-		return readJsonNumber(value)
+		return readJSONNumber(value)
 	}
 
 	return 0, false
@@ -1225,7 +1278,7 @@ func readFloat64(value float64) (uint32, bool) {
 	return 0, false
 }
 
-func readJsonNumber(value json.Number) (uint32, bool) {
+func readJSONNumber(value json.Number) (uint32, bool) {
 	i, err := value.Int64()
 	if err == nil {
 		return readSigned(i)
@@ -1293,7 +1346,7 @@ func ValidateSocketPath(path string) error {
 	}
 
 	if info.Mode()&os.ModeSocket == 0 {
-		return errdefs.Wrapf(errdefs.ErrNotUnixSocket, "path '%s'", path)
+		return errs.Wrapf(errs.ErrNotUnixSocket, "path '%s'", path)
 	}
 
 	return nil
