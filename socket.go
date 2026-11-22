@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -33,6 +34,36 @@ const (
 	defaultWriteTimeout = 3 * time.Second
 )
 
+func deadlineFromTimeout(timeout time.Duration) time.Time {
+	if timeout <= 0 {
+		return time.Time{}
+	}
+
+	return time.Now().Add(timeout)
+}
+
+func normalizeContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+
+	return ctx
+}
+
+func wrapCtxErr(ctx context.Context, prefix string) error {
+	ctxErr := ctx.Err()
+	if ctxErr == nil {
+		return nil
+	}
+
+	cause := context.Cause(ctx)
+	if cause != nil && !errors.Is(cause, ctxErr) {
+		return fmt.Errorf("%s: %w: %w", prefix, ctxErr, cause)
+	}
+
+	return errdefs.Wrapf(cause, "%s", prefix)
+}
+
 // SocketClient implements direct ubus unix socket transport.
 // It communicates directly with the ubusd daemon on the local system.
 type SocketClient struct {
@@ -44,6 +75,7 @@ type SocketClient struct {
 	writeTimeout time.Duration
 	objectMu     sync.RWMutex
 	mu           sync.Mutex
+	closeMu      sync.Mutex
 	peerID       uint32
 	seq          uint16
 	closed       bool
@@ -62,6 +94,7 @@ func WithSocketLogger(logger *slog.Logger) SocketOption {
 }
 
 // WithDialTimeout sets the timeout for connecting to the socket.
+// A zero or negative timeout disables this timeout; context cancellation and deadlines still apply.
 func WithDialTimeout(timeout time.Duration) SocketOption {
 	return func(c *SocketClient) {
 		c.dialTimeout = timeout
@@ -69,6 +102,7 @@ func WithDialTimeout(timeout time.Duration) SocketOption {
 }
 
 // WithReadTimeout sets the timeout for reading from the socket.
+// A zero or negative timeout disables this timeout; context cancellation and deadlines still apply.
 func WithReadTimeout(timeout time.Duration) SocketOption {
 	return func(c *SocketClient) {
 		c.readTimeout = timeout
@@ -76,6 +110,7 @@ func WithReadTimeout(timeout time.Duration) SocketOption {
 }
 
 // WithWriteTimeout sets the timeout for writing to the socket.
+// A zero or negative timeout disables this timeout; context cancellation and deadlines still apply.
 func WithWriteTimeout(timeout time.Duration) SocketOption {
 	return func(c *SocketClient) {
 		c.writeTimeout = timeout
@@ -85,6 +120,8 @@ func WithWriteTimeout(timeout time.Duration) SocketOption {
 // NewSocketClient creates a new ubus socket client and performs the HELLO handshake.
 // If sockPath is empty, it uses the default path (/tmp/run/ubus/ubus.sock).
 func NewSocketClient(ctx context.Context, sockPath string, opts ...SocketOption) (*SocketClient, error) {
+	ctx = normalizeContext(ctx)
+
 	if sockPath == "" {
 		sockPath = defaultSocketPath
 	}
@@ -107,7 +144,7 @@ func NewSocketClient(ctx context.Context, sockPath string, opts ...SocketOption)
 		opt(client)
 	}
 
-	dialer := net.Dialer{Timeout: client.dialTimeout}
+	dialer := net.Dialer{Timeout: max(client.dialTimeout, 0)}
 
 	conn, err := dialer.DialContext(ctx, "unix", sockPath)
 	if err != nil {
@@ -118,7 +155,7 @@ func NewSocketClient(ctx context.Context, sockPath string, opts ...SocketOption)
 
 	err = client.exchangeHello(ctx)
 	if err != nil {
-		_ = conn.Close()
+		_ = client.closeConn()
 
 		return nil, err
 	}
@@ -131,6 +168,8 @@ func NewSocketClient(ctx context.Context, sockPath string, opts ...SocketOption)
 // will be managed by the new client, including being closed if the handshake
 // fails.
 func NewSocketClientFromConn(ctx context.Context, conn net.Conn, opts ...SocketOption) (*SocketClient, error) {
+	ctx = normalizeContext(ctx)
+
 	if conn == nil {
 		return nil, errdefs.Wrapf(errdefs.ErrInvalidParameter, "connection is required")
 	}
@@ -151,7 +190,7 @@ func NewSocketClientFromConn(ctx context.Context, conn net.Conn, opts ...SocketO
 
 	err := client.exchangeHello(ctx)
 	if err != nil {
-		_ = conn.Close()
+		_ = client.closeConn()
 
 		return nil, err
 	}
@@ -198,6 +237,8 @@ func (c *SocketClient) SetLogger(logger *slog.Logger) {
 
 // Call invokes a ubus method through the socket transport.
 func (c *SocketClient) Call(ctx context.Context, service, method string, data any) (Result, error) {
+	ctx = normalizeContext(ctx)
+
 	if service == "" || method == "" {
 		return nil, errdefs.Wrapf(errdefs.ErrInvalidParameter, "service and method required")
 	}
@@ -207,7 +248,16 @@ func (c *SocketClient) Call(ctx context.Context, service, method string, data an
 		return nil, errdefs.Wrapf(errdefs.ErrInvalidParameter, "normalize arguments: %v", err)
 	}
 
-	objectID, err := c.getObjectID(service)
+	if c.isClosed() {
+		return nil, errdefs.ErrClosed
+	}
+
+	ctxErr := wrapCtxErr(ctx, "ubus call")
+	if ctxErr != nil {
+		return nil, ctxErr
+	}
+
+	objectID, err := c.getObjectID(ctx, service)
 	if err != nil {
 		return nil, err
 	}
@@ -217,27 +267,24 @@ func (c *SocketClient) Call(ctx context.Context, service, method string, data an
 		return nil, err
 	}
 
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if c.closed {
-		return nil, errdefs.ErrClosed
-	}
-
-	err = c.sendMessage(blobmsg.UbusMsgInvoke, body)
-	if err != nil {
-		return nil, err
-	}
-
-	const logBodyLimit = logJSONLimit * 2
-
 	c.logger.Debug("Invoke",
 		slog.String("service", service),
 		slog.String("method", method),
 		slog.String("args", previewJSON(args, logBodyLimit)),
 		slog.String("body", hexPreview(body, logLongHexLimit)))
 
-	return c.handleCallResponse()
+	var result *socketResult
+
+	err = c.executeRoundTrip(ctx, "ubus call", blobmsg.UbusMsgInvoke, body, func() error {
+		result, err = c.readCallResponse()
+
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
 func (c *SocketClient) DialTimeout() time.Duration {
@@ -257,8 +304,19 @@ func (c *SocketClient) PeerID() uint32 {
 }
 
 func (c *SocketClient) Close() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	return c.closeConn()
+}
+
+func (c *SocketClient) isClosed() bool {
+	c.closeMu.Lock()
+	defer c.closeMu.Unlock()
+
+	return c.closed
+}
+
+func (c *SocketClient) closeConn() error {
+	c.closeMu.Lock()
+	defer c.closeMu.Unlock()
 
 	if c.closed {
 		return nil
@@ -272,7 +330,56 @@ func (c *SocketClient) Close() error {
 	return nil
 }
 
-func (c *SocketClient) handleCallResponse() (Result, error) {
+func (c *SocketClient) setReadTimeoutDeadline() error {
+	err := c.conn.SetReadDeadline(deadlineFromTimeout(c.readTimeout))
+	if err != nil {
+		return errdefs.Wrapf(errdefs.ErrConnectionFailed, "set read deadline: %v", err)
+	}
+
+	return nil
+}
+
+func (c *SocketClient) clearReadTimeoutDeadline() error {
+	if c.readTimeout <= 0 {
+		return nil
+	}
+
+	err := c.conn.SetReadDeadline(time.Time{})
+	if err != nil {
+		return errdefs.Wrapf(errdefs.ErrConnectionFailed, "clear read deadline: %v", err)
+	}
+
+	return nil
+}
+
+func (c *SocketClient) setWriteTimeoutDeadline() error {
+	err := c.conn.SetWriteDeadline(deadlineFromTimeout(c.writeTimeout))
+	if err != nil {
+		return errdefs.Wrapf(errdefs.ErrConnectionFailed, "set write deadline: %v", err)
+	}
+
+	return nil
+}
+
+func (c *SocketClient) clearWriteTimeoutDeadline() error {
+	if c.writeTimeout <= 0 {
+		return nil
+	}
+
+	err := c.conn.SetWriteDeadline(time.Time{})
+	if err != nil {
+		return errdefs.Wrapf(errdefs.ErrConnectionFailed, "clear write deadline: %v", err)
+	}
+
+	return nil
+}
+
+func (c *SocketClient) readCallResponse() (*socketResult, error) {
+	err := c.setReadTimeoutDeadline()
+	if err != nil {
+		return nil, err
+	}
+
 	var (
 		resultData map[string]any
 		statusCode uint32
@@ -280,47 +387,60 @@ func (c *SocketClient) handleCallResponse() (Result, error) {
 	)
 
 	for !statusSeen {
-		hdr, payload, err := blobmsg.ReadMessage(c.conn)
-		if err != nil {
-			return nil, err
+		hdr, payload, readErr := blobmsg.ReadMessage(c.conn)
+		if readErr != nil {
+			return nil, readErr
 		}
 
-		attrs, err := blobmsg.ParseTopLevelAttributes(payload)
-		if err != nil {
-			return nil, errdefs.Wrapf(errdefs.ErrInvalidResponse, "parse invoke response: %v", err)
+		attrs, parseErr := blobmsg.ParseTopLevelAttributes(payload)
+		if parseErr != nil {
+			return nil, errdefs.Wrapf(errdefs.ErrInvalidResponse, "parse invoke response: %v", parseErr)
 		}
 
-		switch hdr.Type {
-		case blobmsg.UbusMsgData:
-			c.logger.Debug("Parsed data attributes", slog.String("data", previewJSON(attrs, logJSONLimit)))
-
-			extracted := blobmsg.ExtractDataSection(attrs)
-			if len(extracted) != 0 {
-				if resultData == nil {
-					resultData = make(map[string]any, len(extracted))
-				}
-
-				maps.Copy(resultData, extracted)
-			}
-		case blobmsg.UbusMsgStatus:
-			statusSeen = true
-
-			if val, ok := blobmsg.ReadUint(attrs["status"]); ok {
-				statusCode = val
-			}
-		default:
-			c.logger.Debug("ignored message during invoke", slog.Int("type", int(hdr.Type)))
-		}
+		resultData, statusCode, statusSeen = c.processCallResponse(hdr, attrs, resultData, statusCode)
 	}
 
-	return &socketResult{
-		data:   resultData,
-		status: statusCode,
-	}, nil
+	err = c.clearReadTimeoutDeadline()
+	if err != nil {
+		return nil, err
+	}
+
+	return &socketResult{data: resultData, status: statusCode}, nil
+}
+
+func (c *SocketClient) processCallResponse(
+	hdr *blobmsg.UbusMessageHeader,
+	attrs map[string]any,
+	resultData map[string]any,
+	statusCode uint32,
+) (map[string]any, uint32, bool) {
+	switch hdr.Type {
+	case blobmsg.UbusMsgData:
+		c.logger.Debug("Parsed data attributes", slog.String("data", previewJSON(attrs, logJSONLimit)))
+
+		extracted := blobmsg.ExtractDataSection(attrs)
+		if len(extracted) != 0 {
+			if resultData == nil {
+				resultData = make(map[string]any, len(extracted))
+			}
+
+			maps.Copy(resultData, extracted)
+		}
+	case blobmsg.UbusMsgStatus:
+		if val, ok := blobmsg.ReadUint(attrs["status"]); ok {
+			statusCode = val
+		}
+
+		return resultData, statusCode, true
+	default:
+		c.logger.Debug("ignored message during invoke", slog.Int("type", int(hdr.Type)))
+	}
+
+	return resultData, statusCode, false
 }
 
 // getObjectID resolves and caches the ubus object ID.
-func (c *SocketClient) getObjectID(path string) (uint32, error) {
+func (c *SocketClient) getObjectID(ctx context.Context, path string) (uint32, error) {
 	c.objectMu.RLock()
 
 	if id, ok := c.objectCache[path]; ok {
@@ -331,7 +451,7 @@ func (c *SocketClient) getObjectID(path string) (uint32, error) {
 
 	c.objectMu.RUnlock()
 
-	objects, err := c.listObjects(path)
+	objects, err := c.listObjects(ctx, path)
 	if err != nil {
 		return 0, err
 	}
@@ -356,7 +476,16 @@ func (c *SocketClient) getObjectID(path string) (uint32, error) {
 	return 0, errdefs.Wrapf(errdefs.ErrNotFound, "object '%s' not found", path)
 }
 
-func (c *SocketClient) listObjects(path string) ([]map[string]any, error) {
+func (c *SocketClient) listObjects(ctx context.Context, path string) ([]map[string]any, error) {
+	if c.isClosed() {
+		return nil, errdefs.ErrClosed
+	}
+
+	ctxErr := wrapCtxErr(ctx, "ubus lookup")
+	if ctxErr != nil {
+		return nil, ctxErr
+	}
+
 	attrs := map[uint32]any{}
 	if path != "" {
 		attrs[blobmsg.UbusAttrObjPath] = path
@@ -367,22 +496,34 @@ func (c *SocketClient) listObjects(path string) ([]map[string]any, error) {
 		return nil, err
 	}
 
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	var (
+		objects    []map[string]any
+		statusCode uint32
+	)
 
-	if c.closed {
-		return nil, errdefs.ErrClosed
-	}
+	err = c.executeRoundTrip(ctx, "ubus lookup", blobmsg.UbusMsgLookup, body, func() error {
+		objects, statusCode, err = c.readLookupResponse()
 
-	err = c.sendMessage(blobmsg.UbusMsgLookup, body)
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	return c.handleLookupResponse()
+	statusErr := MapUbusCodeToError(int(statusCode))
+	if statusErr != nil {
+		return nil, statusErr
+	}
+
+	return objects, nil
 }
 
-func (c *SocketClient) handleLookupResponse() ([]map[string]any, error) {
+func (c *SocketClient) readLookupResponse() ([]map[string]any, uint32, error) {
+	err := c.setReadTimeoutDeadline()
+	if err != nil {
+		return nil, 0, err
+	}
+
 	var (
 		objects    []map[string]any
 		statusCode uint32
@@ -390,50 +531,61 @@ func (c *SocketClient) handleLookupResponse() ([]map[string]any, error) {
 	)
 
 	for !statusSeen {
-		hdr, payload, err := blobmsg.ReadMessage(c.conn)
-		if err != nil {
-			return nil, err
+		hdr, payload, readErr := blobmsg.ReadMessage(c.conn)
+		if readErr != nil {
+			return nil, 0, readErr
 		}
 
-		attrs, err := blobmsg.ParseTopLevelAttributes(payload)
-		if err != nil {
-			return nil, errdefs.Wrapf(errdefs.ErrInvalidResponse, "parse lookup response: %v", err)
+		attrs, parseErr := blobmsg.ParseTopLevelAttributes(payload)
+		if parseErr != nil {
+			return nil, 0, errdefs.Wrapf(errdefs.ErrInvalidResponse, "parse lookup response: %v", parseErr)
 		}
 
-		switch hdr.Type {
-		case blobmsg.UbusMsgData:
-			if len(attrs) != 0 {
-				objects = append(objects, attrs)
-			}
-		case blobmsg.UbusMsgStatus:
-			statusSeen = true
-
-			if val, ok := blobmsg.ReadUint(attrs["status"]); ok {
-				statusCode = val
-			}
-		default:
-			c.logger.Debug("ignored message during lookup", slog.Int("type", int(hdr.Type)))
-		}
+		objects, statusCode, statusSeen = c.processLookupResponse(hdr, attrs, objects, statusCode)
 	}
 
-	err := MapUbusCodeToError(int(statusCode))
+	err = c.clearReadTimeoutDeadline()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return objects, nil
+	return objects, statusCode, nil
+}
+
+func (c *SocketClient) processLookupResponse(
+	hdr *blobmsg.UbusMessageHeader,
+	attrs map[string]any,
+	objects []map[string]any,
+	statusCode uint32,
+) ([]map[string]any, uint32, bool) {
+	switch hdr.Type {
+	case blobmsg.UbusMsgData:
+		if len(attrs) != 0 {
+			objects = append(objects, attrs)
+		}
+	case blobmsg.UbusMsgStatus:
+		if val, ok := blobmsg.ReadUint(attrs["status"]); ok {
+			statusCode = val
+		}
+
+		return objects, statusCode, true
+	default:
+		c.logger.Debug("ignored message during lookup", slog.Int("type", int(hdr.Type)))
+	}
+
+	return objects, statusCode, false
 }
 
 func (c *SocketClient) exchangeHello(ctx context.Context) (retErr error) {
-	ctxErr := context.Cause(ctx)
+	ctxErr := wrapCtxErr(ctx, "hello handshake")
 	if ctxErr != nil {
-		return errdefs.Wrapf(ctxErr, "hello handshake")
+		return ctxErr
 	}
 
 	cancelDone := make(chan struct{})
 
 	stopCancel := context.AfterFunc(ctx, func() {
-		_ = c.conn.Close()
+		_ = c.closeConn()
 
 		close(cancelDone)
 	})
@@ -441,25 +593,34 @@ func (c *SocketClient) exchangeHello(ctx context.Context) (retErr error) {
 		if !stopCancel() {
 			<-cancelDone
 
-			if retErr == nil {
-				retErr = errdefs.Wrapf(context.Cause(ctx), "hello handshake")
+			retErr = wrapCtxErr(ctx, "hello handshake")
+
+			return
+		}
+
+		if retErr != nil {
+			_ = c.closeConn()
+
+			afterErr := wrapCtxErr(ctx, "hello handshake")
+			if afterErr != nil {
+				retErr = afterErr
 			}
 		}
 	}()
 
-	err := c.conn.SetReadDeadline(time.Now().Add(c.readTimeout))
+	err := c.setReadTimeoutDeadline()
 	if err != nil {
-		return errdefs.Wrapf(errdefs.ErrConnectionFailed, "set read deadline: %v", err)
+		return err
 	}
 
 	hdr, payload, err := blobmsg.ReadMessage(c.conn)
 	if err != nil {
-		ctxErr = context.Cause(ctx)
-		if ctxErr != nil {
-			return errdefs.Wrapf(ctxErr, "hello handshake")
-		}
-
 		return errdefs.Wrapf(errdefs.ErrConnectionFailed, "read hello: %v", err)
+	}
+
+	err = c.clearReadTimeoutDeadline()
+	if err != nil {
+		return err
 	}
 
 	if hdr.Type != blobmsg.UbusMsgHello {
@@ -474,46 +635,108 @@ func (c *SocketClient) exchangeHello(ctx context.Context) (retErr error) {
 	return nil
 }
 
-func (c *SocketClient) sendMessage(msgType uint8, body []byte) error {
+func (c *SocketClient) executeRoundTrip(
+	ctx context.Context,
+	action string,
+	msgType uint8,
+	body []byte,
+	readFn func() error,
+) (retErr error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	ctxErr := wrapCtxErr(ctx, action)
+	if ctxErr != nil {
+		return ctxErr
+	}
+
+	if c.isClosed() {
+		return errdefs.ErrClosed
+	}
+
+	frame, seq, err := c.encodeMessage(msgType, body)
+	if err != nil {
+		return err
+	}
+
+	cancelDone := make(chan struct{})
+
+	stopCancel := context.AfterFunc(ctx, func() {
+		_ = c.closeConn()
+
+		close(cancelDone)
+	})
+	defer func() {
+		if !stopCancel() {
+			<-cancelDone
+
+			retErr = wrapCtxErr(ctx, action)
+
+			return
+		}
+
+		if retErr != nil {
+			_ = c.closeConn()
+
+			afterErr := wrapCtxErr(ctx, action)
+			if afterErr != nil {
+				retErr = afterErr
+			}
+		}
+	}()
+
+	err = c.writeFrame(frame, msgType, seq, body)
+	if err != nil {
+		return err
+	}
+
+	return readFn()
+}
+
+func (c *SocketClient) encodeMessage(msgType uint8, body []byte) ([]byte, uint16, error) {
 	var buf bytes.Buffer
+
+	seq := c.seq
+	c.seq++
 
 	header := &blobmsg.UbusMessageHeader{
 		Version: 0,
 		Type:    msgType,
-		Seq:     c.seq,
+		Seq:     seq,
 		Peer:    c.peerID,
 	}
-	c.seq++
 
 	err := blobmsg.EncodeHeader(&buf, header)
 	if err != nil {
-		return errdefs.Wrapf(errdefs.ErrInvalidParameter, "encode header: %v", err)
+		return nil, 0, errdefs.Wrapf(errdefs.ErrInvalidParameter, "encode header: %v", err)
 	}
 
-	if len(body) > 0 {
-		_, err = buf.Write(body)
-		if err != nil {
-			return errdefs.Wrapf(errdefs.ErrInvalidParameter, "write body: %v", err)
-		}
+	_, err = buf.Write(body)
+	if err != nil {
+		return nil, 0, errdefs.Wrapf(errdefs.ErrInvalidParameter, "write body: %v", err)
 	}
 
+	return buf.Bytes(), seq, nil
+}
+
+func (c *SocketClient) writeFrame(frame []byte, msgType uint8, seq uint16, body []byte) error {
 	c.logger.Debug("Sending message",
-		slog.Int("type", int(header.Type)),
-		slog.Int("seq", int(header.Seq)),
+		slog.Int("type", int(msgType)),
+		slog.Int("seq", int(seq)),
 		slog.Int("body_len", len(body)),
 		slog.String("body", hexPreview(body, logHexLimit)))
 
-	err = c.conn.SetWriteDeadline(time.Now().Add(c.writeTimeout))
+	err := c.setWriteTimeoutDeadline()
 	if err != nil {
-		return errdefs.Wrapf(errdefs.ErrConnectionFailed, "set write deadline: %v", err)
+		return err
 	}
 
-	_, err = c.conn.Write(buf.Bytes())
+	_, err = c.conn.Write(frame)
 	if err != nil {
 		return errdefs.Wrapf(errdefs.ErrConnectionFailed, "write message: %v", err)
 	}
 
-	return nil
+	return c.clearWriteTimeoutDeadline()
 }
 
 func (c *SocketClient) createInvokeBody(objID uint32, method string, args map[string]any) ([]byte, error) {
