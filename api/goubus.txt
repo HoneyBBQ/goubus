@@ -17,7 +17,7 @@ const StatusOK untyped int = 0
 const StatusPermissionDenied untyped int = 6
 const StatusTimeout untyped int = 7
 const StatusUnknown untyped int = 9
-const Version untyped string = "2.0.0-alpha1"
+const Version untyped string = "2.0.0-alpha2"
 var ErrCall error
 var ErrClosed error
 var ErrConnectionFailed error

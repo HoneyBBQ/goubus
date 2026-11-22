@@ -15,13 +15,15 @@ method (*Client) ProtoHandlers(ctx context.Context) (map[string]any, error)
 method (*Client) Reload(ctx context.Context) error
 method (*Client) Restart(ctx context.Context) error
 method (*Client) Wireless() *WirelessContext
-type Data struct
+type Data map[string]any
 type Device struct
 field Device.FlowControl *DeviceFlowControl "json:\"flow-control,omitempty\""
 field Device.Speed string "json:\"speed\""
 field Device.Type string "json:\"type\""
 field Device.MacAddr string "json:\"macaddr\""
 field Device.Devtype string "json:\"devtype\""
+field Device.Conduit string "json:\"conduit\""
+field Device.BridgeMembers []string "json:\"bridge-members,omitempty\""
 field Device.LinkAdvertising []string "json:\"link-advertising\""
 field Device.LinkPartnerAdvertising []string "json:\"link-partner-advertising\""
 field Device.LinkSupported []string "json:\"link-supported\""
@@ -35,6 +37,10 @@ method (*DeviceContext) SetAlias(ctx context.Context, request DeviceSetAliasRequ
 method (*DeviceContext) SetState(ctx context.Context, request DeviceSetStateRequest) error
 method (*DeviceContext) Status(ctx context.Context, name string) (map[string]Device, error)
 type DeviceFlowControl struct
+field DeviceFlowControl.Supported []string "json:\"supported\""
+field DeviceFlowControl.LinkAdvertising []string "json:\"link-advertising\""
+field DeviceFlowControl.LinkPartnerAdvertising []string "json:\"link-partner-advertising\""
+field DeviceFlowControl.Negotiated []string "json:\"negotiated\""
 field DeviceFlowControl.Autoneg goubus.Bool "json:\"autoneg\""
 type DeviceSetAliasRequest struct
 field DeviceSetAliasRequest.Device string "json:\"device,omitempty\""
@@ -51,6 +57,10 @@ field DeviceStatistic.RxPackets int64 "json:\"rx_packets\""
 field DeviceStatistic.TxPackets int64 "json:\"tx_packets\""
 field DeviceStatistic.RxErrors int64 "json:\"rx_errors\""
 field DeviceStatistic.TxErrors int64 "json:\"tx_errors\""
+field DeviceStatistic.RxDropped int64 "json:\"rx_dropped\""
+field DeviceStatistic.TxDropped int64 "json:\"tx_dropped\""
+field DeviceStatistic.Multicast int64 "json:\"multicast\""
+field DeviceStatistic.Collisions int64 "json:\"collisions\""
 type HostRouteRequest struct
 field HostRouteRequest.Target string "json:\"target\""
 field HostRouteRequest.Interface string "json:\"interface,omitempty\""
@@ -80,12 +90,12 @@ method (*InterfaceContext) SetData(ctx context.Context, data map[string]any) err
 method (*InterfaceContext) Status(ctx context.Context) (*InterfaceDetails, error)
 method (*InterfaceContext) Up(ctx context.Context) error
 type InterfaceDetails struct
+field InterfaceDetails.Inactive Inactive "json:\"inactive\""
 field InterfaceDetails.Data Data "json:\"data\""
 field InterfaceDetails.L3Device string "json:\"l3_device\""
 field InterfaceDetails.Zone string "json:\"zone\""
 field InterfaceDetails.Device string "json:\"device\""
 field InterfaceDetails.Proto string "json:\"proto\""
-field InterfaceDetails.Inactive Inactive "json:\"inactive\""
 field InterfaceDetails.DNSServer []string "json:\"dns-server\""
 field InterfaceDetails.DNSSearch []string "json:\"dns-search\""
 field InterfaceDetails.IPv4Address []Address "json:\"ipv4-address\""
@@ -97,6 +107,7 @@ field InterfaceDetails.IPv6PrefixAssignment []IPv6Prefix "json:\"ipv6-prefix-ass
 field InterfaceDetails.IPv6Prefix []IPv6Prefix "json:\"ipv6-prefix\""
 field InterfaceDetails.Neighbors []Neighbor "json:\"neighbors\""
 field InterfaceDetails.IPv6Address []Address "json:\"ipv6-address\""
+field InterfaceDetails.Errors []InterfaceError "json:\"errors\""
 field InterfaceDetails.Metric int "json:\"metric\""
 field InterfaceDetails.DNSMetric int "json:\"dns_metric\""
 field InterfaceDetails.Uptime int "json:\"uptime\""
@@ -110,6 +121,9 @@ type InterfaceDeviceRequest struct
 field InterfaceDeviceRequest.Name string "json:\"name\""
 field InterfaceDeviceRequest.Vlan []int "json:\"vlan,omitempty\""
 field InterfaceDeviceRequest.LinkExt goubus.Bool "json:\"link-ext,omitempty\""
+type InterfaceError struct
+field InterfaceError.Subsystem string "json:\"subsystem\""
+field InterfaceError.Code string "json:\"code\""
 type InterfaceInfo struct
 field InterfaceInfo.Interface string "json:\"interface\""
 embed InterfaceInfo InterfaceDetails
@@ -122,9 +136,11 @@ type NetnsUpDownRequest struct
 field NetnsUpDownRequest.Jail string "json:\"jail\""
 field NetnsUpDownRequest.Start goubus.Bool "json:\"start\""
 type RadioInterface struct
+field RadioInterface.Config map[string]any "json:\"config\""
 field RadioInterface.Section string "json:\"section\""
 field RadioInterface.Ifname string "json:\"ifname\""
 type RadioStatus struct
+field RadioStatus.Config map[string]any "json:\"config\""
 field RadioStatus.Interfaces []RadioInterface "json:\"interfaces\""
 field RadioStatus.Up goubus.Bool "json:\"up\""
 field RadioStatus.Pending goubus.Bool "json:\"pending\""

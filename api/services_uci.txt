@@ -4,11 +4,6 @@ func New(caller goubus.Caller) *Client
 func NewSectionValues() SectionValues
 func SectionValuesFromAny(items map[string]any) SectionValues
 func SectionValuesFromStrings(items map[string]string) SectionValues
-type ApplyRequest struct
-field ApplyRequest.Rollback goubus.Bool "json:\"rollback,omitempty\""
-field ApplyRequest.Timeout int "json:\"timeout,omitempty\""
-type ChangesRequest struct
-field ChangesRequest.Config string "json:\"config\""
 type ChangesResponse struct
 field ChangesResponse.Changes map[string]any "json:\"changes\""
 type Client struct
@@ -19,10 +14,6 @@ method (*Client) Package(name string) *PackageContext
 method (*Client) ReloadConfig(ctx context.Context) error
 method (*Client) Rollback(ctx context.Context) error
 method (*Client) State(ctx context.Context, request StateRequest) (*GetResponse, error)
-type ConfigsResponse struct
-field ConfigsResponse.Configs []string "json:\"configs\""
-type GetRequest struct
-embed GetRequest RequestGeneric
 type GetResponse struct
 field GetResponse.Values map[string]any "json:\"values\""
 field GetResponse.Value goubus.StringOrSlice "json:\"value\""
@@ -39,10 +30,8 @@ method (*OptionContext) Get(ctx context.Context) (string, error)
 method (*OptionContext) Rename(ctx context.Context, newName string) error
 method (*OptionContext) Set(ctx context.Context, value string) error
 method (*OptionContext) State(ctx context.Context) (string, error)
+method (*OptionContext) StateValues(ctx context.Context) ([]string, error)
 method (*OptionContext) Values(ctx context.Context) ([]string, error)
-type OrderRequest struct
-field OrderRequest.Config string "json:\"config\""
-field OrderRequest.Sections []string "json:\"sections\""
 type PackageContext struct
 method (*PackageContext) Add(ctx context.Context, sectionType string, name string, values SectionValues) error
 method (*PackageContext) All(ctx context.Context) (map[string]*Section, error)
@@ -54,23 +43,6 @@ method (*PackageContext) Section(name string) *SectionContext
 method (*PackageContext) Sections(ctx context.Context) ([]string, error)
 method (*PackageContext) SectionsOfType(ctx context.Context, sectionType string) ([]string, error)
 method (*PackageContext) State(ctx context.Context) (map[string]*Section, error)
-type RenameRequest struct
-field RenameRequest.Config string "json:\"config\""
-field RenameRequest.Section string "json:\"section,omitempty\""
-field RenameRequest.Option string "json:\"option,omitempty\""
-field RenameRequest.Name string "json:\"name\""
-type Request struct
-field Request.Values map[string]any "json:\"values,omitempty\""
-embed Request RequestGeneric
-type RequestGeneric struct
-field RequestGeneric.Config string "json:\"config\""
-field RequestGeneric.Section string "json:\"section,omitempty\""
-field RequestGeneric.Option string "json:\"option,omitempty\""
-field RequestGeneric.Type string "json:\"type,omitempty\""
-field RequestGeneric.Match string "json:\"match,omitempty\""
-field RequestGeneric.Name string "json:\"name,omitempty\""
-type RevertRequest struct
-field RevertRequest.Config string "json:\"config\""
 type Section struct
 field Section.Values SectionValues "json:\"values\""
 field Section.Name string "json:\"name\""
@@ -86,17 +58,22 @@ method (*SectionContext) Rename(ctx context.Context, newName string) error
 method (*SectionContext) SetValues(ctx context.Context, values SectionValues) error
 method (*SectionContext) State(ctx context.Context) (*Section, error)
 type SectionValues struct
-method (*SectionValues) All() map[string][]string
+method (SectionValues) All() map[string][]string
 method (*SectionValues) Append(option string, items ...string)
-method (*SectionValues) Clone() SectionValues
+method (SectionValues) Clone() SectionValues
 method (*SectionValues) Delete(option string)
-method (*SectionValues) First(option string) (string, bool)
-method (*SectionValues) Get(option string) []string
-method (*SectionValues) Len() int
-method (*SectionValues) MarshalJSON() ([]byte, error)
+method (SectionValues) First(option string) (string, bool)
+method (SectionValues) Get(option string) []string
+method (SectionValues) Len() int
+method (SectionValues) MarshalJSON() ([]byte, error)
 method (*SectionValues) Set(option string, items ...string)
 method (*SectionValues) SetList(option string, items ...string)
 method (*SectionValues) SetScalar(option string, value string)
 method (*SectionValues) UnmarshalJSON(data []byte) error
 type StateRequest struct
-embed StateRequest RequestGeneric
+field StateRequest.Config string "json:\"config\""
+field StateRequest.Section string "json:\"section,omitempty\""
+field StateRequest.Option string "json:\"option,omitempty\""
+field StateRequest.Type string "json:\"type,omitempty\""
+field StateRequest.Match string "json:\"match,omitempty\""
+field StateRequest.Name string "json:\"name,omitempty\""

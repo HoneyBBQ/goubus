@@ -40,9 +40,6 @@ field Release.Target string "json:\"target\""
 field Release.Description string "json:\"description\""
 field Release.BuildDate string "json:\"builddate\""
 field Release.FirmwareURL string "json:\"firmware_url\""
-type SignalRequest struct
-field SignalRequest.Pid int "json:\"pid\""
-field SignalRequest.Signum int "json:\"signum\""
 type Storage struct
 field Storage.Total uint64 "json:\"total\""
 field Storage.Free uint64 "json:\"free\""
@@ -58,8 +55,6 @@ field SysupgradeRequest.Backup string "json:\"backup,omitempty\""
 field SysupgradeRequest.Prefix string "json:\"prefix,omitempty\""
 field SysupgradeRequest.Command string "json:\"command,omitempty\""
 field SysupgradeRequest.Force goubus.Bool "json:\"force,omitempty\""
-type ValidateFirmwareImageRequest struct
-field ValidateFirmwareImageRequest.Path string "json:\"path\""
 type WatchdogRequest struct
 field WatchdogRequest.Frequency int "json:\"frequency,omitempty\""
 field WatchdogRequest.Timeout int "json:\"timeout,omitempty\""

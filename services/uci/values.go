@@ -22,11 +22,18 @@ type sectionValue struct {
 }
 
 // SectionValues stores scalar or list UCI option values.
-type SectionValues map[string]sectionValue
+//
+// Value receivers allow marshaling and reading non-addressable values;
+// pointer mutators lazily initialize the map.
+//
+//nolint:recvcheck // Value receivers allow non-addressable reads and marshaling.
+type SectionValues struct {
+	values map[string]sectionValue
+}
 
 // NewSectionValues creates an initialized SectionValues value.
 func NewSectionValues() SectionValues {
-	return make(SectionValues)
+	return SectionValues{values: make(map[string]sectionValue)}
 }
 
 // MarshalJSON encodes values using UCI scalar and list forms.
@@ -40,7 +47,7 @@ func (values *SectionValues) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 	if len(data) == 0 || string(data) == "null" {
-		*values = NewSectionValues()
+		values.values = make(map[string]sectionValue)
 
 		return nil
 	}
@@ -55,36 +62,48 @@ func (values *SectionValues) UnmarshalJSON(data []byte) error {
 }
 
 // Set replaces an option's values, using a list when multiple values are given.
-func (values SectionValues) Set(option string, items ...string) {
+func (values *SectionValues) Set(option string, items ...string) {
 	if values == nil {
 		return
+	}
+	if values.values == nil {
+		values.values = make(map[string]sectionValue)
 	}
 	kind := sectionValueScalar
 	if len(items) > 1 {
 		kind = sectionValueList
 	}
-	values[option] = sectionValue{kind: kind, values: append([]string(nil), items...)}
+	values.values[option] = sectionValue{kind: kind, values: append([]string(nil), items...)}
 }
 
 // SetList replaces an option's values and forces list serialization.
-func (values SectionValues) SetList(option string, items ...string) {
+func (values *SectionValues) SetList(option string, items ...string) {
 	if values == nil {
 		return
 	}
-	values[option] = sectionValue{kind: sectionValueList, values: append([]string(nil), items...)}
+	if values.values == nil {
+		values.values = make(map[string]sectionValue)
+	}
+	values.values[option] = sectionValue{kind: sectionValueList, values: append([]string(nil), items...)}
 }
 
 // SetScalar stores one scalar option value.
-func (values SectionValues) SetScalar(option, value string) {
+func (values *SectionValues) SetScalar(option, value string) {
 	values.Set(option, value)
 }
 
 // Append adds values to an option without discarding its existing values.
-func (values SectionValues) Append(option string, items ...string) {
-	if values == nil || len(items) == 0 {
+func (values *SectionValues) Append(option string, items ...string) {
+	if values == nil {
 		return
 	}
-	current, ok := values[option]
+	if values.values == nil {
+		values.values = make(map[string]sectionValue)
+	}
+	if len(items) == 0 {
+		return
+	}
+	current, ok := values.values[option]
 	if !ok {
 		values.Set(option, items...)
 
@@ -95,17 +114,23 @@ func (values SectionValues) Append(option string, items ...string) {
 	if len(merged) > 1 {
 		kind = sectionValueList
 	}
-	values[option] = sectionValue{kind: kind, values: merged}
+	values.values[option] = sectionValue{kind: kind, values: merged}
 }
 
 // Delete removes an option from the value set.
-func (values SectionValues) Delete(option string) {
-	delete(values, option)
+func (values *SectionValues) Delete(option string) {
+	if values == nil {
+		return
+	}
+	if values.values == nil {
+		values.values = make(map[string]sectionValue)
+	}
+	delete(values.values, option)
 }
 
 // First returns the first option value and whether the option has a value.
 func (values SectionValues) First(option string) (string, bool) {
-	item, ok := values[option]
+	item, ok := values.values[option]
 	if !ok || len(item.values) == 0 {
 		return "", false
 	}
@@ -115,7 +140,7 @@ func (values SectionValues) First(option string) (string, bool) {
 
 // Get returns a copy of all values for an option.
 func (values SectionValues) Get(option string) []string {
-	item, ok := values[option]
+	item, ok := values.values[option]
 	if !ok {
 		return nil
 	}
@@ -125,11 +150,11 @@ func (values SectionValues) Get(option string) []string {
 
 // All returns a deep copy of every option's values.
 func (values SectionValues) All() map[string][]string {
-	if len(values) == 0 {
+	if len(values.values) == 0 {
 		return nil
 	}
-	result := make(map[string][]string, len(values))
-	for name, item := range values {
+	result := make(map[string][]string, len(values.values))
+	for name, item := range values.values {
 		result[name] = append([]string(nil), item.values...)
 	}
 
@@ -138,14 +163,14 @@ func (values SectionValues) All() map[string][]string {
 
 // Len returns the number of stored options.
 func (values SectionValues) Len() int {
-	return len(values)
+	return len(values.values)
 }
 
 // Clone returns a deep copy of the value set.
 func (values SectionValues) Clone() SectionValues {
 	clone := NewSectionValues()
-	for name, item := range values {
-		clone[name] = sectionValue{kind: item.kind, values: append([]string(nil), item.values...)}
+	for name, item := range values.values {
+		clone.values[name] = sectionValue{kind: item.kind, values: append([]string(nil), item.values...)}
 	}
 
 	return clone
@@ -172,8 +197,8 @@ func SectionValuesFromAny(items map[string]any) SectionValues {
 }
 
 func (values SectionValues) toUbusValues() map[string]any {
-	result := make(map[string]any, len(values))
-	for name, item := range values {
+	result := make(map[string]any, len(values.values))
+	for name, item := range values.values {
 		if item.kind == sectionValueList || len(item.values) > 1 {
 			result[name] = append([]string(nil), item.values...)
 

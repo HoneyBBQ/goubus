@@ -42,7 +42,7 @@ field IPv6RA.Prefix string "json:\"prefix,omitempty\""
 field IPv6RA.Valid uint64 "json:\"valid,omitempty\""
 field IPv6RA.Preferred uint64 "json:\"preferred,omitempty\""
 field IPv6RA.Length uint64 "json:\"length,omitempty\""
-field IPv6RA.Stale bool "json:\"stale,omitempty\""
+field IPv6RA.Stale goubus.Bool "json:\"stale,omitempty\""
 method (*IPv6RA) UnmarshalJSON(data []byte) error
 type Option interface
 sealed Option

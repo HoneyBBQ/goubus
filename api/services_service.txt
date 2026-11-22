@@ -21,8 +21,14 @@ field EventRequest.Type string "json:\"type\""
 type Info struct
 field Info.Instances map[string]Instance "json:\"instances\""
 type Instance struct
+field Instance.Data map[string]any "json:\"data\""
+field Instance.Limits map[string]any "json:\"limits\""
+field Instance.Respawn *Respawn "json:\"respawn\""
+field Instance.Jail *Jail "json:\"jail\""
 field Instance.Command []string "json:\"command\""
 field Instance.Pid int "json:\"pid\""
+field Instance.ExitCode int "json:\"exit_code\""
+field Instance.TermTimeout int "json:\"term_timeout\""
 field Instance.Running goubus.Bool "json:\"running\""
 type Jail struct
 field Jail.Name string "json:\"name\""

@@ -137,9 +137,19 @@ func optionListCaller(t *testing.T, written *[]string) goubus.Caller {
 	})
 }
 func TestSectionValuesMarshalValueReceiver(t *testing.T) {
+	var zeroValue SectionValues
+	zeroValue.Set("hostname", "router")
+	encoded, err := json.Marshal(zeroValue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(encoded) != `{"hostname":"router"}` {
+		t.Fatalf("json.Marshal(zero-value SectionValues) = %s", encoded)
+	}
+
 	values := SectionValuesFromStrings(map[string]string{"scalar": "one"})
 	values.SetList("list", "alpha", "beta")
-	encoded, err := json.Marshal(values)
+	encoded, err = json.Marshal(values)
 	if err != nil {
 		t.Fatal(err)
 	}
