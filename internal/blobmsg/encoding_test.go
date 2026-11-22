@@ -93,6 +93,53 @@ func testNormalizeArgsStruct(t *testing.T) {
 
 const testValName = "test"
 
+func TestMapNestedStructUsesJSONEncoding(t *testing.T) {
+	type Embedded struct {
+		Promoted string `json:"promoted"`
+	}
+	type Nested struct {
+		Embedded
+		Name  string `json:"name"`
+		Empty string `json:"empty,omitempty"`
+		Zero  int    `json:"zero,omitzero"`
+	}
+
+	value := Nested{Embedded: Embedded{Promoted: "visible"}, Name: "nested"}
+	blobType, encoded, err := blobmsg.EncodeBlobmsgValue(map[string]any{
+		"value":   value,
+		"pointer": &value,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if blobType != blobmsg.TypeTable {
+		t.Fatalf("EncodeBlobmsgValue() type = %d, want table", blobType)
+	}
+	decoded, err := blobmsg.ParseBlobmsgContainer(encoded, blobmsg.TypeTable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	values, ok := decoded.(map[string]any)
+	if !ok {
+		t.Fatalf("decoded value = %T, want map", decoded)
+	}
+	for _, key := range []string{"value", "pointer"} {
+		nested, ok := values[key].(map[string]any)
+		if !ok {
+			t.Fatalf("%s = %T, want map", key, values[key])
+		}
+		if nested["promoted"] != "visible" || nested["name"] != "nested" {
+			t.Errorf("%s = %#v, embedded or named fields missing", key, nested)
+		}
+		if _, ok := nested["empty"]; ok {
+			t.Errorf("%s contains omitempty field: %#v", key, nested)
+		}
+		if _, ok := nested["zero"]; ok {
+			t.Errorf("%s contains omitzero field: %#v", key, nested)
+		}
+	}
+}
+
 func TestReflectEncoding(t *testing.T) {
 	t.Run("Struct", testReflectEncodingStruct)
 }

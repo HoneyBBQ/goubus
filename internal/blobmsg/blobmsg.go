@@ -363,7 +363,17 @@ func CreateBlobmsgTable(values map[string]any) ([]byte, error) {
 	totalLen64 := int64(BlobHeaderBytes)
 
 	for _, key := range keys {
-		item, err := CreateBlobmsgEntry(key, values[key])
+		value := values[key]
+		reflected := reflect.ValueOf(value)
+		if reflected.IsValid() && reflected.Kind() == reflect.Pointer && reflected.IsNil() {
+			continue
+		}
+
+		value, err := normalizeStructValue(value)
+		if err != nil {
+			return nil, err
+		}
+		item, err := CreateBlobmsgEntry(key, value)
 		if err != nil {
 			return nil, err
 		}
@@ -631,12 +641,47 @@ func EncodeJSONNumber(value json.Number) (uint8, []byte, error) {
 	return 0, nil, errs.Wrapf(errs.ErrInvalidParameter, "invalid number: %s", value.String())
 }
 
+func normalizeStructValue(value any) (any, error) {
+	reflected := reflect.ValueOf(value)
+	for reflected.IsValid() && (reflected.Kind() == reflect.Pointer || reflected.Kind() == reflect.Interface) {
+		if reflected.IsNil() {
+			return value, nil
+		}
+		reflected = reflected.Elem()
+	}
+	if !reflected.IsValid() || reflected.Kind() != reflect.Struct {
+		return value, nil
+	}
+
+	data, err := json.Marshal(value)
+	if err != nil {
+		return nil, errs.Wrapf(errs.ErrInvalidParameter, "marshal map struct %T: %v", value, err)
+	}
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+
+	var normalized any
+	err = decoder.Decode(&normalized)
+	if err != nil {
+		return nil, errs.Wrapf(errs.ErrInvalidParameter, "decode map struct %T: %v", value, err)
+	}
+
+	return normalized, nil
+}
+
 func EncodeReflectValue(value any) (uint8, []byte, error) {
+	reflected := reflect.ValueOf(value)
+	if !reflected.IsValid() {
+		return TypeUnspec, nil, ErrNilValue
+	}
+	if reflected.Kind() == reflect.Pointer && reflected.IsNil() {
+		return TypeUnspec, nil, nil
+	}
 	if marshaler, ok := value.(json.Marshaler); ok {
 		return encodeMarshaledValue(value, marshaler)
 	}
 
-	reflected := ReflectValue(value)
+	reflected = ReflectValue(value)
 	switch reflected.Kind() {
 	case reflect.Map:
 		return EncodeReflectMap(reflected)

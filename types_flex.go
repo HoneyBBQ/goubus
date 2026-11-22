@@ -141,27 +141,23 @@ func (t *UnixTime) UnmarshalJSON(data []byte) error {
 
 	var text string
 	if trimmed[0] == '"' {
-		err := json.Unmarshal(trimmed, &text)
-		if err != nil {
-			return errs.Wrapf(ErrInvalidResponse, "decode timestamp string: %v", err)
+		parsedText, parsed, direct, parseErr := parseUnixTimeString(trimmed)
+		if parseErr != nil {
+			return parseErr
 		}
-		if text == "" || text == "0" {
-			*t = UnixTime{}
+		if direct {
+			*t = UnixTime{Time: parsed}
 
 			return nil
 		}
-		parsed, parseErr := time.Parse(time.RFC3339Nano, text)
-		if parseErr == nil {
-			*t = UnixTime{Time: parsed.UTC()}
-
-			return nil
-		}
+		text = parsedText
 	} else {
 		text = string(trimmed)
 	}
 
 	seconds, err := strconv.ParseFloat(strings.TrimSpace(text), 64)
-	if err != nil || math.IsNaN(seconds) || math.IsInf(seconds, 0) || seconds > math.MaxInt64 || seconds < math.MinInt64 {
+	if err != nil || math.IsNaN(seconds) || math.IsInf(seconds, 0) ||
+		seconds >= math.Exp2(63) || seconds < -math.Exp2(63) {
 		return errs.Wrapf(ErrInvalidResponse, "parse Unix timestamp %q", text)
 	}
 	if seconds == 0 {
@@ -172,7 +168,32 @@ func (t *UnixTime) UnmarshalJSON(data []byte) error {
 
 	whole, fraction := math.Modf(seconds)
 	nanoseconds := int64(math.Round(fraction * float64(time.Second)))
-	*t = UnixTime{Time: time.Unix(int64(whole), nanoseconds).UTC()}
+	wholeSeconds := int64(whole)
+	if nanoseconds == int64(time.Second) {
+		if wholeSeconds == math.MaxInt64 {
+			return errs.Wrapf(ErrInvalidResponse, "parse Unix timestamp %q", text)
+		}
+		wholeSeconds++
+		nanoseconds = 0
+	}
+	*t = UnixTime{Time: time.Unix(wholeSeconds, nanoseconds).UTC()}
 
 	return nil
+}
+
+func parseUnixTimeString(data []byte) (string, time.Time, bool, error) {
+	var text string
+	decodeErr := json.Unmarshal(data, &text)
+	if decodeErr != nil {
+		return "", time.Time{}, false, errs.Wrapf(ErrInvalidResponse, "decode timestamp string: %v", decodeErr)
+	}
+	if text == "" || text == "0" {
+		return "", time.Time{}, true, nil
+	}
+	parsed, err := time.Parse(time.RFC3339Nano, text)
+	if err == nil {
+		return "", parsed.UTC(), true, nil
+	}
+
+	return text, time.Time{}, false, nil
 }

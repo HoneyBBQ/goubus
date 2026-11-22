@@ -10,6 +10,10 @@ import (
 
 // List queries the sessionless JSON-RPC introspection method.
 func (client *RpcClient) List(ctx context.Context, patterns ...string) (map[string]ObjectSignatures, error) {
+	if client.isClosed() {
+		return nil, ErrClosed
+	}
+
 	patterns, err := normalizePatterns(patterns)
 	if err != nil {
 		return nil, err

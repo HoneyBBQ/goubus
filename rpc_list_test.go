@@ -107,6 +107,24 @@ func checkRPCListInvalidPattern(t *testing.T, client *goubus.RpcClient, state *r
 	}
 }
 
+func TestRpcClientListReturnsClosed(t *testing.T) {
+	state := &rpcListTestState{}
+	client := newRPCListTestClient(t, state)
+	closeErr := client.Close()
+	if closeErr != nil {
+		t.Fatal(closeErr)
+	}
+
+	before := state.calls
+	_, err := client.List(context.Background(), "system")
+	if !errors.Is(err, goubus.ErrClosed) {
+		t.Errorf("List() error = %v, want ErrClosed", err)
+	}
+	if state.calls != before {
+		t.Errorf("closed List() sent %d request(s)", state.calls-before)
+	}
+}
+
 func TestRpcClientListEmptyResultIsNonNil(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		body := decodeRPCRequestBody(request)

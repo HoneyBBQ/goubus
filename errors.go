@@ -54,6 +54,13 @@ type CallError struct {
 
 // Error formats the failed ubus method invocation.
 func (e *CallError) Error() string {
+	if e.Service == "" {
+		if e.Message != "" {
+			return fmt.Sprintf("ubus %s failed (code %d: %s): %v", e.Method, e.Code, e.Message, e.Err)
+		}
+
+		return fmt.Sprintf("ubus %s failed (code %d): %v", e.Method, e.Code, e.Err)
+	}
 	if e.Message != "" {
 		return fmt.Sprintf("ubus call %s.%s failed (code %d: %s): %v", e.Service, e.Method, e.Code, e.Message, e.Err)
 	}

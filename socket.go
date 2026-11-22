@@ -266,8 +266,10 @@ func (c *SocketClient) Call(ctx context.Context, service, method string, data an
 
 	objectID, err := c.getObjectID(ctx, service)
 	if err != nil {
-		if errors.Is(err, errs.ErrNotFound) {
-			return nil, &CallError{Err: ErrNotFound, Service: service, Method: method, Code: StatusNotFound}
+		for code, statusErr := range ubusErrorMap {
+			if code != StatusOK && statusErr != nil && errors.Is(err, statusErr) {
+				return nil, &CallError{Err: statusErr, Service: service, Method: method, Code: code}
+			}
 		}
 
 		return nil, err

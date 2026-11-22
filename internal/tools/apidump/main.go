@@ -47,6 +47,7 @@ var (
 	errModule    = errors.New("no go.mod with a module line found")
 	errDuplicate = errors.New("two public packages would write the same report")
 	errCgo       = errors.New("uses cgo, which apidump does not read")
+	errLeaks     = errors.New("public API has leaked internal or unexported types")
 	errStale     = errors.New("the public API differs from api/*.txt: " +
 		"if the change is deliberate, run `go run ./internal/tools/apidump` and commit the result")
 )
@@ -72,6 +73,9 @@ func run(check bool) error {
 	}
 	for _, leak := range leaks {
 		fmt.Fprintln(os.Stderr, "warning:", leak)
+	}
+	if len(leaks) > 0 {
+		return fmt.Errorf("%w: %d leak(s)", errLeaks, len(leaks))
 	}
 	root, err := os.OpenRoot(mod.dir)
 	if err != nil {

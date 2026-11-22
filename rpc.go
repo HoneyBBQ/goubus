@@ -168,6 +168,7 @@ func (client *RpcClient) Close() error {
 	client.closed = true
 	sessionID := client.sessionData.UbusRPCSession
 	client.sessionData = rpc.SessionData{}
+	client.password = ""
 	if sessionID == "" {
 		return nil
 	}
@@ -210,6 +211,11 @@ func (client *RpcClient) LogValue() slog.Value {
 
 func (client *RpcClient) getValidSessionID(ctx context.Context) (string, error) {
 	client.rwMutex.RLock()
+	if client.closed {
+		client.rwMutex.RUnlock()
+
+		return "", ErrClosed
+	}
 	if client.sessionData.UbusRPCSession != "" && time.Now().Before(client.sessionData.ExpireTime) {
 		sessionID := client.sessionData.UbusRPCSession
 		client.rwMutex.RUnlock()
@@ -224,6 +230,11 @@ func (client *RpcClient) getValidSessionID(ctx context.Context) (string, error) 
 	}
 
 	client.rwMutex.RLock()
+	if client.closed {
+		client.rwMutex.RUnlock()
+
+		return "", ErrClosed
+	}
 	sessionID := client.sessionData.UbusRPCSession
 	client.rwMutex.RUnlock()
 
@@ -233,6 +244,12 @@ func (client *RpcClient) getValidSessionID(ctx context.Context) (string, error) 
 func (client *RpcClient) authenticate(ctx context.Context) error {
 	client.rwMutex.Lock()
 	defer client.rwMutex.Unlock()
+	if client.closed {
+		return ErrClosed
+	}
+	if client.sessionData.UbusRPCSession != "" && time.Now().Before(client.sessionData.ExpireTime) {
+		return nil
+	}
 
 	loginData := map[string]string{"username": client.username, "password": client.password}
 	result, err := client.rawCall(ctx, ubusAuthSessionID, "session", "login", loginData)
@@ -328,6 +345,15 @@ func (client *RpcClient) post(ctx context.Context, payload []byte, redactRespons
 		_ = response.Body.Close()
 	}()
 
+	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+		return nil, errs.Wrapf(
+			ErrConnectionFailed,
+			"HTTP status %d %s",
+			response.StatusCode,
+			http.StatusText(response.StatusCode),
+		)
+	}
+
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
 		return nil, errs.Wrapf(ErrInvalidResponse, "read response: %v", err)
@@ -398,6 +424,13 @@ func mapJSONRPCError(code int) error {
 	default:
 		return ErrUnknown
 	}
+}
+
+func (client *RpcClient) isClosed() bool {
+	client.rwMutex.RLock()
+	defer client.rwMutex.RUnlock()
+
+	return client.closed
 }
 
 func previewText(data []byte, maxLen int) string {

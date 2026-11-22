@@ -74,10 +74,6 @@ func initTransport(ctx context.Context, cfg connectionConfig, verbose bool) (gou
 		return rpcClient, "JSON-RPC http://" + cfg.Host
 	}
 
-	if cfg.Socket == "" {
-		cfg.Socket = "/var/run/ubus.sock"
-	}
-
 	var opts []goubus.SocketOption
 
 	if verbose {

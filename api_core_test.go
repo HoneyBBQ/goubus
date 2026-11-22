@@ -28,6 +28,9 @@ func TestCallErrorUnwrapTree(t *testing.T) {
 	if len(got) != 1 || !errors.Is(got[0], goubus.ErrCall) {
 		t.Errorf("Unwrap() without cause = %#v, want ErrCall", got)
 	}
+	if got := (&goubus.CallError{Method: "list", Code: 1}).Error(); got != "ubus list failed (code 1): <nil>" {
+		t.Errorf("Error() without service = %q", got)
+	}
 }
 
 func TestCallHelpers(t *testing.T) {

@@ -19,14 +19,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+      # yamllint disable rule:line-length
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        # yamllint enable rule:line-length
         with:
           go-version: "1.25"
           cache: true
       - name: golangci-lint
-        uses: "golangci/golangci-lint-action@\
-          ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a"
+        # yamllint disable rule:line-length
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a  # v9.3.0
+        # yamllint enable rule:line-length
         with:
           version: v2.15.0
       - name: Public API report is current
@@ -37,16 +40,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+      # yamllint disable rule:line-length
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        # yamllint enable rule:line-length
         with:
           go-version: "1.25"
           cache: true
       - name: Run tests
         run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
       - name: Upload coverage to Codecov
-        uses: "codecov/codecov-action@\
-          303a32d7a59b442fa8d48b6a1cc6825c09c847a5"
+        # yamllint disable rule:line-length
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5  # v7.1.1
+        # yamllint enable rule:line-length
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.txt

@@ -58,6 +58,18 @@ func TestSocketClientList(t *testing.T) {
 			t.Errorf("List() error = %v, want ErrInvalidParameter", err)
 		}
 	})
+
+	t.Run("closed client returns ErrClosed", func(t *testing.T) {
+		client := newPipeSocketClient(t, listTestHandler)
+		closeErr := client.Close()
+		if closeErr != nil {
+			t.Fatal(closeErr)
+		}
+		_, err := client.List(t.Context(), "system")
+		if !errors.Is(err, goubus.ErrClosed) {
+			t.Errorf("List() error = %v, want ErrClosed", err)
+		}
+	})
 }
 
 func TestSocketClientCallReportsStatusImmediately(t *testing.T) {
@@ -72,6 +84,36 @@ func TestSocketClientCallReportsStatusImmediately(t *testing.T) {
 	var callErr *goubus.CallError
 	if !errors.As(err, &callErr) || callErr.Code != goubus.StatusPermissionDenied {
 		t.Fatalf("Call() error = %#v, want status CallError", err)
+	}
+}
+
+func TestSocketClientCallLookupStatusErrorIsCallError(t *testing.T) {
+	client := newPipeSocketClient(t, permissionDeniedLookupHandler)
+	result, err := client.Call(t.Context(), testSystemService, testInfoMethod, nil)
+	if result != nil {
+		t.Fatalf("Call() result = %#v, want nil", result)
+	}
+	if !errors.Is(err, goubus.ErrPermissionDenied) || !errors.Is(err, goubus.ErrCall) {
+		t.Fatalf("Call() error = %v, want permission denied and ErrCall", err)
+	}
+	var callErr *goubus.CallError
+	if !errors.As(err, &callErr) || callErr.Code != goubus.StatusPermissionDenied {
+		t.Fatalf("Call() error = %#v, want status CallError", err)
+	}
+}
+
+func TestSocketClientCallTypedNilPointersDoNotError(t *testing.T) {
+	client := newPipeSocketClient(t, echoInvokeHandler)
+	result, err := client.Call(t.Context(), testSystemService, testInfoMethod, map[string]any{
+		"nil_bool": (*goubus.Bool)(nil),
+		"nil_time": (*goubus.UnixTime)(nil),
+		"nil_int":  (*int)(nil),
+	})
+	if err != nil {
+		t.Fatalf("Call() with typed nil pointers: %v", err)
+	}
+	if result == nil {
+		t.Fatal("Call() result is nil")
 	}
 }
 
@@ -157,6 +199,12 @@ func permissionDeniedInvokeHandler(conn net.Conn, header *blobmsg.UbusMessageHea
 		return
 	}
 	if header.Type == blobmsg.UbusMsgInvoke {
+		sendLookupStatus(conn, header.Seq, goubus.StatusPermissionDenied)
+	}
+}
+
+func permissionDeniedLookupHandler(conn net.Conn, header *blobmsg.UbusMessageHeader, _ []byte) {
+	if header.Type == blobmsg.UbusMsgLookup {
 		sendLookupStatus(conn, header.Seq, goubus.StatusPermissionDenied)
 	}
 }

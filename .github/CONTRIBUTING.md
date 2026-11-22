@@ -31,16 +31,16 @@ First off, thank you for considering contributing to `goubus`! It's people like 
 ### Quality Checks
 Before committing your changes, please run:
 ```bash
-go fmt ./...
-golangci-lint run
-go test ./...
+golangci-lint run ./...
+go test -race ./...
+go run ./internal/tools/apidump -check
 ```
 
 ## Style Guide
 - Follow the standard Go coding conventions (Effective Go).
 - All exported functions and types MUST have GoDoc comments.
 - Keep functions focused and small.
-- Use `errdefs.Wrapf` or `%w` for error wrapping to preserve error chains.
+- Use `goubus` error sentinels and wrap errors with `%w` so callers can inspect them with `errors.Is` and `errors.As`.
 - Prefer `log/slog` for any logging needs.
 
 ## License

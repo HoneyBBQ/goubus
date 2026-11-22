@@ -195,6 +195,21 @@ func TestRpcClient_SessionExpiry(t *testing.T) {
 	}
 }
 
+func TestRpcClientRejectsHTTPErrorStatus(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		http.Error(writer, "temporarily unavailable", http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+
+	_, err := goubus.NewRpcClient(context.Background(), server.URL, "user", "password")
+	if !errors.Is(err, goubus.ErrConnectionFailed) {
+		t.Fatalf("NewRpcClient() error = %v, want ErrConnectionFailed", err)
+	}
+	if !strings.Contains(err.Error(), "503") {
+		t.Errorf("NewRpcClient() error = %v, want HTTP status code", err)
+	}
+}
+
 func TestRpcClient_ErrorHandling(t *testing.T) {
 	tests := []struct {
 		wantErr       error

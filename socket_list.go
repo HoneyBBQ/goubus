@@ -30,6 +30,9 @@ func (client *SocketClient) List(ctx context.Context, patterns ...string) (map[s
 		if errors.Is(err, ErrNotFound) {
 			continue
 		}
+		if err != nil {
+			return nil, err
+		}
 		client.mergeListedObjects(objects, entries)
 	}
 

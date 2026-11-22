@@ -31,11 +31,36 @@ if [ -z "$section" ]; then
   exit 1
 fi
 
-# Convert links that were relative to CHANGELOG.md to links at the tag.
+# Convert links relative to CHANGELOG.md to tag-pinned GitHub links, but leave
+# literal examples in fenced code blocks alone.
 base="https://github.com/$repo/blob/$tag"
-section="$(printf '%s\n' "$section" | sed -E \
-  -e "s|\]\(#([^)]*)\)|](${base}/${changelog}#\1)|g" \
-  -e "s|\]\((\./)?([^):/#][^):]*)\)|](${base}/\2)|g")"
+section="$(printf '%s\n' "$section" | awk -v base="$base" -v changelog="$changelog" '
+  function rewrite_links(line, output, offset, start, rest, link_end, target, relative) {
+    output = ""
+    offset = 1
+    while ((start = index(substr(line, offset), "](")) > 0) {
+      start += offset - 1
+      output = output substr(line, offset, start - offset + 2)
+      rest = substr(line, start + 2)
+      link_end = index(rest, ")")
+      if (link_end == 0) { output = output rest; return output }
+      target = substr(rest, 1, link_end - 1)
+      relative = target
+      if (substr(target, 1, 1) == "#") {
+        target = base "/" changelog target
+      } else {
+        if (substr(relative, 1, 2) == "./") relative = substr(relative, 3)
+        if (relative !~ /^[\/:#]/ && relative !~ /:/) target = base "/" relative
+      }
+      output = output target ")"
+      offset = start + link_end + 2
+    }
+    return output substr(line, offset)
+  }
+  /^[ \t]*```/ { print; code = !code; next }
+  code { print; next }
+  { print rewrite_links($0) }
+')"
 
 # Unwrap paragraphs and list items, keeping code blocks and table rows intact.
 section="$(printf '%s\n' "$section" | awk '
@@ -43,7 +68,8 @@ section="$(printf '%s\n' "$section" | awk '
   /^[ \t]*```/ { flush(); print; code = !code; next }
   code { print; next }
   /^[ \t]*$/ { flush(); print; next }
-  /^[ \t]*([-*+] |[0-9]+\. )/ || /^#/ || /^[ \t]*\|/ || /^>/ { flush(); buf = $0; next }
+  /^#/ { flush(); print; next }
+  /^[ \t]*([-*+] |[0-9]+\. )/ || /^[ \t]*\|/ || /^>/ { flush(); buf = $0; next }
   buf == "" { buf = $0; next }
   { sub(/^[ \t]+/, ""); buf = buf " " $0 }
   END { flush() }

@@ -86,6 +86,11 @@ func testUnixTimeJSON(t *testing.T) {
 			t.Errorf("zero Unmarshal(%s) = %v, %v", input, value.Time, err)
 		}
 	}
+	var outOfRange goubus.UnixTime
+	err = json.Unmarshal([]byte(`9223372036854775808`), &outOfRange)
+	if !errors.Is(err, goubus.ErrInvalidResponse) {
+		t.Errorf("MaxInt64 boundary error = %v, want ErrInvalidResponse", err)
+	}
 	encoded, err := json.Marshal(goubus.UnixTime{})
 	if err != nil || string(encoded) != "0" {
 		t.Errorf("Marshal zero = %s, %v", encoded, err)
