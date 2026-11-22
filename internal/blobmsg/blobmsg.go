@@ -73,6 +73,7 @@ const (
 	MinAttrLen       = 4
 	HeaderBytes      = 8
 	BlobHeaderBytes  = 4
+	MaxMessageBytes  = 1 << 20
 )
 
 // Ubus attribute ids.
@@ -1030,7 +1031,7 @@ func ParseBlobmsgEntry(blobType uint32, payload []byte) (string, any, error) {
 func ParseBlobmsgValue(blobType uint32, data []byte) (any, error) {
 	switch blobType {
 	case TypeUnspec:
-		return nil, ErrNilValue
+		return nil, nil //nolint:nilnil // BLOBMSG_TYPE_UNSPEC represents null values in blobmsg containers.
 	case TypeArray, TypeTable:
 		return ParseBlobmsgContainer(data, uint8(blobType))
 	case TypeString:
@@ -1226,6 +1227,10 @@ func ReadMessage(reader io.Reader) (*UbusMessageHeader, []byte, error) {
 	}
 
 	blobLen := binary.BigEndian.Uint32(blobHeader)
+	if blobLen < BlobHeaderBytes || blobLen > MaxMessageBytes {
+		return nil, nil, errs.Wrapf(errs.ErrInvalidBlobLength, "message length %d", blobLen)
+	}
+
 	payload := make([]byte, 0, blobLen)
 	payload = append(payload, blobHeader...)
 

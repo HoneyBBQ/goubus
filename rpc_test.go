@@ -312,3 +312,106 @@ func decodeRPCRequestBody(request *http.Request) map[string]any {
 
 	return reqBody
 }
+
+func TestRpcClientRejectsOversizedResponse(t *testing.T) {
+	const oversizedBodyLen = (4 << 20) + 1024
+
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		reqBody := decodeRPCRequestBody(request)
+		if reqBody == nil {
+			return
+		}
+		if reqBody["method"] == "list" {
+			_, _ = writer.Write([]byte(`{"jsonrpc":"2.0","id":2,"result":{"pad":"`))
+			_, _ = writer.Write([]byte(strings.Repeat("x", oversizedBodyLen)))
+			_, _ = writer.Write([]byte(`"}}`))
+
+			return
+		}
+		params, ok := reqBody["params"].([]any)
+		if ok && len(params) > 0 && params[0] == testUbusAuthSession {
+			_, _ = fmt.Fprint(writer, `{"jsonrpc":"2.0","id":1,"result":[0,`+
+				`{"ubus_rpc_session":"test-session","timeout":3600}]}`)
+
+			return
+		}
+		_, _ = writer.Write([]byte(`{"jsonrpc":"2.0","id":2,"result":[0,{"pad":"`))
+		_, _ = writer.Write([]byte(strings.Repeat("x", oversizedBodyLen)))
+		_, _ = writer.Write([]byte(`"}]}`))
+	}))
+	defer server.Close()
+
+	client, err := goubus.NewRpcClient(t.Context(), server.URL, "user", "pass")
+	if err != nil {
+		t.Fatalf("NewRpcClient: %v", err)
+	}
+
+	_, err = client.Call(t.Context(), testSystemService, testInfoMethod, nil)
+	if !errors.Is(err, goubus.ErrInvalidResponse) {
+		t.Fatalf("Call() error = %v, want ErrInvalidResponse", err)
+	}
+	if !strings.Contains(err.Error(), "exceeds") {
+		t.Errorf("Call() error = %v, want size limit message", err)
+	}
+
+	_, err = client.List(t.Context(), testSystemService)
+	if !errors.Is(err, goubus.ErrInvalidResponse) {
+		t.Fatalf("List() error = %v, want ErrInvalidResponse", err)
+	}
+}
+
+func TestRpcClientHoistsUbusRPCSessionParam(t *testing.T) {
+	var seenSID string
+	var seenArgs map[string]any
+
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		reqBody := decodeRPCRequestBody(request)
+		params, ok := reqBody["params"].([]any)
+		if !ok || len(params) < 4 {
+			t.Fatalf("unexpected params: %#v", reqBody)
+		}
+		if params[0] == testUbusAuthSession {
+			_, _ = fmt.Fprint(writer, `{"jsonrpc":"2.0","id":1,"result":[0,`+
+				`{"ubus_rpc_session":"default-session","timeout":3600}]}`)
+
+			return
+		}
+		seenSID, _ = params[0].(string)
+		seenArgs, _ = params[3].(map[string]any)
+		_, _ = fmt.Fprint(writer, `{"jsonrpc":"2.0","id":2,"result":[0,{"access":true}]}`)
+	}))
+	defer server.Close()
+
+	client, err := goubus.NewRpcClient(t.Context(), server.URL, "user", "pass")
+	if err != nil {
+		t.Fatalf("NewRpcClient: %v", err)
+	}
+
+	_, err = client.Call(t.Context(), "session", "access", map[string]any{
+		"ubus_rpc_session": "explicit-session",
+		"scope":            "ubus",
+	})
+	if err != nil {
+		t.Fatalf("Call(explicit session): %v", err)
+	}
+	if seenSID != "explicit-session" {
+		t.Errorf("params[0] = %q, want explicit-session", seenSID)
+	}
+	if _, exists := seenArgs["ubus_rpc_session"]; exists {
+		t.Errorf("params[3] still contains ubus_rpc_session: %#v", seenArgs)
+	}
+
+	_, err = client.Call(t.Context(), "session", "access", map[string]any{
+		"ubus_rpc_session": "",
+		"scope":            "ubus",
+	})
+	if err != nil {
+		t.Fatalf("Call(empty session): %v", err)
+	}
+	if seenSID != "default-session" {
+		t.Errorf("params[0] = %q, want default-session", seenSID)
+	}
+	if _, exists := seenArgs["ubus_rpc_session"]; exists {
+		t.Errorf("params[3] still contains ubus_rpc_session: %#v", seenArgs)
+	}
+}

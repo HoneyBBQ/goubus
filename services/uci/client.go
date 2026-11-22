@@ -2,7 +2,9 @@
 package uci
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -160,8 +162,46 @@ func (packageContext *PackageContext) Revert(ctx context.Context) error {
 // Changes lists staged changes for the package.
 func (packageContext *PackageContext) Changes(ctx context.Context) (*ChangesResponse, error) {
 	request := changesRequest{Config: packageContext.name}
+	raw, err := goubus.Call[struct {
+		Changes json.RawMessage `json:"changes"`
+	}](ctx, packageContext.manager.caller, "uci", "changes", request)
+	if err != nil {
+		return nil, err
+	}
 
-	return goubus.Call[*ChangesResponse](ctx, packageContext.manager.caller, "uci", "changes", request)
+	return decodeChangesResponse(packageContext.name, raw.Changes)
+}
+
+func decodeChangesResponse(configName string, raw json.RawMessage) (*ChangesResponse, error) {
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
+		return &ChangesResponse{Changes: make(map[string]any)}, nil
+	}
+
+	if trimmed[0] == '[' {
+		var items []any
+		err := json.Unmarshal(trimmed, &items)
+		if err != nil {
+			return nil, fmt.Errorf("%w: decode UCI changes list: %w", goubus.ErrInvalidResponse, err)
+		}
+		changes := make(map[string]any)
+		if len(items) > 0 {
+			changes[configName] = items
+		}
+
+		return &ChangesResponse{Changes: changes}, nil
+	}
+
+	var changes map[string]any
+	err := json.Unmarshal(trimmed, &changes)
+	if err != nil {
+		return nil, fmt.Errorf("%w: decode UCI changes map: %w", goubus.ErrInvalidResponse, err)
+	}
+	if changes == nil {
+		changes = make(map[string]any)
+	}
+
+	return &ChangesResponse{Changes: changes}, nil
 }
 
 // Order rearranges sections in the package.
@@ -301,7 +341,7 @@ func (optionContext *OptionContext) Delete(ctx context.Context) error {
 // AddToList appends a value to a list option without splitting its contents.
 func (optionContext *OptionContext) AddToList(ctx context.Context, value string) error {
 	current, err := optionContext.Values(ctx)
-	if err != nil && !errors.Is(err, goubus.ErrNotFound) {
+	if err != nil && !isOptionMissing(err) {
 		return err
 	}
 	if slices.Contains(current, value) {
@@ -315,7 +355,7 @@ func (optionContext *OptionContext) AddToList(ctx context.Context, value string)
 // DeleteFromList removes a value from a list option.
 func (optionContext *OptionContext) DeleteFromList(ctx context.Context, value string) error {
 	current, err := optionContext.Values(ctx)
-	if errors.Is(err, goubus.ErrNotFound) {
+	if isOptionMissing(err) {
 		return nil
 	}
 	if err != nil {
@@ -330,6 +370,10 @@ func (optionContext *OptionContext) DeleteFromList(ctx context.Context, value st
 	}
 
 	return optionContext.setList(ctx, updated)
+}
+
+func isOptionMissing(err error) bool {
+	return errors.Is(err, goubus.ErrNotFound) || errors.Is(err, goubus.ErrNoData)
 }
 
 // Rename changes the option name.

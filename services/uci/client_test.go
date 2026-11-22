@@ -223,3 +223,68 @@ func fixtureUCIClient(raw []byte) *Client {
 		return goubus.NewJSONResult(raw), nil
 	}))
 }
+
+func TestPackageChangesAcceptsArrayAndObjectForms(t *testing.T) {
+	ctx := context.Background()
+
+	staged, err := fixtureUCIClient([]byte(`{"changes":[["set","cfg01","hostname","OpenWrt"]]}`)).
+		Package("system").
+		Changes(ctx)
+	if err != nil {
+		t.Fatalf("Changes(array): %v", err)
+	}
+	if len(staged.Changes) != 1 || staged.Changes["system"] == nil {
+		t.Fatalf("Changes(array) = %#v, want system entry", staged.Changes)
+	}
+
+	empty, err := fixtureUCIClient([]byte(`{"changes":[]}`)).Package("system").Changes(ctx)
+	if err != nil {
+		t.Fatalf("Changes(empty array): %v", err)
+	}
+	if len(empty.Changes) != 0 {
+		t.Fatalf("Changes(empty array) = %#v, want empty map", empty.Changes)
+	}
+
+	mapped, err := fixtureUCIClient([]byte(`{"changes":{"system":[["set","cfg01","hostname","OpenWrt"]]}}`)).
+		Package("system").
+		Changes(ctx)
+	if err != nil {
+		t.Fatalf("Changes(object): %v", err)
+	}
+	if len(mapped.Changes) != 1 {
+		t.Fatalf("Changes(object) = %#v, want 1 entry", mapped.Changes)
+	}
+}
+
+func TestOptionListHandlesNoDataOnMissingOption(t *testing.T) {
+	ctx := context.Background()
+	var written []string
+	caller := goubus.CallerFunc(func(_ context.Context, _, method string, data any) (goubus.Result, error) {
+		if method == "get" {
+			return goubus.NewJSONResult(nil), nil
+		}
+		if method == "set" {
+			req, ok := data.(writeRequest)
+			if !ok {
+				t.Fatalf("request type = %T, want writeRequest", data)
+			}
+			written, _ = req.Values["server"].([]string)
+		}
+
+		return goubus.NewJSONResult([]byte(`{}`)), nil
+	})
+
+	opt := New(caller).Package("system").Section("ntp").Option("server")
+	err := opt.AddToList(ctx, "0.openwrt.pool.ntp.org")
+	if err != nil {
+		t.Fatalf("AddToList on missing option: %v", err)
+	}
+	if len(written) != 1 || written[0] != "0.openwrt.pool.ntp.org" {
+		t.Fatalf("AddToList wrote %#v", written)
+	}
+
+	err = opt.DeleteFromList(ctx, "0.openwrt.pool.ntp.org")
+	if err != nil {
+		t.Fatalf("DeleteFromList on missing option: %v", err)
+	}
+}

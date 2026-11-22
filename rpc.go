@@ -1,6 +1,7 @@
 package goubus
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -19,16 +20,18 @@ import (
 )
 
 const (
-	logBodyLimit      = 512
-	defaultRPCTimeout = 30 * time.Second
+	logBodyLimit        = 512
+	maxRPCResponseBytes = 4 << 20
+	defaultRPCTimeout   = 30 * time.Second
 )
 
 const (
-	ubusAuthSessionID = "00000000000000000000000000000000"
-	jsonRPCVersion    = "2.0"
-	jsonRPCMethodCall = "call"
-	contentTypeJSON   = "application/json"
-	ubusEndpointPath  = "/ubus"
+	ubusAuthSessionID  = "00000000000000000000000000000000"
+	rpcSessionFieldKey = "ubus_rpc_session"
+	jsonRPCVersion     = "2.0"
+	jsonRPCMethodCall  = "call"
+	contentTypeJSON    = "application/json"
+	ubusEndpointPath   = "/ubus"
 )
 
 // RpcClient calls ubus through the JSON-RPC endpoint and manages its session.
@@ -310,8 +313,44 @@ func (client *RpcClient) callRequest(sessionID, service, method string, data any
 	if !json.Valid(rawData) {
 		return nil, errs.Wrapf(ErrInvalidParameter, "RPC data is not valid JSON")
 	}
+	var err error
+	sessionID, rawData, err = hoistRPCSessionID(sessionID, rawData)
+	if err != nil {
+		return nil, errs.Wrapf(ErrInvalidParameter, "normalize RPC session parameter: %v", err)
+	}
 
 	return client.requestBody(jsonRPCMethodCall, []any{sessionID, service, method, rawData})
+}
+
+func hoistRPCSessionID(sessionID string, rawData json.RawMessage) (string, json.RawMessage, error) {
+	if !bytes.Contains(rawData, []byte(rpcSessionFieldKey)) {
+		return sessionID, rawData, nil
+	}
+
+	var fields map[string]json.RawMessage
+	err := json.Unmarshal(rawData, &fields)
+	if err != nil || fields == nil {
+		return sessionID, rawData, nil //nolint:nilerr // Non-object payloads are passed through unchanged.
+	}
+
+	rawSession, hasKey := fields[rpcSessionFieldKey]
+	if !hasKey {
+		return sessionID, rawData, nil
+	}
+
+	var explicit string
+	err = json.Unmarshal(rawSession, &explicit)
+	if err == nil && explicit != "" {
+		sessionID = explicit
+	}
+	delete(fields, rpcSessionFieldKey)
+
+	cleaned, err := json.Marshal(fields)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return sessionID, cleaned, nil
 }
 
 func (client *RpcClient) requestBody(method string, params any) ([]byte, error) {
@@ -354,9 +393,12 @@ func (client *RpcClient) post(ctx context.Context, payload []byte, redactRespons
 		)
 	}
 
-	body, err := io.ReadAll(response.Body)
+	body, err := io.ReadAll(io.LimitReader(response.Body, maxRPCResponseBytes+1))
 	if err != nil {
 		return nil, errs.Wrapf(ErrInvalidResponse, "read response: %v", err)
+	}
+	if len(body) > maxRPCResponseBytes {
+		return nil, errs.Wrapf(ErrInvalidResponse, "response exceeds %d bytes", maxRPCResponseBytes)
 	}
 	responseBody := previewText(body, logBodyLimit)
 	if redactResponse {
