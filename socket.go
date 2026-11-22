@@ -711,9 +711,8 @@ func (c *SocketClient) encodeMessage(msgType uint8, body []byte) ([]byte, uint16
 		return nil, 0, errdefs.Wrapf(errdefs.ErrInvalidParameter, "encode header: %v", err)
 	}
 
-	_, err = buf.Write(body)
-	if err != nil {
-		return nil, 0, errdefs.Wrapf(errdefs.ErrInvalidParameter, "write body: %v", err)
+	if len(body) > 0 {
+		_, _ = buf.Write(body)
 	}
 
 	return buf.Bytes(), seq, nil

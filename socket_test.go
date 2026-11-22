@@ -29,9 +29,143 @@ type countingConn struct {
 	closeCalls atomic.Int32
 }
 
+type faultConn struct {
+	net.Conn
+	injectedErr        error
+	failReadDeadline   atomic.Int32
+	failWriteDeadline  atomic.Int32
+	failWrite          atomic.Int32
+	readDeadlineCalls  atomic.Int32
+	writeDeadlineCalls atomic.Int32
+	writeCalls         atomic.Int32
+	closeCalls         atomic.Int32
+}
+
 type socketMockHandler func(net.Conn, *blobmsg.UbusMessageHeader, []byte)
 
-var errTestRequestBudgetCause = errors.New("request budget exhausted")
+var (
+	errTestRequestBudgetCause = errors.New("request budget exhausted")
+	errTestInjectedIO         = errors.New("injected I/O failure")
+)
+
+func (c *faultConn) SetReadDeadline(deadline time.Time) error {
+	call := c.readDeadlineCalls.Add(1)
+	if call == c.failReadDeadline.Load() {
+		return c.injectedErr
+	}
+
+	return c.Conn.SetReadDeadline(deadline)
+}
+
+func (c *faultConn) SetWriteDeadline(deadline time.Time) error {
+	call := c.writeDeadlineCalls.Add(1)
+	if call == c.failWriteDeadline.Load() {
+		return c.injectedErr
+	}
+
+	return c.Conn.SetWriteDeadline(deadline)
+}
+
+func (c *faultConn) Write(data []byte) (int, error) {
+	call := c.writeCalls.Add(1)
+	if call == c.failWrite.Load() {
+		return 0, c.injectedErr
+	}
+
+	return c.Conn.Write(data)
+}
+
+func (c *faultConn) Close() error {
+	c.closeCalls.Add(1)
+
+	return c.Conn.Close()
+}
+
+func newFaultConn(conn net.Conn) *faultConn {
+	return &faultConn{Conn: conn, injectedErr: errTestInjectedIO}
+}
+
+func newFaultSocketClient(
+	t *testing.T,
+	handler socketMockHandler,
+	opts ...goubus.SocketOption,
+) (*goubus.SocketClient, *faultConn) {
+	t.Helper()
+
+	serverConn, clientConn := net.Pipe()
+	fault := newFaultConn(clientConn)
+	client := newSocketClient(t, fault, serverConn, handler, opts...)
+
+	return client, fault
+}
+
+func assertFaultConnClosed(t *testing.T, conn *faultConn) {
+	t.Helper()
+
+	if conn.closeCalls.Load() == 0 {
+		t.Fatal("expected underlying connection to be closed")
+	}
+}
+
+func assertClientClosed(t *testing.T, client *goubus.SocketClient) {
+	t.Helper()
+
+	_, err := client.Call(context.Background(), "other.service", "info", nil)
+	if !errors.Is(err, errdefs.ErrClosed) {
+		t.Fatalf("expected closed client error, got %v", err)
+	}
+}
+
+func sendHello(conn net.Conn, msgType uint8) {
+	sendMsg(conn, msgType, 0, []byte{0, 0, 0, 4})
+}
+
+func notifySystemMockHandler(conn net.Conn, hdr *blobmsg.UbusMessageHeader, payload []byte) {
+	if hdr.Type == blobmsg.UbusMsgLookup || hdr.Type == blobmsg.UbusMsgInvoke {
+		sendMsg(conn, blobmsg.UbusMsgNotify, hdr.Seq, []byte{0, 0, 0, 4})
+	}
+
+	systemMockHandler(conn, hdr, payload)
+}
+
+func corruptResponseHandler(injectCorruption *atomic.Bool) socketMockHandler {
+	return func(conn net.Conn, hdr *blobmsg.UbusMessageHeader, payload []byte) {
+		if (hdr.Type == blobmsg.UbusMsgLookup || hdr.Type == blobmsg.UbusMsgInvoke) && injectCorruption.Load() {
+			sendMsg(conn, blobmsg.UbusMsgData, hdr.Seq, []byte{0, 0, 0, 8, 0, 0, 0, 1})
+
+			return
+		}
+
+		systemMockHandler(conn, hdr, payload)
+	}
+}
+
+func blockSecondInvokeMock(blocked chan struct{}) socketMockHandler {
+	var invokeCalls atomic.Int32
+
+	return func(conn net.Conn, hdr *blobmsg.UbusMessageHeader, payload []byte) {
+		if hdr.Type == blobmsg.UbusMsgInvoke && invokeCalls.Add(1) == 2 {
+			close(blocked)
+
+			return
+		}
+
+		systemMockHandler(conn, hdr, payload)
+	}
+}
+
+func delayedSecondInvokeMockHandler(slowStarted chan struct{}) socketMockHandler {
+	var invokeCalls atomic.Int32
+
+	return func(conn net.Conn, hdr *blobmsg.UbusMessageHeader, payload []byte) {
+		if hdr.Type == blobmsg.UbusMsgInvoke && invokeCalls.Add(1) == 2 {
+			close(slowStarted)
+			time.Sleep(120 * time.Millisecond)
+		}
+
+		systemMockHandler(conn, hdr, payload)
+	}
+}
 
 func (c *countingConn) Close() error {
 	c.closeCalls.Add(1)
@@ -758,4 +892,276 @@ func missingServiceMockHandler(conn net.Conn, hdr *blobmsg.UbusMessageHeader, pa
 
 	statusBody, _ := blobmsg.CreateBlobMessage(map[uint32]any{blobmsg.UbusAttrStatus: uint32(4)}, nil)
 	sendMsg(conn, blobmsg.UbusMsgStatus, hdr.Seq, statusBody)
+}
+
+func TestSocketClient_NewSocketClientFromConnPreCanceledContextCloses(t *testing.T) {
+	serverConn, clientConn := net.Pipe()
+	defer func() { _ = serverConn.Close() }()
+
+	fault := newFaultConn(clientConn)
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	_, err := goubus.NewSocketClientFromConn(ctx, fault)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected canceled context, got %v", err)
+	}
+
+	assertFaultConnClosed(t, fault)
+}
+
+func TestSocketClient_NewSocketClientFromConnRejectsNonHello(t *testing.T) {
+	serverConn, clientConn := net.Pipe()
+	defer func() { _ = serverConn.Close() }()
+
+	fault := newFaultConn(clientConn)
+
+	go sendHello(serverConn, blobmsg.UbusMsgStatus)
+
+	_, err := goubus.NewSocketClientFromConn(t.Context(), fault)
+	if !errdefs.IsInvalidResponse(err) {
+		t.Fatalf("expected invalid response, got %v", err)
+	}
+
+	assertFaultConnClosed(t, fault)
+}
+
+func TestSocketClient_NewSocketClientFromConnEOFCloses(t *testing.T) {
+	serverConn, clientConn := net.Pipe()
+	_ = serverConn.Close()
+
+	fault := newFaultConn(clientConn)
+
+	_, err := goubus.NewSocketClientFromConn(t.Context(), fault)
+	if !errdefs.IsConnectionFailed(err) {
+		t.Fatalf("expected connection failure, got %v", err)
+	}
+
+	assertFaultConnClosed(t, fault)
+}
+
+func TestSocketClient_NewSocketClientFromConnDeadlineFailuresClose(t *testing.T) {
+	cases := []struct {
+		name   string
+		failAt int32
+	}{
+		{name: "set deadline", failAt: 1},
+		{name: "clear deadline", failAt: 2},
+	}
+
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			serverConn, clientConn := net.Pipe()
+			defer func() { _ = serverConn.Close() }()
+
+			fault := newFaultConn(clientConn)
+			fault.failReadDeadline.Store(testCase.failAt)
+
+			go sendHello(serverConn, blobmsg.UbusMsgHello)
+
+			_, err := goubus.NewSocketClientFromConn(t.Context(), fault)
+			if !errdefs.IsConnectionFailed(err) {
+				t.Fatalf("expected connection failure, got %v", err)
+			}
+
+			assertFaultConnClosed(t, fault)
+		})
+	}
+}
+
+func TestSocketClient_CallQueuedContextDeadlineKeepsConnection(t *testing.T) {
+	slowStarted := make(chan struct{})
+	client := newPipeSocketClient(t, delayedSecondInvokeMockHandler(slowStarted))
+
+	_, err := client.Call(t.Context(), testSystemService, testInfoMethod, nil)
+	if err != nil {
+		t.Fatalf("warm object cache: %v", err)
+	}
+
+	aDone := make(chan error, 1)
+
+	go func() {
+		_, callErr := client.Call(context.Background(), testSystemService, testInfoMethod, nil)
+		aDone <- callErr
+	}()
+
+	waitForSignal(t, slowStarted, "slow invoke did not start")
+
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Millisecond)
+	defer cancel()
+
+	bDone := make(chan error, 1)
+
+	go func() {
+		_, callErr := client.Call(ctx, testSystemService, testInfoMethod, nil)
+		bDone <- callErr
+	}()
+
+	err = waitForError(t, aDone, "first call did not finish")
+	if err != nil {
+		t.Fatalf("first call failed: %v", err)
+	}
+
+	err = waitForError(t, bDone, "queued call did not finish")
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected queued call deadline, got %v", err)
+	}
+
+	_, callErr := client.Call(context.Background(), testSystemService, testInfoMethod, nil)
+	if callErr != nil {
+		t.Fatalf("connection unusable after queued deadline: %v", callErr)
+	}
+}
+
+func TestSocketClient_CallQueuedAfterCloseReturnsClosed(t *testing.T) {
+	blocked := make(chan struct{})
+	client := newPipeSocketClient(t, blockSecondInvokeMock(blocked), goubus.WithReadTimeout(0))
+
+	_, err := client.Call(t.Context(), testSystemService, testInfoMethod, nil)
+	if err != nil {
+		t.Fatalf("warm object cache: %v", err)
+	}
+
+	aDone := make(chan error, 1)
+
+	go func() {
+		_, callErr := client.Call(context.Background(), testSystemService, testInfoMethod, nil)
+		aDone <- callErr
+	}()
+
+	waitForSignal(t, blocked, "blocking invoke did not start")
+
+	bDone := make(chan error, 1)
+
+	go func() {
+		_, callErr := client.Call(context.Background(), testSystemService, testInfoMethod, nil)
+		bDone <- callErr
+	}()
+
+	time.Sleep(20 * time.Millisecond)
+
+	closeErr := client.Close()
+	if closeErr != nil {
+		t.Fatalf("close client: %v", closeErr)
+	}
+
+	activeErr := waitForError(t, aDone, "active call did not stop")
+	if activeErr == nil {
+		t.Fatal("expected active call to fail after close")
+	}
+
+	queuedErr := waitForError(t, bDone, "queued call did not finish")
+	if !errors.Is(queuedErr, errdefs.ErrClosed) {
+		t.Fatalf("expected queued call to report closed, got %v", queuedErr)
+	}
+}
+
+func TestSocketClient_CallAfterCloseReturnsClosed(t *testing.T) {
+	client := newPipeSocketClient(t, systemMockHandler)
+
+	closeErr := client.Close()
+	if closeErr != nil {
+		t.Fatalf("close client: %v", closeErr)
+	}
+
+	_, err := client.Call(t.Context(), "other.service", "info", nil)
+	if !errors.Is(err, errdefs.ErrClosed) {
+		t.Fatalf("expected closed client error, got %v", err)
+	}
+}
+
+func TestSocketClient_RoundTripDeadlineAndWriteFailuresClose(t *testing.T) {
+	cases := []struct {
+		name             string
+		warmInvoke       bool
+		readFailure      int32
+		writeDeadlineErr int32
+		writeFailure     int32
+	}{
+		{name: "lookup read deadline set", readFailure: 1},
+		{name: "lookup read deadline clear", readFailure: 2},
+		{name: "invoke read deadline set", warmInvoke: true, readFailure: 1},
+		{name: "invoke read deadline clear", warmInvoke: true, readFailure: 2},
+		{name: "write deadline set", warmInvoke: true, writeDeadlineErr: 1},
+		{name: "write failure", warmInvoke: true, writeFailure: 1},
+		{name: "write deadline clear", warmInvoke: true, writeDeadlineErr: 2},
+	}
+
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			client, fault := newFaultSocketClient(t, systemMockHandler)
+			if testCase.warmInvoke {
+				_, warmErr := client.Call(t.Context(), testSystemService, testInfoMethod, nil)
+				if warmErr != nil {
+					t.Fatalf("warm object cache: %v", warmErr)
+				}
+			}
+
+			if testCase.readFailure != 0 {
+				fault.failReadDeadline.Store(fault.readDeadlineCalls.Load() + testCase.readFailure)
+			}
+
+			if testCase.writeDeadlineErr != 0 {
+				fault.failWriteDeadline.Store(fault.writeDeadlineCalls.Load() + testCase.writeDeadlineErr)
+			}
+
+			if testCase.writeFailure != 0 {
+				fault.failWrite.Store(fault.writeCalls.Load() + testCase.writeFailure)
+			}
+
+			_, err := client.Call(t.Context(), testSystemService, testInfoMethod, nil)
+			if !errdefs.IsConnectionFailed(err) {
+				t.Fatalf("expected connection failure, got %v", err)
+			}
+
+			assertFaultConnClosed(t, fault)
+			assertClientClosed(t, client)
+		})
+	}
+}
+
+func TestSocketClient_IgnoresUnknownLookupAndInvokeFrames(t *testing.T) {
+	client := newPipeSocketClient(t, notifySystemMockHandler)
+
+	_, callErr := client.Call(t.Context(), testSystemService, testInfoMethod, nil)
+	if callErr != nil {
+		t.Fatalf("call after unknown frames: %v", callErr)
+	}
+}
+
+func assertCorruptResponseCloses(t *testing.T, lookup bool) {
+	t.Helper()
+
+	var injectCorruption atomic.Bool
+	injectCorruption.Store(lookup)
+
+	client := newPipeSocketClient(
+		t,
+		corruptResponseHandler(&injectCorruption),
+		goubus.WithReadTimeout(500*time.Millisecond),
+	)
+
+	if !lookup {
+		_, warmErr := client.Call(t.Context(), testSystemService, testInfoMethod, nil)
+		if warmErr != nil {
+			t.Fatalf("warm object cache: %v", warmErr)
+		}
+
+		injectCorruption.Store(true)
+	}
+
+	_, err := client.Call(t.Context(), testSystemService, testInfoMethod, nil)
+	if !errdefs.IsInvalidResponse(err) {
+		t.Fatalf("expected invalid response, got %v", err)
+	}
+
+	assertClientClosed(t, client)
+}
+
+func TestSocketClient_LookupCorruptResponseCloses(t *testing.T) {
+	assertCorruptResponseCloses(t, true)
+}
+
+func TestSocketClient_InvokeCorruptResponseCloses(t *testing.T) {
+	assertCorruptResponseCloses(t, false)
 }
