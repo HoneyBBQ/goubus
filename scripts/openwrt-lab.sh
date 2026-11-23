@@ -27,14 +27,13 @@ stop_resources() {
       done
       kill -9 "$pid" 2>/dev/null || true
     fi
-    rm -f "$work_dir/bridge.pid" "$work_dir/bridge.ready"
+    rm -f "$work_dir/bridge.pid" "$work_dir/bridge.ready" "$work_dir/ubus.sock"
   fi
 
   if [ -f "$work_dir/container.name" ]; then
     local cname
     cname="$(cat "$work_dir/container.name" 2>/dev/null || true)"
     if [ -n "$cname" ]; then
-      docker exec "$cname" rm -f /tmp/run/ubus/ubus.sock >/dev/null 2>&1 || true
       docker rm -f "$cname" >/dev/null 2>&1 || true
     fi
     rm -f "$work_dir/container.name"
@@ -118,13 +117,11 @@ while [ ! -S /tmp/run/ubus/ubus.sock ]; do
 done
 chmod 0666 /tmp/run/ubus/ubus.sock
 
-if [ "${UBUS_LAB_BRIDGE:-0}" = "1" ]; then
-  /lab/testlab-linux bridge \
-    -listen-network tcp \
-    -listen-addr 0.0.0.0:12000 \
-    -target-network unix \
-    -target-addr /tmp/run/ubus/ubus.sock &
-fi
+/lab/testlab-linux bridge \
+  -listen-network tcp \
+  -listen-addr 0.0.0.0:12000 \
+  -target-network unix \
+  -target-addr /tmp/run/ubus/ubus.sock &
 
 /sbin/rpcd -s /tmp/run/ubus/ubus.sock &
 i=0
@@ -166,6 +163,9 @@ cmd_start() {
   mkdir -p "$work_dir/bin" "$work_dir/tls" "$work_dir/lab"
 
   (cd "$repo_root" && go build -o "$work_dir/bin/testlab-host" ./internal/tools/testlab)
+  (cd "$repo_root" && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -o "$work_dir/lab/testlab-linux" ./internal/tools/testlab)
+  chmod 0755 "$work_dir/lab/testlab-linux"
 
   local password
   password="$("$work_dir/bin/testlab-host" rand)"
@@ -179,57 +179,36 @@ cmd_start() {
   local container_name="goubus-${IMAGE_KEY}-${suffix}"
   echo "$container_name" > "$work_dir/container.name"
 
-  local host_os
-  host_os="$(uname -s)"
-  local socket_path=""
+  # Bridge the container ubusd socket through testlab-linux (running as uid=0
+  # inside the container) on every host OS so ubusd's SO_PEERCRED check sees
+  # root regardless of the host user UID (for example uid=1001 on Linux CI).
+  local socket_path="$work_dir/ubus.sock"
+  docker run -d --platform linux/amd64 \
+    --name "$container_name" \
+    -e UBUS_LAB_PASSWORD="$password" \
+    -p 127.0.0.1::80 \
+    -p 127.0.0.1::443 \
+    -p 127.0.0.1::12000 \
+    -v "$work_dir/tls:/tls:ro" \
+    -v "$work_dir/lab:/lab:ro" \
+    "$image_ref" /bin/sh /lab/init.sh >/dev/null
 
-  if [ "$host_os" = "Linux" ]; then
-    mkdir -p "$work_dir/ubus"
-    chmod 0777 "$work_dir/ubus"
-    socket_path="$work_dir/ubus/ubus.sock"
-    docker run -d --platform linux/amd64 \
-      --name "$container_name" \
-      -e UBUS_LAB_PASSWORD="$password" \
-      -e UBUS_LAB_BRIDGE=0 \
-      -p 127.0.0.1::80 \
-      -p 127.0.0.1::443 \
-      -v "$work_dir/ubus:/tmp/run/ubus" \
-      -v "$work_dir/tls:/tls:ro" \
-      -v "$work_dir/lab:/lab:ro" \
-      "$image_ref" /bin/sh /lab/init.sh >/dev/null
-  else
-    (cd "$repo_root" && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-      go build -o "$work_dir/lab/testlab-linux" ./internal/tools/testlab)
-    chmod 0755 "$work_dir/lab/testlab-linux"
-    socket_path="$work_dir/ubus.sock"
-    docker run -d --platform linux/amd64 \
-      --name "$container_name" \
-      -e UBUS_LAB_PASSWORD="$password" \
-      -e UBUS_LAB_BRIDGE=1 \
-      -p 127.0.0.1::80 \
-      -p 127.0.0.1::443 \
-      -p 127.0.0.1::12000 \
-      -v "$work_dir/tls:/tls:ro" \
-      -v "$work_dir/lab:/lab:ro" \
-      "$image_ref" /bin/sh /lab/init.sh >/dev/null
+  local bridge_addr
+  bridge_addr="$(docker port "$container_name" 12000/tcp | head -n 1)"
+  rm -f "$work_dir/bridge.ready"
+  nohup "$work_dir/bin/testlab-host" bridge \
+    -listen-network unix \
+    -listen-addr "$socket_path" \
+    -target-network tcp \
+    -target-addr "$bridge_addr" \
+    -ready-file "$work_dir/bridge.ready" \
+    >"$work_dir/bridge.log" 2>&1 </dev/null &
+  echo "$!" > "$work_dir/bridge.pid"
 
-    local bridge_addr
-    bridge_addr="$(docker port "$container_name" 12000/tcp | head -n 1)"
-    rm -f "$work_dir/bridge.ready"
-    nohup "$work_dir/bin/testlab-host" bridge \
-      -listen-network unix \
-      -listen-addr "$socket_path" \
-      -target-network tcp \
-      -target-addr "$bridge_addr" \
-      -ready-file "$work_dir/bridge.ready" \
-      >"$work_dir/bridge.log" 2>&1 </dev/null &
-    echo "$!" > "$work_dir/bridge.pid"
-
-    for _ in 1 2 3 4 5 6 7 8 9 10; do
-      [ -f "$work_dir/bridge.ready" ] && break
-      sleep 1
-    done
-  fi
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    [ -f "$work_dir/bridge.ready" ] && break
+    sleep 1
+  done
 
   local http_addr https_addr http_url https_url
   http_addr="$(docker port "$container_name" 80/tcp | head -n 1)"
