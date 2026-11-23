@@ -1,33 +1,61 @@
+---
 name: Release
 
-on:
+'on':
   push:
     tags:
       - 'v*'
 
-permissions:
-  contents: write
+permissions: {}
 
 jobs:
-  goreleaser:
+  release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
+      # yamllint disable rule:line-length
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 0
-
-      - name: Set up Go
-        uses: actions/setup-go@v7
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        # yamllint enable rule:line-length
         with:
-          go-version: '1.25'
+          go-version: '1.26'
           cache: true
-
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v7
+      - name: golangci-lint
+        # yamllint disable rule:line-length
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a  # v9.3.0
+        # yamllint enable rule:line-length
         with:
-          distribution: goreleaser
-          version: ~> v2
-          args: release --clean
+          version: v2.15.0
+      - name: Verify version matches tag
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          version="$(sed -n 's/^const Version = "\([^"]*\)"/\1/p' version.go)"
+          tag_version="${RELEASE_TAG#v}"
+          if [ "$version" != "$tag_version" ]; then
+            printf 'Version/tag mismatch:\n' >&2
+            printf '  version.go: %s; tag: %s\n' "$version" "$RELEASE_TAG" >&2
+            exit 1
+          fi
+      - name: Verify build
+        run: go build ./...
+      - name: Run tests
+        run: go test -race ./...
+      - name: Public API report is current
+        run: go run ./internal/tools/apidump -check
+      - name: Write the release notes
+        run: |
+          scripts/release-notes.sh "$GITHUB_REF_NAME" \
+            > "$RUNNER_TEMP/release-notes.md"
+      - name: Release
+        # yamllint disable rule:line-length
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64  # v3.0.3
+        # yamllint enable rule:line-length
+        with:
+          body_path: ${{ runner.temp }}/release-notes.md
+          generate_release_notes: false
+          prerelease: ${{ contains(github.ref_name, '-') }}

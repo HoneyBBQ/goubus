@@ -1,0 +1,150 @@
+// Package session provides a client for the ubus session service.
+package session
+
+import (
+	"context"
+	"time"
+
+	"github.com/honeybbq/goubus/v2"
+)
+
+const ubusRPCSessionKey = "ubus_rpc_session"
+
+// Client provides access to the ubus session service.
+type Client struct {
+	caller goubus.Caller
+}
+
+// New creates a session client for caller.
+func New(caller goubus.Caller) *Client {
+	if caller == nil {
+		panic("goubus/session: nil caller")
+	}
+
+	return &Client{caller: caller}
+}
+
+// Create creates a new session.
+func (c *Client) Create(ctx context.Context, timeout int) (*Data, error) {
+	res, err := goubus.Call[*Data](ctx, c.caller, "session", "create", map[string]any{"timeout": timeout})
+	if err != nil {
+		return nil, err
+	}
+	res.ExpireTime = time.Now().Add(time.Duration(res.Timeout) * time.Second)
+
+	return res, nil
+}
+
+// List retrieves active sessions.
+func (c *Client) List(ctx context.Context) (map[string]any, error) {
+	return goubus.Call[map[string]any](ctx, c.caller, "session", "list", nil)
+}
+
+// Grant grants access to a session.
+func (c *Client) Grant(ctx context.Context, req GrantRequest) error {
+	_, err := c.caller.Call(ctx, "session", "grant", req)
+
+	return err
+}
+
+// Revoke revokes access from a session.
+func (c *Client) Revoke(ctx context.Context, req GrantRequest) error {
+	_, err := c.caller.Call(ctx, "session", "revoke", req)
+
+	return err
+}
+
+// Access checks access for a session.
+func (c *Client) Access(ctx context.Context, req AccessRequest) (bool, error) {
+	res, err := goubus.Call[map[string]goubus.Bool](ctx, c.caller, "session", "access", req)
+	if err != nil {
+		return false, err
+	}
+
+	return bool(res["access"]), nil
+}
+
+// Set sets session values.
+func (c *Client) Set(ctx context.Context, session string, values map[string]any) error {
+	_, err := c.caller.Call(ctx, "session", "set", map[string]any{ubusRPCSessionKey: session, "values": values})
+
+	return err
+}
+
+// Get retrieves session values.
+func (c *Client) Get(ctx context.Context, session string, keys []string) (map[string]any, error) {
+	params := map[string]any{ubusRPCSessionKey: session, "keys": keys}
+
+	return goubus.Call[map[string]any](ctx, c.caller, "session", "get", params)
+}
+
+// Unset removes values from a session.
+func (c *Client) Unset(ctx context.Context, session string, keys []string) error {
+	_, err := c.caller.Call(ctx, "session", "unset", map[string]any{ubusRPCSessionKey: session, "keys": keys})
+
+	return err
+}
+
+// Destroy destroys a session.
+func (c *Client) Destroy(ctx context.Context, session string) error {
+	_, err := c.caller.Call(ctx, "session", "destroy", map[string]any{ubusRPCSessionKey: session})
+
+	return err
+}
+
+// Login performs a session login.
+func (c *Client) Login(ctx context.Context, req LoginRequest) (*Data, error) {
+	res, err := goubus.Call[*Data](ctx, c.caller, "session", "login", req)
+	if err != nil {
+		return nil, err
+	}
+	res.ExpireTime = time.Now().Add(time.Duration(res.Timeout) * time.Second)
+
+	return res, nil
+}
+
+// Data contains session information.
+type Data struct {
+	// ExpireTime is the calculated session expiration time.
+	ExpireTime time.Time `json:"-"`
+	// ACLs contains the session access control lists.
+	ACLs map[string]any `json:"acls"`
+	// Data contains arbitrary session data.
+	Data map[string]any `json:"data"`
+	// UbusRPCSession is the ubus session identifier.
+	UbusRPCSession string `json:"ubus_rpc_session"`
+	// Timeout is the session timeout in seconds.
+	Timeout int `json:"timeout"`
+}
+
+// GrantRequest contains parameters for granting or revoking access.
+type GrantRequest struct {
+	// Session is the session identifier.
+	Session string `json:"ubus_rpc_session"`
+	// Scope is the access control scope.
+	Scope string `json:"scope"`
+	// Objects lists the ubus objects covered by the grant.
+	Objects []string `json:"objects"`
+}
+
+// AccessRequest contains parameters for checking session access.
+type AccessRequest struct {
+	// Session is the session identifier.
+	Session string `json:"ubus_rpc_session"`
+	// Scope is the access control scope.
+	Scope string `json:"scope"`
+	// Object is the ubus object name.
+	Object string `json:"object"`
+	// Function is the ubus method name.
+	Function string `json:"function"`
+}
+
+// LoginRequest contains parameters for session login.
+type LoginRequest struct {
+	// Username is the account name.
+	Username string `json:"username"`
+	// Password is the account password.
+	Password string `json:"password"`
+	// Timeout is the requested session timeout in seconds.
+	Timeout int `json:"timeout,omitempty"`
+}

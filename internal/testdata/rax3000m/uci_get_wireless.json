@@ -34,7 +34,7 @@
 			"network": "wwan2 wwan",
 			"ssid": "BBQ_5G",
 			"encryption": "sae",
-			"key": "HoneyBBQ@93",
+			"key": "redacted-wifi-key",
 			"ocv": "0"
 		},
 		"wifinet1": {
@@ -46,7 +46,7 @@
 			"mode": "ap",
 			"ssid": "OpenWrt",
 			"encryption": "sae",
-			"key": "HoneyBBQ@93",
+			"key": "redacted-wifi-key",
 			"ocv": "0",
 			"network": "lan"
 		}

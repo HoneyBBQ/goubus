@@ -1,6 +1,3 @@
-// Copyright (c) 2026 honeybbq
-// Licensed under the MIT License. See LICENSE file in the project root for full license information.
-
 package blobmsg_test
 
 import (
@@ -95,6 +92,53 @@ func testNormalizeArgsStruct(t *testing.T) {
 }
 
 const testValName = "test"
+
+func TestMapNestedStructUsesJSONEncoding(t *testing.T) {
+	type Embedded struct {
+		Promoted string `json:"promoted"`
+	}
+	type Nested struct {
+		Embedded
+		Name  string `json:"name"`
+		Empty string `json:"empty,omitempty"`
+		Zero  int    `json:"zero,omitzero"`
+	}
+
+	value := Nested{Embedded: Embedded{Promoted: "visible"}, Name: "nested"}
+	blobType, encoded, err := blobmsg.EncodeBlobmsgValue(map[string]any{
+		"value":   value,
+		"pointer": &value,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if blobType != blobmsg.TypeTable {
+		t.Fatalf("EncodeBlobmsgValue() type = %d, want table", blobType)
+	}
+	decoded, err := blobmsg.ParseBlobmsgContainer(encoded, blobmsg.TypeTable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	values, ok := decoded.(map[string]any)
+	if !ok {
+		t.Fatalf("decoded value = %T, want map", decoded)
+	}
+	for _, key := range []string{"value", "pointer"} {
+		nested, ok := values[key].(map[string]any)
+		if !ok {
+			t.Fatalf("%s = %T, want map", key, values[key])
+		}
+		if nested["promoted"] != "visible" || nested["name"] != "nested" {
+			t.Errorf("%s = %#v, embedded or named fields missing", key, nested)
+		}
+		if _, ok := nested["empty"]; ok {
+			t.Errorf("%s contains omitempty field: %#v", key, nested)
+		}
+		if _, ok := nested["zero"]; ok {
+			t.Errorf("%s contains omitzero field: %#v", key, nested)
+		}
+	}
+}
 
 func TestReflectEncoding(t *testing.T) {
 	t.Run("Struct", testReflectEncodingStruct)
@@ -312,7 +356,7 @@ func TestRemainingFunctions(t *testing.T) {
 		}
 	})
 	t.Run("CreateBlobmsgData", testRemainingCreateBlobmsgData)
-	t.Run("EncodeJsonNumber", testRemainingEncodeJsonNumber)
+	t.Run("EncodeJSONNumber", testRemainingEncodeJSONNumber)
 	t.Run("EncodeUnsignedValue", testRemainingEncodeUnsignedValue)
 	t.Run("DecodeInt16", func(t *testing.T) {
 		if blobmsg.DecodeInt16([]byte{0, 1}) != 1 {
@@ -348,20 +392,20 @@ func testRemainingCreateBlobmsgData(t *testing.T) {
 	}
 }
 
-func testRemainingEncodeJsonNumber(t *testing.T) {
-	_, _, err := blobmsg.EncodeJsonNumber(json.Number("123"))
+func testRemainingEncodeJSONNumber(t *testing.T) {
+	_, _, err := blobmsg.EncodeJSONNumber(json.Number("123"))
 	if err != nil {
-		t.Errorf("EncodeJsonNumber(int) failed")
+		t.Errorf("EncodeJSONNumber(int) failed")
 	}
 
-	_, _, err = blobmsg.EncodeJsonNumber(json.Number("123.45"))
+	_, _, err = blobmsg.EncodeJSONNumber(json.Number("123.45"))
 	if err != nil {
-		t.Errorf("EncodeJsonNumber(float) failed")
+		t.Errorf("EncodeJSONNumber(float) failed")
 	}
 
-	_, _, err = blobmsg.EncodeJsonNumber(json.Number("invalid"))
+	_, _, err = blobmsg.EncodeJSONNumber(json.Number("invalid"))
 	if err == nil {
-		t.Errorf("EncodeJsonNumber(invalid) should fail")
+		t.Errorf("EncodeJSONNumber(invalid) should fail")
 	}
 }
 

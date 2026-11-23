@@ -2,8 +2,9 @@ package goubus_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
-	"log/slog"
+	"reflect"
 	"testing"
 
 	"github.com/honeybbq/goubus/v2"
@@ -17,8 +18,6 @@ type mockTransport struct {
 func (m *mockTransport) Call(ctx context.Context, service, method string, data any) (goubus.Result, error) {
 	return m.callFunc(ctx, service, method, data)
 }
-
-func (m *mockTransport) SetLogger(_ *slog.Logger) {}
 
 func (m *mockTransport) Close() error {
 	return nil
@@ -43,79 +42,151 @@ type callTestResponse struct {
 	Foo string `json:"foo"`
 }
 
-type callTestCase struct {
-	mock    func(ctx context.Context, service, method string, data any) (goubus.Result, error)
-	name    string
-	wantErr bool
-}
-
-var callTestCases = []callTestCase{
-	{
-		name: "Success",
-		mock: func(ctx context.Context, service, method string, data any) (goubus.Result, error) {
-			return &mockResult{
-				unmarshalFunc: func(target any) error {
-					resp, ok := target.(*callTestResponse)
-					if !ok {
-						return errMockUnexpectedTargetType
-					}
-
-					resp.Foo = "bar"
-
-					return nil
-				},
-			}, nil
-		},
-		wantErr: false,
-	},
-	{
-		name: "Transport Error",
-		mock: func(ctx context.Context, service, method string, data any) (goubus.Result, error) {
-			return nil, errMockTransport
-		},
-		wantErr: true,
-	},
-	{
-		name: "Unmarshal Error",
-		mock: func(ctx context.Context, service, method string, data any) (goubus.Result, error) {
-			return &mockResult{
-				unmarshalFunc: func(target any) error {
-					return errMockUnmarshal
-				},
-			}, nil
-		},
-		wantErr: true,
-	},
-}
-
-func TestCall(t *testing.T) {
-	for _, tt := range callTestCases {
-		t.Run(tt.name, func(t *testing.T) {
-			runCallTestCase(t, tt)
-		})
-	}
-}
-
-func runCallTestCase(t *testing.T, tt callTestCase) {
-	t.Helper()
-
-	transport := &mockTransport{callFunc: tt.mock}
+func TestCallPointer(t *testing.T) {
 	ctx := context.Background()
-	res, err := goubus.Call[callTestResponse](ctx, transport, "service", "method", nil)
 
-	if (err != nil) != tt.wantErr {
-		t.Errorf("Call() error = %v, wantErr %v", err, tt.wantErr)
-
-		return
-	}
-
-	if !tt.wantErr {
-		if res == nil {
-			t.Fatal("Call() returned nil result but no error")
+	t.Run("Success", func(t *testing.T) {
+		transport := &mockTransport{
+			callFunc: func(context.Context, string, string, any) (goubus.Result, error) {
+				return goubus.NewJSONResult(json.RawMessage(`{"foo":"bar"}`)), nil
+			},
 		}
-
-		if res.Foo != "bar" {
-			t.Errorf("Call() expected result.Foo = 'bar', got %v", res.Foo)
+		res, err := goubus.Call[*callTestResponse](ctx, transport, "service", "method", nil)
+		if err != nil {
+			t.Fatalf("Call() unexpected error = %v", err)
 		}
-	}
+		if res == nil || res.Foo != "bar" {
+			t.Fatalf("Call() = %#v, want &callTestResponse{Foo: \"bar\"}", res)
+		}
+	})
+
+	t.Run("Transport Error", func(t *testing.T) {
+		transport := &mockTransport{
+			callFunc: func(context.Context, string, string, any) (goubus.Result, error) {
+				return nil, errMockTransport
+			},
+		}
+		res, err := goubus.Call[*callTestResponse](ctx, transport, "service", "method", nil)
+		if !errors.Is(err, errMockTransport) || res != nil {
+			t.Fatalf("Call() = (%#v, %v), want (nil, %v)", res, err, errMockTransport)
+		}
+	})
+
+	t.Run("Unmarshal Error Returns Zero", func(t *testing.T) {
+		transport := &mockTransport{
+			callFunc: func(context.Context, string, string, any) (goubus.Result, error) {
+				return &mockResult{
+					unmarshalFunc: func(target any) error {
+						ptr, ok := target.(**callTestResponse)
+						if !ok {
+							return errMockUnexpectedTargetType
+						}
+						*ptr = &callTestResponse{Foo: "partial"}
+
+						return errMockUnmarshal
+					},
+				}, nil
+			},
+		}
+		res, err := goubus.Call[*callTestResponse](ctx, transport, "service", "method", nil)
+		if !errors.Is(err, errMockUnmarshal) {
+			t.Fatalf("Call() error = %v, want %v", err, errMockUnmarshal)
+		}
+		if res != nil {
+			t.Fatalf("Call() = %#v, want nil zero value on unmarshal error", res)
+		}
+	})
+}
+
+func TestCallValue(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("Success", func(t *testing.T) {
+		transport := &mockTransport{
+			callFunc: func(context.Context, string, string, any) (goubus.Result, error) {
+				return &mockResult{
+					unmarshalFunc: func(target any) error {
+						resp, ok := target.(*callTestResponse)
+						if !ok {
+							return errMockUnexpectedTargetType
+						}
+						resp.Foo = "bar"
+
+						return nil
+					},
+				}, nil
+			},
+		}
+		res, err := goubus.Call[callTestResponse](ctx, transport, "service", "method", nil)
+		if err != nil || res.Foo != "bar" {
+			t.Fatalf("Call() = (%#v, %v), want ({Foo: \"bar\"}, nil)", res, err)
+		}
+	})
+
+	t.Run("Unmarshal Error Returns Zero", func(t *testing.T) {
+		transport := &mockTransport{
+			callFunc: func(context.Context, string, string, any) (goubus.Result, error) {
+				return &mockResult{
+					unmarshalFunc: func(target any) error {
+						resp, ok := target.(*callTestResponse)
+						if !ok {
+							return errMockUnexpectedTargetType
+						}
+						resp.Foo = "partial"
+
+						return errMockUnmarshal
+					},
+				}, nil
+			},
+		}
+		res, err := goubus.Call[callTestResponse](ctx, transport, "service", "method", nil)
+		if !errors.Is(err, errMockUnmarshal) {
+			t.Fatalf("Call() error = %v, want %v", err, errMockUnmarshal)
+		}
+		if res != (callTestResponse{}) {
+			t.Fatalf("Call() = %#v, want zero value on unmarshal error", res)
+		}
+	})
+}
+
+func TestCallMap(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("Success", func(t *testing.T) {
+		transport := &mockTransport{
+			callFunc: func(context.Context, string, string, any) (goubus.Result, error) {
+				return goubus.NewJSONResult(json.RawMessage(`{"foo":"bar"}`)), nil
+			},
+		}
+		res, err := goubus.Call[map[string]string](ctx, transport, "service", "method", nil)
+		want := map[string]string{"foo": "bar"}
+		if err != nil || !reflect.DeepEqual(res, want) {
+			t.Fatalf("Call() = (%#v, %v), want (%#v, nil)", res, err, want)
+		}
+	})
+
+	t.Run("Unmarshal Error Returns Nil Map", func(t *testing.T) {
+		transport := &mockTransport{
+			callFunc: func(context.Context, string, string, any) (goubus.Result, error) {
+				return &mockResult{
+					unmarshalFunc: func(target any) error {
+						m, ok := target.(*map[string]string)
+						if !ok {
+							return errMockUnexpectedTargetType
+						}
+						*m = map[string]string{"foo": "partial"}
+
+						return errMockUnmarshal
+					},
+				}, nil
+			},
+		}
+		res, err := goubus.Call[map[string]string](ctx, transport, "service", "method", nil)
+		if !errors.Is(err, errMockUnmarshal) {
+			t.Fatalf("Call() error = %v, want %v", err, errMockUnmarshal)
+		}
+		if res != nil {
+			t.Fatalf("Call() = %#v, want nil map on unmarshal error", res)
+		}
+	})
 }

@@ -1,3 +1,4 @@
+// Package main demonstrates goubus network service operations.
 package main
 
 import (
@@ -6,7 +7,7 @@ import (
 	"os"
 
 	"github.com/honeybbq/goubus/v2"
-	"github.com/honeybbq/goubus/v2/profiles/x86_generic/network"
+	"github.com/honeybbq/goubus/v2/services/network"
 )
 
 func main() {
@@ -23,7 +24,7 @@ func main() {
 	if host != "" {
 		user := os.Getenv("OPENWRT_USERNAME")
 		pass := os.Getenv("OPENWRT_PASSWORD")
-		caller, err = goubus.NewRpcClient(ctx, host, user, pass)
+		caller, err = goubus.NewRPCClient(ctx, host, user, pass)
 	} else {
 		caller, err = goubus.NewSocketClient(ctx, "")
 	}
@@ -41,7 +42,7 @@ func main() {
 	netSvc := network.New(caller)
 
 	// 3. Dump all interfaces
-	ifaces, err := netSvc.Dump(ctx)
+	ifaces, err := netSvc.DumpInterfaces(ctx)
 	if err != nil {
 		slog.Error("Failed to dump interfaces", "error", err)
 

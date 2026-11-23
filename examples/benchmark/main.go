@@ -1,3 +1,4 @@
+// Package main runs performance benchmarks for goubus transports.
 package main
 
 import (
@@ -10,9 +11,9 @@ import (
 	"time"
 
 	"github.com/honeybbq/goubus/v2"
-	"github.com/honeybbq/goubus/v2/profiles/x86_generic/network"
-	"github.com/honeybbq/goubus/v2/profiles/x86_generic/system"
-	"github.com/honeybbq/goubus/v2/profiles/x86_generic/uci"
+	"github.com/honeybbq/goubus/v2/services/network"
+	"github.com/honeybbq/goubus/v2/services/system"
+	"github.com/honeybbq/goubus/v2/services/uci"
 )
 
 const (
@@ -87,15 +88,15 @@ func benchmarkTransport(ctx context.Context, transportType, socketPath, host, us
 		_ = caller.Close()
 	}()
 
-	sysSvc := system.New(caller)
-	netSvc := network.New(caller)
-	uciSvc := uci.New(caller)
+	sysClient := system.New(caller)
+	netClient := network.New(caller)
+	uciClient := uci.New(caller)
 
 	// Test 1: Single call latency
-	result.SingleCallAvg, result.ErrorCount = runSingleCallTest(ctx, sysSvc, iterations)
+	result.SingleCallAvg, result.ErrorCount = runSingleCallTest(ctx, sysClient, iterations)
 
 	// Test 2: Batch operations
-	totalBatch, errs := runBatchTest(ctx, sysSvc, netSvc, uciSvc, iterations)
+	totalBatch, errs := runBatchTest(ctx, sysClient, netClient, uciClient, iterations)
 	result.BatchCallTotal = totalBatch
 	result.ErrorCount += errs
 
@@ -120,7 +121,7 @@ func initTransport(ctx context.Context, transportType, socketPath, host, usernam
 	case "socket":
 		caller, err = goubus.NewSocketClient(ctx, socketPath)
 	case "rpc":
-		caller, err = goubus.NewRpcClient(ctx, host, username, password)
+		caller, err = goubus.NewRPCClient(ctx, host, username, password)
 	default:
 		log.Fatalf("Unknown transport type: %s", transportType)
 	}
@@ -132,7 +133,7 @@ func initTransport(ctx context.Context, transportType, socketPath, host, usernam
 	return caller, time.Since(startConnect)
 }
 
-func runSingleCallTest(ctx context.Context, svc *system.Manager, iterations int) (time.Duration, int) {
+func runSingleCallTest(ctx context.Context, sysClient *system.Client, iterations int) (time.Duration, int) {
 	var total time.Duration
 
 	errors := 0
@@ -140,7 +141,7 @@ func runSingleCallTest(ctx context.Context, svc *system.Manager, iterations int)
 	for range iterations {
 		start := time.Now()
 
-		_, err := svc.Info(ctx)
+		_, err := sysClient.Info(ctx)
 		if err != nil {
 			errors++
 
@@ -157,7 +158,11 @@ func runSingleCallTest(ctx context.Context, svc *system.Manager, iterations int)
 	return 0, errors
 }
 
-func runBatchTest(ctx context.Context, sys *system.Manager, net *network.Manager, uciSvc *uci.Manager,
+func runBatchTest(
+	ctx context.Context,
+	sysClient *system.Client,
+	netClient *network.Client,
+	uciClient *uci.Client,
 	iterations int,
 ) (time.Duration, int) {
 	startBatch := time.Now()
@@ -174,13 +179,13 @@ func runBatchTest(ctx context.Context, sys *system.Manager, net *network.Manager
 
 		switch iteration % metricsCount {
 		case 0:
-			_, err = sys.Info(ctx)
+			_, err = sysClient.Info(ctx)
 		case metricBoard:
-			_, err = sys.Board(ctx)
+			_, err = sysClient.Board(ctx)
 		case metricInterfaces:
-			_, err = net.Dump(ctx)
+			_, err = netClient.DumpInterfaces(ctx)
 		case metricConfigs:
-			_, err = uciSvc.Configs(ctx)
+			_, err = uciClient.Configs(ctx)
 		}
 
 		if err != nil {

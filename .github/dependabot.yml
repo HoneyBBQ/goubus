@@ -1,3 +1,4 @@
+---
 version: 2
 updates:
   # Monitor Go dependencies (go.mod)
@@ -6,6 +7,8 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+    cooldown:
+      default-days: 3
     # Group minor and patch updates to reduce the number of PRs and branches
     groups:
       go-dependencies:
@@ -15,8 +18,26 @@ updates:
           - "minor"
           - "patch"
 
+  # The OpenWrt rootfs images the integration job runs against. CI reads them
+  # from ci/images (scripts/ci-image.sh), as Dependabot only looks at
+  # Dockerfiles, not at docker run commands in scripts or workflows.
+  - package-ecosystem: "docker"
+    directory: "/ci/images"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 3
+
   # Monitor GitHub Actions workflows
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 3
+    # The codeql-action steps of one workflow must run the same version, so
+    # they are bumped together, in one pull request with the other actions.
+    groups:
+      github-actions:
+        patterns:
+          - "*"

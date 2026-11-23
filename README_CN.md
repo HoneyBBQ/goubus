@@ -1,159 +1,239 @@
-<div align="center">
-  <h1>goubus</h1>
-  <p><strong>OpenWrt ubus Go 客户端</strong></p>
+<h1 align="center">goubus</h1>
 
-  <p>
-    <a href="https://github.com/honeybbq/goubus/actions/workflows/ci.yml"><img src="https://github.com/honeybbq/goubus/actions/workflows/ci.yml/badge.svg" alt="CI Status"></a>
-    <a href="https://codecov.io/gh/honeybbq/goubus"><img src="https://codecov.io/gh/honeybbq/goubus/branch/main/graph/badge.svg" alt="Coverage"></a>
-    <a href="https://goreportcard.com/report/github.com/honeybbq/goubus"><img src="https://goreportcard.com/badge/github.com/honeybbq/goubus" alt="Go Report Card"></a>
-    <a href="https://pkg.go.dev/github.com/honeybbq/goubus"><img src="https://pkg.go.dev/badge/github.com/honeybbq/goubus.svg" alt="Go Reference"></a>
-  </p>
+<p align="center">
+  <strong>纯 Go 实现的 OpenWrt ubus 客户端，支持本地 Unix Socket 直连与远程 HTTP/HTTPS JSON-RPC。</strong><br>
+  OpenWrt 24.10 &amp; 25.12 · 无 CGO · 零第三方依赖
+</p>
 
-  <p>
-    <a href="https://github.com/honeybbq/goubus/releases"><img src="https://img.shields.io/github/v/release/honeybbq/goubus?display_name=tag" alt="Release"></a>
-    <a href="https://golang.org/"><img src="https://img.shields.io/badge/go-1.25-blue" alt="Go Version"></a>
-    <a href="LICENSE"><img src="https://img.shields.io/github/license/honeybbq/goubus" alt="License"></a>
-    <a href="https://github.com/honeybbq/goubus/graphs/contributors"><img src="https://img.shields.io/github/contributors/honeybbq/goubus" alt="Contributors"></a>
-  </p>
+<p align="center">
+  <a href="https://pkg.go.dev/github.com/honeybbq/goubus/v2"><img alt="Go Reference" src="https://pkg.go.dev/badge/github.com/honeybbq/goubus/v2.svg"></a>
+  <a href="https://github.com/honeybbq/goubus/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/honeybbq/goubus/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://codecov.io/gh/honeybbq/goubus"><img alt="Codecov" src="https://codecov.io/gh/honeybbq/goubus/branch/main/graph/badge.svg"></a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/HoneyBBQ/goubus"><img alt="OpenSSF Scorecard" src="https://api.scorecard.dev/projects/github.com/HoneyBBQ/goubus/badge"></a>
+  <a href="https://github.com/honeybbq/goubus/releases"><img alt="Release" src="https://img.shields.io/github/v/release/honeybbq/goubus?include_prereleases&amp;sort=semver"></a>
+  <a href="go.mod"><img alt="Go version" src="https://img.shields.io/github/go-mod/go-version/honeybbq/goubus"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg"></a>
+</p>
 
-  <p>
-    <a href="https://github.com/honeybbq/goubus/issues"><img src="https://img.shields.io/github/issues/honeybbq/goubus" alt="Issues"></a>
-    <a href="https://github.com/honeybbq/goubus/pulls"><img src="https://img.shields.io/github/issues-pr/honeybbq/goubus" alt="Pull Requests"></a>
-    <a href="https://github.com/honeybbq/goubus/stargazers"><img src="https://img.shields.io/github/stars/honeybbq/goubus" alt="Stars"></a>
-    <img src="https://img.shields.io/github/repo-size/honeybbq/goubus" alt="Repo Size">
-  </p>
-
-  <p>
-    <code>goubus</code> 用于与 OpenWrt 的 <strong>ubus</strong> (微型总线) 系统交互，通过 <strong>Profile (配置预设)</strong> 系统适配不同硬件的差异（如移动版 RAX3000M），并提供一致的 API 体验。
-  </p>
-
-  <p>
-    <a href="README.md">English Version</a> | 
-    <a href="https://github.com/honeybbq/goubus/tree/main/examples">示例代码</a> | 
-    <a href="https://pkg.go.dev/github.com/honeybbq/goubus/v2">接口文档</a>
-  </p>
-</div>
-
----
+<p align="center">
+  <a href="https://pkg.go.dev/github.com/honeybbq/goubus/v2">API 文档</a> ·
+  <a href="docs/architecture.md">架构</a> ·
+  <a href="docs/design.md">设计</a> ·
+  <a href="examples/">示例</a> ·
+  <a href="CHANGELOG.md">变更日志</a> ·
+  <a href="README.md">English</a>
+</p>
 
 ## 核心特性
 
-- **硬件 Profile 系统**：原生支持特定硬件的方言适配（如 **CMCC RAX3000M**, **X86 Generic**）。
-- **按需引入**：仅引入所需的包，避免冗余。
-- **双传输支持**：同时支持 **HTTP JSON-RPC**（远程访问）和 **Unix Socket**（本地访问）。
-- **全类型安全 API**：强类型请求与响应。
-- **Context 原生支持**：支持超时控制、取消请求等 `Context` 特性。
+- **本地 Socket 与远程 RPC 共用同一套调用接口。** 程序直接跑在路由器上时，用 `NewSocketClient` 连 `/tmp/run/ubus/ubus.sock` 与 `ubusd` 通信，内置纯 Go 的 `blobmsg` 二进制编解码，不依赖 CGO 或第三方库，可直接交叉编译到 MIPS/ARM 路由固件；从外部机器远程管理路由器时，用 `NewRPCClient` 走 `uhttpd-mod-ubus` 的 HTTP/HTTPS JSON-RPC 接口。
+- **15 个独立的类型化服务子包。** 每个 ubus 领域对应独立的 `services/<pkg>` 子包且互不依赖，编译进路由器 Flash 的小工具按需引入，未使用的服务不会打进二进制。
+- **运行时抹平跨版本固件差异。** OpenWrt 24.10 的 `luci` 提供 `getLocaltime`，25.12 改为 `getUnixtime`；`luci.Client.Time` 会自动探测并缓存可用方法，也可通过 `luci.WithTimeMethod` 直接指定。`dhcp.Client.AddLease` 会查询 `ubus list` 签名来决定 `duid` 传单元素数组还是字符串。`rpcd` 与 `ubusd` 常见的 JSON 类型漂移（布尔值写成 `"1"`/`0`、单字符串与数组混用、数字带引号、时间戳混用秒数与 RFC3339）分别由 `Bool`、`StringOrSlice`、`StringInt`、`UnixTime` 处理。
+- **未封装的第三方插件一行调用。** 遇到 `services/` 尚未内置的 OpenWrt 插件（如 `mwan3`、`banip` 或自定义 `rpcd` 脚本），直接在当前连接上调用 `goubus.Call[T]` 即可按结构体解码返回值。
+- **方法签名查询与标准库错误处理。** `goubus.List` 在两种传输上返回结构一致的对象与参数类型表。只要 ubus 状态码非 0 或 JSON-RPC 报错，调用在解码响应体前就会返回 `*goubus.CallError`，可直接配合 `errors.Is` 与 `errors.AsType` 判别原因。
 
 ## 安装
 
-```bash
-go get github.com/honeybbq/goubus/v2
+```sh
+go get github.com/honeybbq/goubus/v2@v2.0.0-beta.1
 ```
 
-## 快速开始
+2.0 处于 beta 阶段：不带版本号的 `go get` 默认跳过预发布版本，安装时需显式指定标签。要求 Go 1.26 及以上版本。从 `v2.0.0-alpha1` 或 `v2.0.0-alpha2` 升级可对照 [CHANGELOG.md 中的迁移表](CHANGELOG.md#migrating-from-v200-alpha1-and-v200-alpha2)。
 
-### 1. 初始化传输层 (Transport)
+## 快速上手
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"time"
+
+	"github.com/honeybbq/goubus/v2"
+	"github.com/honeybbq/goubus/v2/services/system"
+)
+
+func main() {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	var (
+		conn goubus.Transport
+		err  error
+	)
+	if host := os.Getenv("UBUS_URL"); host != "" {
+		conn, err = goubus.NewRPCClient(ctx, host, os.Getenv("UBUS_USER"), os.Getenv("UBUS_PASSWORD"))
+	} else {
+		conn, err = goubus.NewSocketClient(ctx, "")
+	}
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	sys := system.New(conn)
+	board, err := sys.Board(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("%s (%s %s)\n", board.Model, board.Release.Version, board.Release.Revision)
+}
+```
+
+## 常见用法
+
+### 连接方式：路由器本地跑 vs 远程管路由器
+
+程序运行在 OpenWrt 本机时，直连本地 Unix Socket。路径传空字符串会默认使用 `/tmp/run/ubus/ubus.sock`：
+
+```go
+conn, err := goubus.NewSocketClient(ctx, "")
+if err != nil {
+	return err
+}
+defer conn.Close()
+```
+
+程序运行在其他主机时，通过 HTTP 或 HTTPS 连接路由器的 `uhttpd-mod-ubus`。地址未写路径时默认请求 `/ubus`；`NewRPCClient` 会在初始化时调用 `session.login` 获取令牌，在 rpcd 空闲超时后重新登录，并在 `Close` 时调用 `session.destroy`。`Call` 遇到 `ErrPermissionDenied` 会直接返回，不会重发；需要强制重新登录时调用 `Authenticate(ctx)`。
+
+```go
+conn, err := goubus.NewRPCClient(ctx, "https://192.168.1.1", "root", os.Getenv("UBUS_PASSWORD"))
+if err != nil {
+	return err
+}
+defer conn.Close()
+```
+
+`*SocketClient` 与 `*RPCClient` 均实现 `goubus.Transport`（即 `Caller` 加 `Close`）。各业务客户端只接收 `goubus.Caller`，不接管也不关闭底层连接。
+
+### 使用类型化服务包（`services/<pkg>`）
+
+按实际访问的对象引入对应的 `services/<pkg>` 子包即可，未引用的服务不会参与编译，多个客户端可直接共用同一个 `Caller`：
 
 ```go
 import (
-    "context"
-    "github.com/honeybbq/goubus/v2"
+	"github.com/honeybbq/goubus/v2/services/luci"
+	"github.com/honeybbq/goubus/v2/services/network"
+	"github.com/honeybbq/goubus/v2/services/system"
 )
 
-ctx := context.Background()
+sys := system.New(conn)
+netClient := network.New(conn)
+luciClient := luci.New(conn)
 
-// 远程访问 (RPC) - 需要在设备上配置 ACL 权限
-caller, _ := goubus.NewRpcClient(ctx, "192.168.1.1", "root", "password")
-
-// 本地访问 (Unix Socket) - 在设备本地运行
-caller, _ := goubus.NewSocketClient(ctx, "/var/run/ubus/ubus.sock")
+info, err := sys.Info(ctx)
+if err != nil {
+	return err
+}
+wan, err := netClient.Interface("wan").Status(ctx)
 ```
 
-### 2. 使用特定硬件的管理器
+针对同一台路由器连接，建议复用 `*luci.Client` 与 `*dhcp.Client` 实例，以保留其内部对 `luci` 时间方法及 `dhcp.add_lease` DUID 格式的运行期探测缓存。
 
-推荐引入与你硬件匹配的 Profile：
+### 错误处理
+
+无论是本地 Socket 返回非 0 的 ubus 状态码（`1` 至 `10`），还是 HTTP 端返回 JSON-RPC 错误，都会在解码业务字段前返回 `*goubus.CallError`。用 `errors.Is` 判断根包哨兵错误，用 `errors.AsType` 读取出错的对象名、方法名与状态码：
 
 ```go
-import (
-    "github.com/honeybbq/goubus/v2/profiles/cmcc_rax3000m/system"
-    "github.com/honeybbq/goubus/v2/profiles/cmcc_rax3000m/network"
-)
-
-// 初始化管理器
-sysSvc := system.New(caller)
-netSvc := network.New(caller)
-
-// 获取系统硬件信息
-board, _ := sysSvc.Board(ctx)
-fmt.Printf("型号: %s, 内核: %s\n", board.Model, board.Kernel)
-
-// 获取所有网络接口状态
-ifaces, _ := netSvc.Dump(ctx)
+wan, err := netClient.Interface("wan6").Status(ctx)
+switch {
+case errors.Is(err, goubus.ErrNotFound):
+	// ubus 对象或对应接口不存在
+case errors.Is(err, goubus.ErrPermissionDenied):
+	// 当前 rpcd 账号的 ACL 无权调用该方法
+case err != nil:
+	if callErr, ok := errors.AsType[*goubus.CallError](err); ok {
+		log.Printf("%s.%s 调用失败，错误码 %d (%s)",
+			callErr.Service, callErr.Method, callErr.Code, callErr.Message)
+	}
+	return err
+}
+_ = wan
 ```
 
-### 3. 调试与日志
+### 调用未内置的第三方插件
 
-`goubus` 原生支持 `log/slog`。你可以注入自定义日志器来观察原始的 ubus 交互（请求与响应详情）：
+对于 `mwan3`、`banip` 等第三方软件包或自研的 ubus 对象，无需等待库更新，直接用泛型函数 `goubus.Call[T]` 发起调用并解码：
 
 ```go
-import "log/slog"
+type Mwan3Interface struct {
+	Status string      `json:"status"`
+	Online int         `json:"online"`
+	Up     goubus.Bool `json:"up"`
+}
 
-// 创建一个调试级别的日志器
-logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+type Mwan3Status struct {
+	Interfaces map[string]Mwan3Interface `json:"interfaces"`
+}
 
-// 注入到传输层客户端中
-caller.SetLogger(logger)
+mwan, err := goubus.Call[Mwan3Status](ctx, conn, "mwan3", "status", map[string]any{
+	"section": "interfaces",
+})
 ```
 
-## 目前已支持的对象
+像 `system.reboot` 这类只返回状态码、没有响应体的操作，直接调 `_, err := conn.Call(ctx, "system", "reboot", nil)` 即可。
 
-| 对象          | 说明                                                     |
-| :------------ | :------------------------------------------------------- |
-| **System**    | 硬件信息、运行状态、重启、看门狗、信号控制、固件升级     |
-| **Network**   | 接口生命周期控制、物理设备状态、路由管理、网络命名空间   |
-| **Wireless**  | IWInfo 无线扫描、关联列表查询、无线网卡底层控制          |
-| **UCI**       | 完整的 CRUD 操作、Commit/Rollback 事务管理、运行状态跟踪 |
-| **DHCP**      | IPv4/v6 租约查询、IPv6 RA 信息、静态租约管理             |
-| **Service**   | 服务生命周期管理、配置校验、自定义数据操作               |
-| **Session**   | 会话登录、ACL 权限检查、授权与撤销                       |
-| **Container** | LxC 容器管理、控制台接入                                 |
-| **Hostapd**   | 底层 AP 管理（踢除客户端、动态信道切换）                 |
-| **RPC-SYS**   | 软件包管理、恢复出厂设置、固件校验                       |
+### 查询总线对象与方法签名
 
-## 项目架构
+`goubus.List` 对应命令行 `ubus -v list`，在 Socket 与 HTTP RPC 下均将参数类型归一为 `string`、`number`、`boolean`、`array`、`object` 或 `unknown`：
 
-`goubus` 采用了多层架构设计，旨在实现代码复用：
+```go
+objects, err := goubus.List(ctx, conn, "dhcp")
+if err != nil {
+	return err
+}
+fmt.Println(objects["dhcp"]["add_lease"]) // map[duid:array ip:string ...]
+```
 
-- **核心层 (`goubus/`)**：包含两种传输层实现（HTTP RPC 和 Unix Socket）、原始 ubus 消息处理 (`blobmsg`)、结果解析逻辑以及通用的错误定义。
-- **基础实现层 (`goubus/internal/base/`)**：提供标准 ubus 对象的通用、可复用实现（如 system, network, uci 等）。这一层封装了适用于大多数 OpenWrt 设备的共有逻辑。
-- **Profile 层 (`goubus/profiles/`)**：公共 API 入口。Profile（如 `cmcc_rax3000m`, `generic`）通过 **Dialects (方言)** 机制处理不同硬件间的差异（如参数类型差异、特有方法名等），同时向外暴露一致的高级接口。
-- **示例与测试数据 (`examples/`, `internal/testdata/`)**：包含基于实机数据的全量集成测试套件以及各模块的使用示例。
+注意：`List` 只反映当前总线上注册了哪些对象和方法；走 HTTP RPC 远程调用时，实际能否执行仍取决于当前 `rpcd` 会话的 ACL 授权。
 
-## 传输方式对比
+## 包列表
 
-| 特性         | HTTP (JSON-RPC)    | Unix Socket  |
-| ------------ | ------------------ | ------------ |
-| **使用场景** | 远程管理           | 设备本地应用 |
-| **认证**     | 需要 (用户名/密码) | 不需要       |
-| **性能**     | 有网络开销         | 无网络开销   |
+| 导入路径 | 对应 ubus 对象 | 功能范围 |
+| --- | --- | --- |
+| `github.com/honeybbq/goubus/v2` | 任意对象 | `SocketClient`、`RPCClient`、`Caller`、`Call[T]`、`List`、`*CallError`、状态哨兵错误，以及 `Bool`、`StringOrSlice`、`StringInt`、`UnixTime` |
+| `github.com/honeybbq/goubus/v2/services/container` | `container` | `procd` 容器配置、运行状态、特性查询与控制台操作 |
+| `github.com/honeybbq/goubus/v2/services/dhcp` | `dhcp` | `odhcpd` / `dnsmasq` 的 IPv4/IPv6 租约、IPv6 RA 前缀与 `add_lease` 静态租约下发 |
+| `github.com/honeybbq/goubus/v2/services/file` | `file` | 文件读写、目录列举、`stat`/`lstat`、MD5 计算与命令执行 |
+| `github.com/honeybbq/goubus/v2/services/hostapd` | `hostapd`、`hostapd.*` | AP 状态、关联终端列表、踢除/封禁客户端与信道切换 |
+| `github.com/honeybbq/goubus/v2/services/log` | `log` | 读取 `logd` 环形缓冲区日志与写入系统日志 |
+| `github.com/honeybbq/goubus/v2/services/luci` | `luci`、`luci-rpc` | LuCI 版本、系统时间、进程、挂载点、块设备/USB、LED、`board.json`、网络/无线设备、主机提示与租约 |
+| `github.com/honeybbq/goubus/v2/services/network` | `network`、`network.device`、`network.interface*`、`network.wireless` | `netifd` 逻辑接口、物理/桥接设备、主机路由、协议处理器与无线射频启停 |
+| `github.com/honeybbq/goubus/v2/services/rc` | `rc` | `/etc/init.d` 脚本列表与 `start`、`stop`、`restart`、`enable`、`disable` 操作 |
+| `github.com/honeybbq/goubus/v2/services/rpcsys` | `rpc-sys` | 已安装软件包查询、修改系统密码、恢复出厂设置与固件升级流程 |
+| `github.com/honeybbq/goubus/v2/services/service` | `service` | `procd` 服务注册、实例列表、运行状态、信号发送与看门狗配置 |
+| `github.com/honeybbq/goubus/v2/services/session` | `session` | `rpcd` 会话登录、创建、销毁、会话键值存储与 ACL 权限授予/回收 |
+| `github.com/honeybbq/goubus/v2/services/system` | `system` | 设备型号与固件版本、运行时间/内存/存储占用、看门狗、进程信号、固件校验与 `sysupgrade` |
+| `github.com/honeybbq/goubus/v2/services/uci` | `uci` | `/etc/config/*` 配置包、段、选项的读取、暂存修改、`apply` 回滚确认与 `revert` |
+| `github.com/honeybbq/goubus/v2/services/wireless` | `iwinfo` | 无线网卡列表、射频参数、周边热点扫描、已关联终端速率/信号、频点表、功率表与信道勘测 |
+| `github.com/honeybbq/goubus/v2/services/wpasupplicant` | `wpa_supplicant`、`wpa_supplicant.*` | STA 客户端接口状态、重载配置、WPS 配网与控制指令 |
 
-## 贡献与硬件支持
+## 延伸文档
 
-仓库包含 RAX3000M 和 x86 的 Profile。其中 x86 Profile 基于虚拟机环境开发，受限于硬件及驱动的多样性，相关实现仍需进一步完善。
+完整的公开类型与函数签名见 [pkg.go.dev](https://pkg.go.dev/github.com/honeybbq/goubus/v2)。
 
-欢迎通过贡献 **Profile** 或 **实机测试数据 (testdata)** 扩展更多设备支持。
+- [架构说明](docs/architecture.md)：目录分层、包依赖方向，以及 `RPCClient` 和 `SocketClient` 的底层收发流程。
+- [设计约定](docs/design.md)：连接所有权、中间件、`*CallError` 错误映射、`List` 类型归一、OpenWrt 24.10/25.12 兼容细节、凭据脱敏边界与 `api/*.txt` 快照校验。
+- [示例程序](examples/)：`system`、`network`、`uci`、`file`、`service`、`session` 的可运行代码与传输层基准测试。
+- [变更日志](CHANGELOG.md)：版本记录，以及从 `v2.0.0-alpha1` / `v2.0.0-alpha2` 迁移的对照表。
 
-### 快速开发建议
-1. **复制 (Copy)**：复制 `profiles/x86_generic` 文件夹。
-2. **测试 (Test)**：使用实机数据运行测试，通过报错找出结构差异。
-3. **适配 (Fix)**：编写 **Dialect** 修正差异。
+## 兼容性
 
-详细的 **测试数据获取指南** 请参阅：[获取实机测试数据文档](docs/CONTRIBUTING_DATA_CN.md)。
+| 目标环境 | 实测覆盖 |
+| --- | --- |
+| OpenWrt 24.10 | CI 中针对真实 OpenWrt `24.10` 容器（Unix Socket + HTTP/HTTPS RPC）持续集成测试，并包含 `x86/64` generic（`24.10.5`）实机采集的 JSON 与 `blobmsg` 二进制样本回归测试。 |
+| OpenWrt 25.12 | CI 中针对真实 OpenWrt `25.12` 容器（Unix Socket + HTTP/HTTPS RPC）持续集成测试，并包含 CMCC RAX3000M（`25.12.0-rc1`）实机采集的 JSON 与 `blobmsg` 二进制样本回归测试。 |
+| Go | 1.26 及以上（CI 覆盖 Go 1.26 / 1.27 测试及 `linux/mipsle`、`linux/arm`、`linux/386`、`linux/arm64` 交叉编译）；纯 Go 实现，零 CGO。 |
 
-## 许可协议
+路由器上实际可调用的对象取决于固件安装了哪些软件包（如 `rpcd-mod-file`、`rpcd-mod-iwinfo`、`luci-base`、`odhcpd` 等）；通过 HTTP JSON-RPC 访问时，还需确保所用 `rpcd` 账号具备对应对象的读写 ACL。
 
-MIT License - 详见 [LICENSE](LICENSE) 文件。
+## 参与贡献
 
-## 致谢
+本地开发环境与代码检查流程见 [CONTRIBUTING.md](.github/CONTRIBUTING.md)。如果你在其他型号或固件分支上遇到返回结构差异，欢迎参照[贡献实机测试数据](docs/CONTRIBUTING_DATA_CN.md)提交脱敏后的 `ubus call` 或 `ubus -v list` 样本。
 
-灵感来源于 [Kubernetes client-go](https://github.com/kubernetes/client-go) 和 [moby/moby](https://github.com/moby/moby)。
+## 许可证
+
+[MIT](LICENSE)

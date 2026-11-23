@@ -1,3 +1,4 @@
+// Package main demonstrates goubus session service operations.
 package main
 
 import (
@@ -6,7 +7,7 @@ import (
 	"os"
 
 	"github.com/honeybbq/goubus/v2"
-	"github.com/honeybbq/goubus/v2/profiles/x86_generic/session"
+	"github.com/honeybbq/goubus/v2/services/session"
 )
 
 const defaultSessionTimeout = 60
@@ -22,7 +23,7 @@ func main() {
 	var err error
 
 	if host != "" {
-		caller, err = goubus.NewRpcClient(ctx, host, os.Getenv("OPENWRT_USERNAME"), os.Getenv("OPENWRT_PASSWORD"))
+		caller, err = goubus.NewRPCClient(ctx, host, os.Getenv("OPENWRT_USERNAME"), os.Getenv("OPENWRT_PASSWORD"))
 	} else {
 		caller, err = goubus.NewSocketClient(ctx, "")
 	}

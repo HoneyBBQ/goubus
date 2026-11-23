@@ -5,38 +5,39 @@ linters:
   disable:
     - depguard
     - exhaustruct
+    - exhaustruct_v5
+    - varnamelen
     - wrapcheck
     - wsl
+    - wsl_v5
     - tagliatelle
+    - testpackage
     - ireturn
     - containedctx
     - gochecknoglobals
     - paralleltest
     - tparallel
-    - revive
-    - embeddedstructfieldcheck
-    # Deprecated in v2.12.0 and replaced by gomodguard_v2, which remains
-    # enabled through default: all.
+    - mnd
+    - goconst
     - gomodguard
+    - embeddedstructfieldcheck
 
   settings:
     govet:
       enable-all: true
+    revive:
+      enable-default-rules: true
+      rules:
+        - name: exported
+          arguments:
+            - disableStutteringCheck
+    cyclop:
+      max-complexity: 15
     gocyclo:
-      min-complexity: 10
+      min-complexity: 15
     funlen:
       lines: 60
       statements: 30
-    varnamelen:
-      ignore-names:
-        - t
-        - b
-        - m
-        - tt
-        - ctx
-        - err
-        - id
-        - fn
 
   exclusions:
     rules:
@@ -45,8 +46,30 @@ linters:
         linters:
           - gosec
         text: G706
+      # Internal package helpers are implementation details of this module.
+      - path: ^internal/
+        linters:
+          - revive
+        text: exported|package-comments
+      # Bool decodes into a value but encodes copied scalar values directly.
+      - path: ^jsonbool\.go$
+        linters:
+          - recvcheck
+        text: Bool
+      # The public RPC identifiers retain their established spelling.
+      - path: ^rpc\.go$
+        linters:
+          - revive
+        text: var-naming
+      # Test fixtures use fake credentials, casts, and random values.
+      - path: .*_test\.go
+        linters:
+          - gosec
+        text: G101|G115|G404
 
 run:
   timeout: 10m
-  go: '1.25'
+  go: '1.26'
   tests: true
+  build-tags:
+    - integration

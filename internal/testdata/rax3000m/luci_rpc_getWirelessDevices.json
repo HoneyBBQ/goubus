@@ -25,7 +25,7 @@
 					],
 					"mode": "ap",
 					"encryption": "sae",
-					"key": "HoneyBBQ@93",
+					"key": "redacted-wifi-key",
 					"ocv": 0,
 					"ssid": "OpenWrt",
 					"radios": [
@@ -148,7 +148,7 @@
 					],
 					"mode": "sta",
 					"encryption": "sae",
-					"key": "HoneyBBQ@93",
+					"key": "redacted-wifi-key",
 					"ocv": 0,
 					"ssid": "BBQ_5G",
 					"radios": [

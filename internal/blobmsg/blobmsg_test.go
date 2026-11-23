@@ -1,14 +1,15 @@
-// Copyright (c) 2026 honeybbq
-// Licensed under the MIT License. See LICENSE file in the project root for full license information.
-
 package blobmsg_test
 
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
+	"io"
+	"runtime"
 	"testing"
 
 	"github.com/honeybbq/goubus/v2/internal/blobmsg"
+	"github.com/honeybbq/goubus/v2/internal/errs"
 )
 
 func TestEncodeDecodeHeader(t *testing.T) {
@@ -259,5 +260,109 @@ func TestUintConversion(t *testing.T) {
 
 	if v, ok := blobmsg.ReadUint(float64(12345)); !ok || v != 12345 {
 		t.Errorf("ReadUint failed for float64: got %v, %v", v, ok)
+	}
+}
+
+type bodyForbiddenReader struct {
+	header   *bytes.Reader
+	bodyRead bool
+}
+
+func (r *bodyForbiddenReader) Read(p []byte) (int, error) {
+	if r.header.Len() > 0 {
+		return r.header.Read(p)
+	}
+	r.bodyRead = true
+
+	return 0, io.EOF
+}
+
+func TestReadMessageRejectsInvalidBlobLength(t *testing.T) {
+	invalidLengths := []uint32{
+		0,
+		3,
+		blobmsg.MaxMessageBytes + 1,
+		0x7fffffff,
+		0xffffffff,
+	}
+
+	for _, blobLen := range invalidLengths {
+		var frame bytes.Buffer
+		err := blobmsg.EncodeHeader(&frame, &blobmsg.UbusMessageHeader{
+			Version: 0,
+			Type:    blobmsg.UbusMsgData,
+			Seq:     1,
+			Peer:    1,
+		})
+		if err != nil {
+			t.Fatalf("EncodeHeader(%d): %v", blobLen, err)
+		}
+		_ = binary.Write(&frame, binary.BigEndian, blobLen)
+
+		reader := &bodyForbiddenReader{header: bytes.NewReader(frame.Bytes())}
+
+		var before, after runtime.MemStats
+		runtime.ReadMemStats(&before)
+		_, _, readErr := blobmsg.ReadMessage(reader)
+		runtime.ReadMemStats(&after)
+
+		if !errors.Is(readErr, errs.ErrInvalidBlobLength) {
+			t.Fatalf("ReadMessage(blobLen=%d) error = %v, want ErrInvalidBlobLength", blobLen, readErr)
+		}
+		if reader.bodyRead {
+			t.Fatalf("ReadMessage(blobLen=%d) attempted to read body after invalid header", blobLen)
+		}
+		if allocated := after.TotalAlloc - before.TotalAlloc; allocated > 64<<10 {
+			t.Fatalf("ReadMessage(blobLen=%d) allocated %d bytes, want bounded header allocation", blobLen, allocated)
+		}
+	}
+}
+
+func TestReadMessageAcceptsMaxMessageBytes(t *testing.T) {
+	var frame bytes.Buffer
+	err := blobmsg.EncodeHeader(&frame, &blobmsg.UbusMessageHeader{
+		Version: 0,
+		Type:    blobmsg.UbusMsgData,
+		Seq:     7,
+		Peer:    9,
+	})
+	if err != nil {
+		t.Fatalf("EncodeHeader: %v", err)
+	}
+	_ = binary.Write(&frame, binary.BigEndian, uint32(blobmsg.MaxMessageBytes))
+	frame.Write(make([]byte, blobmsg.MaxMessageBytes-blobmsg.BlobHeaderBytes))
+
+	hdr, payload, err := blobmsg.ReadMessage(bytes.NewReader(frame.Bytes()))
+	if err != nil {
+		t.Fatalf("ReadMessage(MaxMessageBytes) failed: %v", err)
+	}
+	if hdr.Seq != 7 || len(payload) != blobmsg.MaxMessageBytes {
+		t.Fatalf("ReadMessage(MaxMessageBytes) = seq %d len %d", hdr.Seq, len(payload))
+	}
+}
+
+func TestBlobmsgUnspecNullRoundTrip(t *testing.T) {
+	encoded, err := blobmsg.CreateBlobmsgTable(map[string]any{
+		"null_field": nil,
+		"items":      []any{nil, "ok"},
+	})
+	if err != nil {
+		t.Fatalf("CreateBlobmsgTable failed: %v", err)
+	}
+
+	decoded, err := blobmsg.ParseBlobmsgContainer(encoded[blobmsg.BlobHeaderBytes:], blobmsg.TypeTable)
+	if err != nil {
+		t.Fatalf("ParseBlobmsgContainer failed: %v", err)
+	}
+	table, ok := decoded.(map[string]any)
+	if !ok {
+		t.Fatalf("decoded = %T, want map[string]any", decoded)
+	}
+	if val, exists := table["null_field"]; !exists || val != nil {
+		t.Fatalf("table[null_field] = %#v (exists=%v), want nil", val, exists)
+	}
+	items, ok := table["items"].([]any)
+	if !ok || len(items) != 2 || items[0] != nil || items[1] != "ok" {
+		t.Fatalf("table[items] = %#v, want [nil, \"ok\"]", table["items"])
 	}
 }
