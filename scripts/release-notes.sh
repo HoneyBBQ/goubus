@@ -32,16 +32,17 @@ if [ -z "$section" ]; then
 fi
 
 # Convert links relative to CHANGELOG.md to tag-pinned GitHub links, but leave
-# literal examples in fenced code blocks alone.
+# literal examples in fenced code blocks and inline code spans alone.
 base="https://github.com/$repo/blob/$tag"
+# shellcheck disable=SC2016 # backticks inside single-quoted awk program are literal
 section="$(printf '%s\n' "$section" | awk -v base="$base" -v changelog="$changelog" '
-  function rewrite_links(line, output, offset, start, rest, link_end, target, relative) {
+  function rewrite_plain(segment, output, offset, start, rest, link_end, target, relative) {
     output = ""
     offset = 1
-    while ((start = index(substr(line, offset), "](")) > 0) {
+    while ((start = index(substr(segment, offset), "](")) > 0) {
       start += offset - 1
-      output = output substr(line, offset, start - offset + 2)
-      rest = substr(line, start + 2)
+      output = output substr(segment, offset, start - offset + 2)
+      rest = substr(segment, start + 2)
       link_end = index(rest, ")")
       if (link_end == 0) { output = output rest; return output }
       target = substr(rest, 1, link_end - 1)
@@ -55,7 +56,37 @@ section="$(printf '%s\n' "$section" | awk -v base="$base" -v changelog="$changel
       output = output target ")"
       offset = start + link_end + 2
     }
-    return output substr(line, offset)
+    return output substr(segment, offset)
+  }
+  function rewrite_links(line, out, pos, tick, tick_start, ticks, search_pos, close_rel, close_pos, span_end) {
+    out = ""
+    pos = 1
+    while ((tick = index(substr(line, pos), "`")) > 0) {
+      tick_start = pos + tick - 1
+      out = out rewrite_plain(substr(line, pos, tick_start - pos))
+      ticks = "`"
+      while (substr(line, tick_start + length(ticks), 1) == "`") {
+        ticks = ticks "`"
+      }
+      search_pos = tick_start + length(ticks)
+      close_pos = 0
+      while ((close_rel = index(substr(line, search_pos), ticks)) > 0) {
+        close_pos = search_pos + close_rel - 1
+        if (substr(line, close_pos + length(ticks), 1) != "`") break
+        while (substr(line, close_pos, 1) == "`") close_pos++
+        search_pos = close_pos
+        close_pos = 0
+      }
+      if (close_pos == 0) {
+        out = out ticks
+        pos = tick_start + length(ticks)
+      } else {
+        span_end = close_pos + length(ticks)
+        out = out substr(line, tick_start, span_end - tick_start)
+        pos = span_end
+      }
+    }
+    return out rewrite_plain(substr(line, pos))
   }
   /^[ \t]*```/ { print; code = !code; next }
   code { print; next }

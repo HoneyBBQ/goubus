@@ -4,7 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"reflect"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/honeybbq/goubus/v2"
@@ -75,4 +80,84 @@ func TestNewJSONResultNoDataAndInvalid(t *testing.T) {
 	if !errors.Is(err, goubus.ErrInvalidResponse) {
 		t.Errorf("invalid JSON result error = %v, want ErrInvalidResponse", err)
 	}
+}
+
+func TestVersionConstant(t *testing.T) {
+	semver := regexp.MustCompile(`^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$`)
+	if !semver.MatchString(goubus.Version) {
+		t.Fatalf("Version = %q, want valid semver without leading v", goubus.Version)
+	}
+	raw, err := os.ReadFile("version.go")
+	if err != nil {
+		t.Fatalf("read version.go: %v", err)
+	}
+	wantLine := `const Version = "` + goubus.Version + `"`
+	if !strings.Contains(string(raw), wantLine) {
+		t.Fatalf("version.go missing exact line %q", wantLine)
+	}
+}
+
+func TestReleaseNotesScriptLinkRewriting(t *testing.T) {
+	bashPath, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not available")
+	}
+	scriptPath := prepareReleaseNotesRepo(t)
+	cmd := exec.CommandContext(t.Context(), bashPath, scriptPath, "v2.0.0-beta.1") //nolint:gosec // Temp test script.
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("release-notes.sh failed: %v\n%s", err, out)
+	}
+	got := string(out)
+	for _, want := range []string{
+		"go get github.com/honeybbq/goubus/v2@v2.0.0-beta.1",
+		"`goubus.Call[T](ctx, caller, ...)`",
+		"`errors.AsType[*goubus.CallError](err)`",
+		"`` `nested[T](arg)` ``",
+		"[`docs/design.md`](https://github.com/HoneyBBQ/goubus/blob/v2.0.0-beta.1/docs/design.md)",
+		"[migration](https://github.com/HoneyBBQ/goubus/blob/v2.0.0-beta.1/CHANGELOG.md#migrating)",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("release notes output missing %q\ngot:\n%s", want, got)
+		}
+	}
+}
+
+func prepareReleaseNotesRepo(t *testing.T) string {
+	t.Helper()
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git not available")
+	}
+	scriptBytes, err := os.ReadFile(filepath.Join("scripts", "release-notes.sh"))
+	if err != nil {
+		t.Fatalf("read release-notes.sh: %v", err)
+	}
+	root := t.TempDir()
+	initCmd := exec.CommandContext(t.Context(), gitPath, "init", "-q", root) //nolint:gosec // Temp test repo.
+	initOut, err := initCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git init: %v\n%s", err, initOut)
+	}
+	scriptPath := filepath.Join(root, "scripts", "release-notes.sh")
+	err = os.MkdirAll(filepath.Dir(scriptPath), 0o750)
+	if err != nil {
+		t.Fatalf("mkdir scripts: %v", err)
+	}
+	err = os.WriteFile(scriptPath, scriptBytes, 0o750) //nolint:gosec // Temp executable script.
+	if err != nil {
+		t.Fatalf("write release-notes.sh: %v", err)
+	}
+	changelog := strings.Join([]string{
+		"# Changelog", "", "## v2.0.0-beta.1 (2026-11-23)", "",
+		"- Generic call `goubus.Call[T](ctx, caller, ...)` and `errors.AsType[*goubus.CallError](err)`.",
+		"- Nested span `` `nested[T](arg)` `` stays literal.",
+		"- Docs at [`docs/design.md`](docs/design.md) and [migration](#migrating).", "",
+	}, "\n")
+	err = os.WriteFile(filepath.Join(root, "CHANGELOG.md"), []byte(changelog), 0o600)
+	if err != nil {
+		t.Fatalf("write CHANGELOG.md: %v", err)
+	}
+
+	return scriptPath
 }

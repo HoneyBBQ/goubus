@@ -1,4 +1,4 @@
 package goubus
 
 // Version is the current version of the goubus library.
-const Version = "2.0.0-alpha2"
+const Version = "2.0.0-beta.1"

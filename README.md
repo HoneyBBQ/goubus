@@ -35,10 +35,10 @@
 ## Install
 
 ```sh
-go get github.com/honeybbq/goubus/v2
+go get github.com/honeybbq/goubus/v2@v2.0.0-beta.1
 ```
 
-Go 1.26 or newer is required. Until `v2.0.0` is tagged, `go get` without a version skips pre-releases: pass an explicit pre-release tag from [Releases](https://github.com/honeybbq/goubus/releases) or a commit on this branch (note that `v2.0.0-alpha2` predates the `services/*` redesign). Upgrading from `v2.0.0-alpha1` or `v2.0.0-alpha2`? See the [migration table in CHANGELOG.md](CHANGELOG.md#migrating-from-v200-alpha1-and-v200-alpha2).
+2.0 is in beta: `go get` without a version skips pre-releases unless you name one. Go 1.26 or newer is required. Upgrading from `v2.0.0-alpha1` or `v2.0.0-alpha2`? See the [migration table in CHANGELOG.md](CHANGELOG.md#migrating-from-v200-alpha1-and-v200-alpha2).
 
 ## Quick start
 

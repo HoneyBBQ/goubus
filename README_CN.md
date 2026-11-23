@@ -35,10 +35,10 @@
 ## 安装
 
 ```sh
-go get github.com/honeybbq/goubus/v2
+go get github.com/honeybbq/goubus/v2@v2.0.0-beta.1
 ```
 
-要求 Go 1.26 及以上版本。在 `v2.0.0` 正式打标前，不带版本号的 `go get` 默认跳过预发布版本，请从 [Releases](https://github.com/honeybbq/goubus/releases) 指定最新的预发布标签或直接拉取当前分支提交（注意 `v2.0.0-alpha2` 早于 `services/*` 重构）。从 `v2.0.0-alpha1` 或 `v2.0.0-alpha2` 升级可对照 [CHANGELOG.md 中的迁移表](CHANGELOG.md#migrating-from-v200-alpha1-and-v200-alpha2)。
+2.0 处于 beta 阶段：不带版本号的 `go get` 默认跳过预发布版本，安装时需显式指定标签。要求 Go 1.26 及以上版本。从 `v2.0.0-alpha1` 或 `v2.0.0-alpha2` 升级可对照 [CHANGELOG.md 中的迁移表](CHANGELOG.md#migrating-from-v200-alpha1-and-v200-alpha2)。
 
 ## 快速上手
 
