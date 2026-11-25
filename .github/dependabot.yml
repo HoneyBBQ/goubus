@@ -27,6 +27,12 @@ updates:
       interval: "weekly"
     cooldown:
       default-days: 3
+    # Keep each Dockerfile.openwrt-<major> pinned to its own OpenWrt release
+    # series (21.02, 22.03, 23.05, 24.10, 25.12) while accepting point updates.
+    ignore:
+      - dependency-name: "ghcr.io/openwrt/rootfs"
+        update-types:
+          - "version-update:semver-major"
 
   # Monitor GitHub Actions workflows
   - package-ecosystem: "github-actions"
