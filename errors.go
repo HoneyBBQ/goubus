@@ -6,7 +6,6 @@ import (
 	"github.com/honeybbq/goubus/v2/internal/errs"
 )
 
-// ErrCall marks a failed ubus call.
 var (
 	// ErrCall identifies a failed ubus call.
 	ErrCall = errs.ErrCall
@@ -20,9 +19,9 @@ var (
 	ErrNotFound = errs.ErrNotFound
 	// ErrNoData identifies a response with no data.
 	ErrNoData = errs.ErrNoData
-	// ErrPermissionDenied identifies an operation denied by ubus.
+	// ErrPermissionDenied identifies an operation denied by ubus or rpcd ACLs.
 	ErrPermissionDenied = errs.ErrPermissionDenied
-	// ErrTimeout identifies an ubus operation timeout.
+	// ErrTimeout identifies a ubus operation timeout.
 	ErrTimeout = errs.ErrTimeout
 	// ErrNotSupported identifies an unsupported ubus operation.
 	ErrNotSupported = errs.ErrNotSupported
@@ -32,23 +31,23 @@ var (
 	ErrConnectionFailed = errs.ErrConnectionFailed
 	// ErrClosed identifies use of a closed client.
 	ErrClosed = errs.ErrClosed
-	// ErrInvalidResponse identifies a malformed or unexpected response.
+	// ErrInvalidResponse identifies a malformed or unexpected wire response.
 	ErrInvalidResponse = errs.ErrInvalidResponse
-	// ErrNotUnixSocket identifies a path that is not a Unix socket.
+	// ErrNotUnixSocket identifies a path that is not a Unix domain socket.
 	ErrNotUnixSocket = errs.ErrNotUnixSocket
 )
 
-// CallError reports a failed ubus method invocation.
+// CallError reports a refusal returned by ubusd or uhttpd-mod-ubus.
 type CallError struct {
-	// Err is the underlying cause of the failed call.
+	// Err is the mapped sentinel cause of the failed call.
 	Err error
-	// Service is the ubus service that was called.
+	// Service is the target ubus object name, or empty for bus-level calls such as list.
 	Service string
-	// Method is the ubus method that was called.
+	// Method is the ubus or JSON-RPC method that failed.
 	Method string
-	// Message is the server-provided error message.
+	// Message is the error message supplied by JSON-RPC, when present.
 	Message string
-	// Code is the ubus or JSON-RPC error code.
+	// Code is the numeric ubus status (1..10) or JSON-RPC error code.
 	Code int
 }
 

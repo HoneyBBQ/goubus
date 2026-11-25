@@ -5,6 +5,13 @@ import (
 	"slices"
 )
 
+// leakWalker visits the types a declaration is built from.
+type leakWalker struct {
+	r    *renderer
+	seen map[types.Type]bool
+	text string
+}
+
 // findLeaks records every type that the exported declaration text exposes and
 // a caller cannot name: an unexported type of the package, or a type of an
 // internal package. A caller can hold a value of such a type and call its
@@ -13,13 +20,6 @@ import (
 func (r *renderer) findLeaks(text string, t types.Type) {
 	w := &leakWalker{r: r, text: text, seen: map[types.Type]bool{}}
 	w.walk(t)
-}
-
-// leakWalker visits the types a declaration is built from.
-type leakWalker struct {
-	r    *renderer
-	seen map[types.Type]bool
-	text string
 }
 
 func (w *leakWalker) walk(t types.Type) {

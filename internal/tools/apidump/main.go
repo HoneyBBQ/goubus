@@ -52,6 +52,38 @@ var (
 		"if the change is deliberate, run `go run ./internal/tools/apidump` and commit the result")
 )
 
+// module is the Go module the tool runs in.
+type module struct {
+	dir  string
+	path string
+}
+
+// packageAPI is the API of one package.
+type packageAPI struct {
+	pkg   *types.Package
+	lines []string
+	leaks []string
+}
+
+// dumper type-checks packages from source, sharing one importer so that the
+// standard library is only read once.
+type dumper struct {
+	fset     *token.FileSet
+	importer types.Importer
+	context  build.Context
+}
+
+func newDumper() *dumper {
+	// The importer reads build.Default, so the platform is pinned there: the
+	// reports must not depend on the machine that writes them.
+	build.Default.GOOS = "linux"
+	build.Default.GOARCH = "amd64"
+	build.Default.CgoEnabled = false
+	fset := token.NewFileSet()
+
+	return &dumper{fset: fset, importer: importer.ForCompiler(fset, "source", nil), context: build.Default}
+}
+
 func main() {
 	check := flag.Bool("check", false, "fail, with a diff, if the committed reports differ from the code")
 	flag.Parse()
@@ -89,12 +121,6 @@ func run(check bool) error {
 	}
 
 	return errors.Join(writeReports(root, reports), root.Close())
-}
-
-// module is the Go module the tool runs in.
-type module struct {
-	dir  string
-	path string
 }
 
 // findModule returns the module that contains the working directory.
@@ -190,11 +216,11 @@ func buildReports(mod module) (map[string]string, []string, error) {
 			return nil, nil, err
 		}
 		importPath := path.Join(mod.path, filepath.ToSlash(rel))
-		api, err := d.dump(dir, importPath)
+		api, ok, err := d.dump(dir, importPath)
 		if err != nil {
 			return nil, nil, fmt.Errorf("%s: %w", importPath, err)
 		}
-		if api == nil {
+		if !ok {
 			continue
 		}
 		file := filepath.ToSlash(rel)
@@ -214,13 +240,6 @@ func buildReports(mod module) (map[string]string, []string, error) {
 	return reports, leaks, nil
 }
 
-// packageAPI is the API of one package.
-type packageAPI struct {
-	pkg   *types.Package
-	lines []string
-	leaks []string
-}
-
 // text is the content of the package's report.
 func (a *packageAPI) text() string {
 	var b strings.Builder
@@ -234,57 +253,38 @@ func (a *packageAPI) text() string {
 	return b.String()
 }
 
-// dumper type-checks packages from source, sharing one importer so that the
-// standard library is only read once.
-type dumper struct {
-	fset     *token.FileSet
-	importer types.Importer
-	context  build.Context
-}
-
-func newDumper() *dumper {
-	// The importer reads build.Default, so the platform is pinned there: the
-	// reports must not depend on the machine that writes them.
-	build.Default.GOOS = "linux"
-	build.Default.GOARCH = "amd64"
-	build.Default.CgoEnabled = false
-	fset := token.NewFileSet()
-
-	return &dumper{fset: fset, importer: importer.ForCompiler(fset, "source", nil), context: build.Default}
-}
-
-// dump type-checks the package in dir and renders its API. It returns nil for
-// a directory that holds no public Go package.
-func (d *dumper) dump(dir, importPath string) (*packageAPI, error) {
+// dump type-checks the package in dir and renders its API. It returns false
+// for a directory that holds no public Go package.
+func (d *dumper) dump(dir, importPath string) (*packageAPI, bool, error) {
 	bp, err := d.context.ImportDir(dir, 0)
 	if _, ok := errors.AsType[*build.NoGoError](err); ok {
-		return nil, nil //nolint:nilnil // no package here is not an error
+		return nil, false, nil
 	}
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if bp.Name == "main" {
-		return nil, nil //nolint:nilnil // a command has no API to import
+		return nil, false, nil
 	}
 	if len(bp.CgoFiles) > 0 {
-		return nil, errCgo
+		return nil, false, errCgo
 	}
 	files := make([]*ast.File, 0, len(bp.GoFiles))
 	for _, name := range slices.Sorted(slices.Values(bp.GoFiles)) {
 		file, parseErr := parser.ParseFile(d.fset, filepath.Join(dir, name), nil, parser.SkipObjectResolution)
 		if parseErr != nil {
-			return nil, parseErr
+			return nil, false, parseErr
 		}
 		files = append(files, file)
 	}
 	conf := types.Config{Importer: d.importer, Sizes: types.SizesFor("gc", "amd64")}
 	pkg, err := conf.Check(importPath, d.fset, files, nil)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	lines, leaks := render(pkg)
 
-	return &packageAPI{pkg: pkg, lines: lines, leaks: leaks}, nil
+	return &packageAPI{pkg: pkg, lines: lines, leaks: leaks}, true, nil
 }
 
 // existingReports lists the reports on disk by file name.

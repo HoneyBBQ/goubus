@@ -10,17 +10,17 @@ import (
 	"testing"
 )
 
-var update = flag.Bool("update", false, "rewrite the golden file")
-
 const samplePath = "example.com/sample"
+
+var update = flag.Bool("update", false, "rewrite the golden file")
 
 // TestSampleReport pins how each kind of declaration is rendered, on a
 // package that has one of everything: a change to the format of a report
 // would otherwise only show up as noise in the reports of the real packages.
 func TestSampleReport(t *testing.T) {
-	api, err := newDumper().dump(filepath.Join("testdata", "sample"), samplePath)
-	if err != nil {
-		t.Fatal(err)
+	api, ok, err := newDumper().dump(filepath.Join("testdata", "sample"), samplePath)
+	if err != nil || !ok {
+		t.Fatalf("dump sample: ok=%v err=%v", ok, err)
 	}
 	got := api.text() + "\n# leaks\n" + strings.Join(api.leaks, "\n") + "\n"
 

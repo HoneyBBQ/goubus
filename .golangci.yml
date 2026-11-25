@@ -1,5 +1,16 @@
 version: "2"
 
+formatters:
+  enable:
+    - gofumpt
+    - gci
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/honeybbq/goubus)
+
 linters:
   default: all
   disable:
@@ -31,6 +42,18 @@ linters:
         - name: exported
           arguments:
             - disableStutteringCheck
+    decorder:
+      dec-order:
+        - const
+        - var
+        - type
+        - func
+      disable-dec-order-check: false
+      disable-init-func-first-check: false
+      disable-dec-num-check: true
+    funcorder:
+      constructor: true
+      struct-method: true
     cyclop:
       max-complexity: 15
     gocyclo:
@@ -41,26 +64,11 @@ linters:
 
   exclusions:
     rules:
-      # Example programs log ubus/RPC-derived fields for local debugging only.
-      - path: ^examples/
-        linters:
-          - gosec
-        text: G706
       # Internal package helpers are implementation details of this module.
       - path: ^internal/
         linters:
           - revive
         text: exported|package-comments
-      # Bool decodes into a value but encodes copied scalar values directly.
-      - path: ^jsonbool\.go$
-        linters:
-          - recvcheck
-        text: Bool
-      # The public RPC identifiers retain their established spelling.
-      - path: ^rpc\.go$
-        linters:
-          - revive
-        text: var-naming
       # Test fixtures use fake credentials, casts, and random values.
       - path: .*_test\.go
         linters:

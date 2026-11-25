@@ -8,6 +8,8 @@ import (
 	"github.com/honeybbq/goubus/v2/internal/blobmsg"
 )
 
+const testValName = "test"
+
 func TestCreateBlobMessage(t *testing.T) {
 	attrs := map[uint32]any{
 		blobmsg.UbusAttrObjID:  uint32(123),
@@ -90,8 +92,6 @@ func testNormalizeArgsStruct(t *testing.T) {
 		t.Errorf("NormalizeArgs(struct) failed: %v", res)
 	}
 }
-
-const testValName = "test"
 
 func TestMapNestedStructUsesJSONEncoding(t *testing.T) {
 	type Embedded struct {
@@ -212,7 +212,7 @@ func assertReflectBasicTypes(t *testing.T, decodedMap map[string]any) {
 		t.Errorf("age mismatch: %v", decodedMap["age"])
 	}
 
-	if decodedMap["active"] != int64(1) {
+	if decodedMap["active"] != true {
 		t.Errorf("active mismatch: %v", decodedMap["active"])
 	}
 }
@@ -350,9 +350,9 @@ func TestEncodeReflectMapFail(t *testing.T) {
 func TestRemainingFunctions(t *testing.T) {
 	t.Run("EncodeByte", testRemainingEncodeByte)
 	t.Run("EncodeBytes", testRemainingEncodeBytes)
-	t.Run("PadToAlign", func(t *testing.T) {
-		if len(blobmsg.PadToAlign([]byte{1})) != 4 {
-			t.Errorf("PadToAlign failed")
+	t.Run("AlignBuffer", func(t *testing.T) {
+		if len(blobmsg.AlignBuffer([]byte{1})) != 4 {
+			t.Errorf("AlignBuffer failed")
 		}
 	})
 	t.Run("CreateBlobmsgData", testRemainingCreateBlobmsgData)

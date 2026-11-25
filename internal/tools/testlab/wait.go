@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/honeybbq/goubus/v2"
+	"github.com/honeybbq/goubus/v2/rpc"
 )
 
 type waitConfig struct {
@@ -106,18 +107,18 @@ func probeAllTransports(cfg waitConfig, tlsHTTPClient *http.Client) error {
 		return fmt.Errorf("socket: %w", err)
 	}
 
-	httpCli, err := goubus.NewRPCClient(ctx, cfg.httpURL, cfg.user, cfg.password)
+	httpCli, err := rpc.NewClient(ctx, cfg.httpURL, cfg.user, cfg.password)
 	if err != nil {
 		return fmt.Errorf("http rpc: %w", err)
 	}
 	_ = httpCli.Close()
 
-	httpsCli, err := goubus.NewRPCClient(
+	httpsCli, err := rpc.NewClient(
 		ctx,
 		cfg.httpsURL,
 		cfg.user,
 		cfg.password,
-		goubus.WithHTTPClient(tlsHTTPClient),
+		rpc.WithHTTPClient(tlsHTTPClient),
 	)
 	if err != nil {
 		return fmt.Errorf("https rpc: %w", err)
@@ -128,7 +129,7 @@ func probeAllTransports(cfg waitConfig, tlsHTTPClient *http.Client) error {
 }
 
 func probeSocket(ctx context.Context, socketPath string) error {
-	sock, err := goubus.NewSocketClient(ctx, socketPath)
+	sock, err := goubus.NewClient(ctx, socketPath)
 	if err != nil {
 		return err
 	}

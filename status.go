@@ -1,6 +1,10 @@
 package goubus
 
-import "github.com/honeybbq/goubus/v2/internal/errs"
+import (
+	"errors"
+
+	"github.com/honeybbq/goubus/v2/internal/errs"
+)
 
 const (
 	// StatusOK indicates that the ubus operation succeeded.
@@ -27,7 +31,7 @@ const (
 	StatusConnectionFailed = 10
 )
 
-var ubusErrorMap = map[int]error{
+var statusErrors = [...]error{
 	StatusOK:               nil,
 	StatusInvalidCommand:   ErrInvalidCommand,
 	StatusInvalidParameter: ErrInvalidParameter,
@@ -43,9 +47,38 @@ var ubusErrorMap = map[int]error{
 
 // StatusError maps a ubus status code to its sentinel error.
 func StatusError(code int) error {
-	if err, ok := ubusErrorMap[code]; ok {
-		return err
+	if code >= 0 && code < len(statusErrors) {
+		return statusErrors[code]
 	}
 
 	return errs.Wrapf(ErrUnknown, "unknown ubus error code: %d", code)
+}
+
+func lookupStatusError(err error) (int, bool, error) {
+	for code := StatusInvalidCommand; code < len(statusErrors); code++ {
+		sentinel := statusErrors[code]
+		if sentinel != nil && errors.Is(err, sentinel) {
+			return code, true, sentinel
+		}
+	}
+
+	return 0, false, nil
+}
+
+func wireStatusFromError(err error) uint32 {
+	if err == nil {
+		return StatusOK
+	}
+	if callErr, ok := errors.AsType[*CallError](err); ok {
+		if callErr.Code > StatusOK && callErr.Code <= StatusConnectionFailed {
+			return uint32(callErr.Code)
+		}
+	}
+	if code, ok, _ := lookupStatusError(err); ok {
+		if code > StatusOK && code <= StatusConnectionFailed {
+			return uint32(code)
+		}
+	}
+
+	return StatusUnknown
 }

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Start or stop an ephemeral OpenWrt 24.10 / 25.12 container exposing ubus over
+# Start or stop an ephemeral OpenWrt container (21.02–25.12) exposing ubus over
 # Unix domain socket, HTTP JSON-RPC, and HTTPS JSON-RPC for live integration tests.
 #
-#   ./scripts/openwrt-lab.sh start <24-10|25-12> <work_dir>
+#   ./scripts/openwrt-lab.sh start <21-02|22-03|23-05|24-10|25-12> <work_dir>
 #   ./scripts/openwrt-lab.sh stop <work_dir>
 set -euo pipefail
 
@@ -10,7 +10,7 @@ here="$(cd "$(dirname "$0")" && pwd)"
 repo_root="$(cd "$here/.." && pwd)"
 
 usage() {
-  echo "usage: openwrt-lab.sh start <24-10|25-12> <work_dir> | stop <work_dir>" >&2
+  echo "usage: openwrt-lab.sh start <21-02|22-03|23-05|24-10|25-12> <work_dir> | stop <work_dir>" >&2
   exit 1
 }
 
@@ -56,6 +56,18 @@ cmd_stop() {
 
 resolve_release() {
   case "$1" in
+    21-02|openwrt-21-02|21.02)
+      IMAGE_KEY="openwrt-21-02"
+      RELEASE_VER="21.02"
+      ;;
+    22-03|openwrt-22-03|22.03)
+      IMAGE_KEY="openwrt-22-03"
+      RELEASE_VER="22.03"
+      ;;
+    23-05|openwrt-23-05|23.05)
+      IMAGE_KEY="openwrt-23-05"
+      RELEASE_VER="23.05"
+      ;;
     24-10|openwrt-24-10|24.10)
       IMAGE_KEY="openwrt-24-10"
       RELEASE_VER="24.10"
@@ -65,7 +77,7 @@ resolve_release() {
       RELEASE_VER="25.12"
       ;;
     *)
-      echo "unsupported OpenWrt target: $1 (expected 24-10 or 25-12)" >&2
+      echo "unsupported OpenWrt target: $1 (expected 21-02, 22-03, 23-05, 24-10, or 25-12)" >&2
       exit 1
       ;;
   esac

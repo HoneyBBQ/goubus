@@ -1,0 +1,2 @@
+# OpenWrt 22.03 rootfs for live integration tests; scripts/ci-image.sh reads FROM.
+FROM ghcr.io/openwrt/rootfs:x86_64-22.03.7@sha256:f6e5b98399ae4ff89fc1a2de2da5b94c520c8f82aa1e5c717fb190da8b3313ed

@@ -2,6 +2,27 @@
 
 All notable changes to this module are documented here. This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v2.0.0-beta.2 (2026-11-25)
+
+### Added
+
+- Full-duplex sequence-multiplexed native Unix socket client (`goubus.Client`), allowing concurrent `Call` and `List` round trips over one connection without head-of-line blocking, native `Ping` liveness checks, automatic stale `objid` cache refresh across daemon restarts, and connection shutdown observability (`Client.Done`, `Client.Err`).
+- System event bus support on `*goubus.Client`: `Listen` (`*Subscription`, `Event`, `EventHandler`) and `SendEvent` (equivalent to `ubus listen` and `ubus send`).
+- Object notification subscriptions on `*goubus.Client`: `Subscribe` (`Notification`, `NotificationHandler`, `Subscription.Done` on target removal).
+- Pure-Go local ubus object registration on `*goubus.Client`: `AddObject` (`ObjectDef`, `ObjectDef.OnSubscribe`, `Method`, `MethodHandler`, `CallRequest`) and `*RegisteredObject` (`ID`, `Name`, `Done`, `HasSubscribers`, `Notify`, `Close`).
+- Exported `goubus.DefaultSocketPath` (with `/var/run/ubus/ubus.sock` fallback when `""` is passed), `rpc.DefaultEndpoint`, and `rpc.WithAutoReauth`.
+
+### Changed
+
+- **Breaking:** Scope the root `github.com/honeybbq/goubus/v2` package strictly to native Unix domain socket `ubus` (`Client`, `NewClient`, `NewClientFromConn`, `Option`, `WithLogger`, ...) and shared contracts, keeping `net/http` and `crypto/tls` out of on-router binaries.
+- **Breaking:** Move the `uhttpd-mod-ubus` + `rpcd` HTTP/HTTPS JSON-RPC gateway client to `github.com/honeybbq/goubus/v2/rpc` (`rpc.Client`, `rpc.NewClient`, `rpc.Option`, `rpc.WithLogger`, `rpc.WithHTTPClient`, `rpc.WithEndpoint`, `rpc.WithAutoReauth`).
+- Enforce `gofumpt`, `gci`, `decorder`, `funcorder`, and zero `//nolint` suppressions across the repository, decode/encode `blobmsg` integers and headers without reflection readers/writers, and test `rpcd` sliding session expiry deterministically with `testing/synctest`.
+- Expand live container CI integration matrix to run in parallel across OpenWrt `21.02`, `22.03`, `23.05`, `24.10`, and `25.12`.
+
+### Removed
+
+- **Breaking:** `services/*` subpackages, daemon-specific JSON types (`Bool`, `StringOrSlice`, `StringInt`, `UnixTime`) and fixtures, hardcoded `Version` constant and option getters (`DialTimeout`, `ReadTimeout`, `WriteTimeout`), and legacy standalone `examples/*` binaries (replaced by testable GoDoc `Example*` functions and `testing.B` benchmarks); invoke ubus objects directly with `goubus.Call[T]` or `Caller.Call`.
+
 ## v2.0.0-beta.1 (2026-11-23)
 
 ### Added

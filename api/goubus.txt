@@ -6,6 +6,7 @@ const ArgTypeNumber ArgType = "number"
 const ArgTypeObject ArgType = "object"
 const ArgTypeString ArgType = "string"
 const ArgTypeUnknown ArgType = "unknown"
+const DefaultSocketPath untyped string = "/tmp/run/ubus/ubus.sock"
 const StatusConnectionFailed untyped int = 10
 const StatusInvalidCommand untyped int = 1
 const StatusInvalidParameter untyped int = 2
@@ -17,7 +18,6 @@ const StatusOK untyped int = 0
 const StatusPermissionDenied untyped int = 6
 const StatusTimeout untyped int = 7
 const StatusUnknown untyped int = 9
-const Version untyped string = "2.0.0-beta.1"
 var ErrCall error
 var ErrClosed error
 var ErrConnectionFailed error
@@ -32,28 +32,19 @@ var ErrNotUnixSocket error
 var ErrPermissionDenied error
 var ErrTimeout error
 var ErrUnknown error
-func BoolValue(b Bool) bool
 func Call[T any](ctx context.Context, caller Caller, service string, method string, data any) (T, error)
 func ChainMiddleware(caller Caller, middlewares ...CallMiddleware) Caller
 func List(ctx context.Context, caller Caller, patterns ...string) (map[string]ObjectSignatures, error)
+func NewClient(ctx context.Context, sockPath string, opts ...Option) (*Client, error)
+func NewClientFromConn(ctx context.Context, conn net.Conn, opts ...Option) (*Client, error)
 func NewJSONResult(raw json.RawMessage) Result
-func NewRPCClient(ctx context.Context, host string, username string, password string, opts ...RPCOption) (*RPCClient, error)
-func NewSocketClient(ctx context.Context, sockPath string, opts ...SocketOption) (*SocketClient, error)
-func NewSocketClientFromConn(ctx context.Context, conn net.Conn, opts ...SocketOption) (*SocketClient, error)
 func StatusError(code int) error
-func WithDialTimeout(timeout time.Duration) SocketOption
-func WithHTTPClient(client *http.Client) RPCOption
-func WithRPCEndpoint(path string) RPCOption
-func WithRPCLogger(logger *slog.Logger) RPCOption
-func WithReadTimeout(timeout time.Duration) SocketOption
-func WithSocketLogger(logger *slog.Logger) SocketOption
-func WithWriteTimeout(timeout time.Duration) SocketOption
+func WithDialTimeout(timeout time.Duration) Option
+func WithLogger(logger *slog.Logger) Option
+func WithReadTimeout(timeout time.Duration) Option
+func WithWriteTimeout(timeout time.Duration) Option
 type ArgType string
 method (*ArgType) UnmarshalJSON(data []byte) error
-type Bool bool
-method (Bool) Format(state fmt.State, _ rune)
-method (Bool) MarshalJSON() ([]byte, error)
-method (*Bool) UnmarshalJSON(data []byte) error
 type CallError struct
 field CallError.Err error
 field CallError.Service string
@@ -63,94 +54,66 @@ field CallError.Code int
 method (*CallError) Error() string
 method (*CallError) Unwrap() []error
 type CallMiddleware func(next Caller) Caller
+type CallRequest struct
+field CallRequest.Object string
+field CallRequest.Method string
+field CallRequest.User string
+field CallRequest.Group string
+field CallRequest.Data json.RawMessage
+method (CallRequest) Unmarshal(target any) error
 type Caller interface
 method (Caller) Call(ctx context.Context, service string, method string, data any) (Result, error)
 type CallerFunc func(ctx context.Context, service string, method string, data any) (Result, error)
 method (CallerFunc) Call(ctx context.Context, service string, method string, data any) (Result, error)
+type Client struct
+method (*Client) AddObject(ctx context.Context, def ObjectDef) (*RegisteredObject, error)
+method (*Client) Call(ctx context.Context, service string, method string, data any) (Result, error)
+method (*Client) Close() error
+method (*Client) Done() <-chan struct{}
+method (*Client) Err() error
+method (*Client) List(ctx context.Context, patterns ...string) (map[string]ObjectSignatures, error)
+method (*Client) Listen(ctx context.Context, pattern string, handler EventHandler) (*Subscription, error)
+method (*Client) PeerID() uint32
+method (*Client) Ping(ctx context.Context) error
+method (*Client) SendEvent(ctx context.Context, id string, data any) error
+method (*Client) Subscribe(ctx context.Context, object string, handler NotificationHandler) (*Subscription, error)
+type Event struct
+field Event.Type string
+field Event.Data json.RawMessage
+method (Event) Unmarshal(target any) error
+type EventHandler func(event Event)
 type Lister interface
 method (Lister) List(ctx context.Context, patterns ...string) (map[string]ObjectSignatures, error)
+type Method struct
+field Method.Handler MethodHandler
+field Method.Policy MethodSignature
+type MethodHandler func(ctx context.Context, req CallRequest) (any, error)
 type MethodSignature map[string]ArgType
+type Notification struct
+field Notification.Object string
+field Notification.Method string
+field Notification.Data json.RawMessage
+method (Notification) Unmarshal(target any) error
+type NotificationHandler func(notification Notification)
+type ObjectDef struct
+field ObjectDef.Methods map[string]Method
+field ObjectDef.OnSubscribe func(active bool)
+field ObjectDef.Name string
 type ObjectSignatures map[string]MethodSignature
-type RPCClient struct
-method (*RPCClient) Authenticate(ctx context.Context) error
-method (*RPCClient) Call(ctx context.Context, service string, method string, data any) (Result, error)
-method (*RPCClient) Close() error
-method (*RPCClient) GoString() string
-method (*RPCClient) List(ctx context.Context, patterns ...string) (map[string]ObjectSignatures, error)
-method (*RPCClient) LogValue() slog.Value
-method (*RPCClient) String() string
-type RPCOption interface
-sealed RPCOption
+type Option interface
+sealed Option
+type RegisteredObject struct
+method (*RegisteredObject) Close() error
+method (*RegisteredObject) Done() <-chan struct{}
+method (*RegisteredObject) HasSubscribers() bool
+method (*RegisteredObject) ID() uint32
+method (*RegisteredObject) Name() string
+method (*RegisteredObject) Notify(ctx context.Context, method string, data any) error
 type Result interface
 method (Result) Unmarshal(target any) error
-type SocketClient struct
-method (*SocketClient) Call(ctx context.Context, service string, method string, data any) (Result, error)
-method (*SocketClient) Close() error
-method (*SocketClient) DialTimeout() time.Duration
-method (*SocketClient) List(ctx context.Context, patterns ...string) (map[string]ObjectSignatures, error)
-method (*SocketClient) PeerID() uint32
-method (*SocketClient) ReadTimeout() time.Duration
-method (*SocketClient) WriteTimeout() time.Duration
-type SocketOption interface
-sealed SocketOption
-type StringInt int64
-method (StringInt) Int() int
-method (StringInt) Int64() int64
-method (StringInt) MarshalJSON() ([]byte, error)
-method (*StringInt) UnmarshalJSON(data []byte) error
-type StringOrSlice []string
-method (StringOrSlice) First() string
-method (StringOrSlice) MarshalJSON() ([]byte, error)
-method (*StringOrSlice) UnmarshalJSON(data []byte) error
+type Subscription struct
+method (*Subscription) Close() error
+method (*Subscription) Done() <-chan struct{}
 type Transport interface
 method (Transport) Call(ctx context.Context, service string, method string, data any) (Result, error)
 method (Transport) Close() error
-type UnixTime struct
-embed UnixTime time.Time
-method (UnixTime) Add(d time.Duration) time.Time
-method (UnixTime) AddDate(years int, months int, days int) time.Time
-method (UnixTime) After(u time.Time) bool
-method (UnixTime) AppendBinary(b []byte) ([]byte, error)
-method (UnixTime) AppendFormat(b []byte, layout string) []byte
-method (UnixTime) AppendText(b []byte) ([]byte, error)
-method (UnixTime) Before(u time.Time) bool
-method (UnixTime) Clock() (hour int, min int, sec int)
-method (UnixTime) Compare(u time.Time) int
-method (UnixTime) Date() (year int, month time.Month, day int)
-method (UnixTime) Day() int
-method (UnixTime) Equal(u time.Time) bool
-method (UnixTime) Format(layout string) string
-method (UnixTime) GoString() string
-method (*UnixTime) GobDecode(data []byte) error
-method (UnixTime) GobEncode() ([]byte, error)
-method (UnixTime) Hour() int
-method (UnixTime) ISOWeek() (year int, week int)
-method (UnixTime) In(loc *time.Location) time.Time
-method (UnixTime) IsDST() bool
-method (UnixTime) IsZero() bool
-method (UnixTime) Local() time.Time
-method (UnixTime) Location() *time.Location
-method (UnixTime) MarshalBinary() ([]byte, error)
-method (UnixTime) MarshalJSON() ([]byte, error)
-method (UnixTime) MarshalText() ([]byte, error)
-method (UnixTime) Minute() int
-method (UnixTime) Month() time.Month
-method (UnixTime) Nanosecond() int
-method (UnixTime) Round(d time.Duration) time.Time
-method (UnixTime) Second() int
-method (UnixTime) String() string
-method (UnixTime) Sub(u time.Time) time.Duration
-method (UnixTime) Truncate(d time.Duration) time.Time
-method (UnixTime) UTC() time.Time
-method (UnixTime) Unix() int64
-method (UnixTime) UnixMicro() int64
-method (UnixTime) UnixMilli() int64
-method (UnixTime) UnixNano() int64
-method (*UnixTime) UnmarshalBinary(data []byte) error
-method (*UnixTime) UnmarshalJSON(data []byte) error
-method (*UnixTime) UnmarshalText(data []byte) error
-method (UnixTime) Weekday() time.Weekday
-method (UnixTime) Year() int
-method (UnixTime) YearDay() int
-method (UnixTime) Zone() (name string, offset int)
-method (UnixTime) ZoneBounds() (start time.Time, end time.Time)

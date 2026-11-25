@@ -32,5 +32,5 @@ This directory contains binary data used for Golden Files testing of the `blobms
 ## Usage
 These files are automatically processed by `golden_test.go`. To run the tests:
 ```bash
-go test -v ./internal/blobmsg/golden_test.go
+go test -v ./internal/blobmsg -run TestGoldenFiles
 ```

@@ -12,6 +12,22 @@ import (
 	"github.com/honeybbq/goubus/v2/internal/errs"
 )
 
+const testName = "test"
+
+type bodyForbiddenReader struct {
+	header   *bytes.Reader
+	bodyRead bool
+}
+
+func (r *bodyForbiddenReader) Read(p []byte) (int, error) {
+	if r.header.Len() > 0 {
+		return r.header.Read(p)
+	}
+	r.bodyRead = true
+
+	return 0, io.EOF
+}
+
 func TestEncodeDecodeHeader(t *testing.T) {
 	original := &blobmsg.UbusMessageHeader{
 		Version: 1,
@@ -123,8 +139,8 @@ func checkBasicTypes(t *testing.T, data, decodedMap map[string]any) {
 		t.Errorf("int64 mismatch: got %v, want %v", decodedMap["int64"], data["int64"])
 	}
 
-	if decodedMap["bool"] != int64(1) { // bool is encoded as TypeInt8 (1 or 0)
-		t.Errorf("bool mismatch: got %v, want %v", decodedMap["bool"], 1)
+	if decodedMap["bool"] != true { // BLOBMSG_TYPE_BOOL (TypeInt8 = 7) decodes to bool, matching libubox/blobmsg_json.c
+		t.Errorf("bool mismatch: got %v (%T), want true", decodedMap["bool"], decodedMap["bool"])
 	}
 
 	if decodedMap["double"] != data["double"] {
@@ -171,8 +187,6 @@ func TestSmallIntegers(t *testing.T) {
 		t.Errorf("int16 mismatch: got %v, want %v", decodedMap["int16"], data["int16"])
 	}
 }
-
-const testName = "test"
 
 func TestStringEncodingCompatibility(t *testing.T) {
 	name := testName
@@ -261,20 +275,6 @@ func TestUintConversion(t *testing.T) {
 	if v, ok := blobmsg.ReadUint(float64(12345)); !ok || v != 12345 {
 		t.Errorf("ReadUint failed for float64: got %v, %v", v, ok)
 	}
-}
-
-type bodyForbiddenReader struct {
-	header   *bytes.Reader
-	bodyRead bool
-}
-
-func (r *bodyForbiddenReader) Read(p []byte) (int, error) {
-	if r.header.Len() > 0 {
-		return r.header.Read(p)
-	}
-	r.bodyRead = true
-
-	return 0, io.EOF
 }
 
 func TestReadMessageRejectsInvalidBlobLength(t *testing.T) {

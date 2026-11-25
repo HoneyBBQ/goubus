@@ -3,9 +3,8 @@
 # per commit. The total shown on the badge is that merge.
 codecov:
   notify:
-    # Unit jobs (2 Go versions) + integration legs (24.10, 25.12), one upload
-    # each.
-    after_n_builds: 4
+    # Unit jobs (2 Go versions) + 5 OpenWrt integration legs (21.02..25.12).
+    after_n_builds: 7
 
 # Informational: coverage is reported on pull requests, never a gate.
 coverage:
@@ -20,13 +19,18 @@ coverage:
 flags:
   unit:
     carryforward: false
+  integration-21-02:
+    carryforward: false
+  integration-22-03:
+    carryforward: false
+  integration-23-05:
+    carryforward: false
   integration-24-10:
     carryforward: false
   integration-25-12:
     carryforward: false
 
-# Example programs, developer tools, and test files, not the library.
+# Developer tools and test files, not the library.
 ignore:
-  - "examples"
   - "internal/tools"
   - "**/*_test.go"

@@ -1,33 +1,28 @@
 ---
 name: Bug Report
-about: Create a report to help us improve
+about: Report a protocol, transport, or decoding bug in goubus
 title: '[BUG] '
 labels: bug
 assignees: ''
-
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+## Summary
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+Describe what happened and what you expected instead.
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+## Minimal reproduction
 
-**Screenshots/Logs**
-If applicable, add screenshots or logs to help explain your problem.
+```go
+// Paste a minimal Go snippet or ubus call / wire capture that reproduces the issue.
+```
 
-**Environment (please complete the following information):**
- - OS: [e.g. Linux/Docker]
- - Version: [e.g. v1.0.0]
- - Transport: [e.g. Socket/RPC]
- - OpenWrt Version: [e.g. 23.05]
+## Error or debug log
 
-**Additional context**
-Add any other context about the problem here.
+Paste any returned error (`*goubus.CallError` fields, sentinel error) or redacted transport debug output.
+
+## Environment
+
+- `goubus` version: (for example `v2.0.0-beta.1` or commit SHA)
+- Go version: (for example `go1.26.1`)
+- Transport: (`SocketClient` / `RPCClient` HTTP / `RPCClient` HTTPS)
+- OpenWrt release & target: (for example `24.10.5 x86/64` or `25.12.6 mediatek/filogic`)

@@ -1,20 +1,19 @@
 ---
 name: Feature Request
-about: Suggest an idea for this project
+about: Propose a ubus protocol or transport capability
 title: '[FEATURE] '
 labels: enhancement
 assignees: ''
-
 ---
 
-**Is your feature request related to a problem? Please describe.**
-A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
+## Problem or protocol capability
 
-**Describe the solution you'd like**
-A clear and concise description of what you want to happen.
+Describe the ubus wire feature or transport behavior you need (for example socket multiplexing, object registration, or event subscription).
 
-**Describe alternatives you've considered**
-A clear and concise description of any alternative solutions or features you've considered.
+## Proposed API
 
-**Additional context**
-Add any other context or screenshots about the feature request here.
+Sketch how callers would use it in Go, if you have a shape in mind.
+
+## Alternatives considered
+
+Note any workarounds (such as `CallMiddleware`, `NewSocketClientFromConn`, or custom `Caller` wrappers) you have already tried.

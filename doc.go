@@ -1,51 +1,43 @@
-// Package goubus is an OpenWrt ubus client over local Unix sockets and HTTP
-// JSON-RPC.
+// Package goubus implements OpenWrt's native ubus IPC protocol in pure Go.
 //
-// Open a connection with [NewSocketClient] on the router (talking to ubusd
-// over /tmp/run/ubus/ubus.sock in pure Go) or [NewRPCClient] from another host
-// (talking to uhttpd-mod-ubus and rpcd over HTTP or HTTPS). Both implement
-// [Transport], which combines [Caller] with Close.
+// Native ubus speaks binary blobmsg frames over a local Unix domain socket
+// (/tmp/run/ubus/ubus.sock) directly with ubusd. Open a multiplexed connection
+// on the router with [NewClient] (or over a pre-established stream such as an
+// SSH-forwarded Unix socket with [NewClientFromConn]):
 //
-// Typed clients for 15 standard OpenWrt ubus domains live under [services/*]
-// (such as [github.com/honeybbq/goubus/v2/services/system],
-// [github.com/honeybbq/goubus/v2/services/network], and
-// [github.com/honeybbq/goubus/v2/services/uci]); import only the packages a
-// binary uses. For ubus objects without a typed package, decode any call
-// directly with [Call]:
-//
-//	conn, err := goubus.NewSocketClient(ctx, "")
+//	conn, err := goubus.NewClient(ctx, "")
 //	if err != nil {
 //		return err
 //	}
 //	defer conn.Close()
 //
-//	type status struct {
-//		Enabled goubus.Bool `json:"enabled"`
+//	type boardInfo struct {
+//		Model    string `json:"model"`
+//		Hostname string `json:"hostname"`
 //	}
-//	res, err := goubus.Call[status](ctx, conn, "mwan3", "status", nil)
+//	board, err := goubus.Call[boardInfo](ctx, conn, "system", "board", nil)
+//
+// Over the same multiplexed [*Client], programs can concurrently invoke
+// methods ([Client.Call]), inspect registered signatures ([Client.List]),
+// probe liveness ([Client.Ping]), broadcast and receive system events
+// ([Client.SendEvent], [Client.Listen]), subscribe to object notifications
+// ([Client.Subscribe]), and publish Go objects onto the bus
+// ([Client.AddObject]).
+//
+// # Remote HTTP/HTTPS JSON-RPC gateway
+//
+// Native ubus uses Unix domain sockets only; OpenWrt exposes HTTP/HTTPS
+// JSON-RPC through a separate web-server plugin (uhttpd-mod-ubus) paired with
+// rpcd session authentication. Import [github.com/honeybbq/goubus/v2/rpc] when
+// managing a router remotely over HTTP/HTTPS—its client implements [Transport]
+// and [Lister], while on-router binaries importing only [goubus] avoid linking
+// net/http or crypto/tls.
 //
 // # Errors and discovery
 //
-// Non-zero ubus statuses and JSON-RPC refusals return a [*CallError] before
-// payload decoding. Match status causes with errors.Is against [ErrNotFound],
-// [ErrPermissionDenied], and the other root sentinels (or [ErrCall] for any
-// call refusal), and inspect Service, Method, Code, and Message with
-// errors.AsType.
-//
-// [List] queries object and method signatures on any [Caller] that implements
-// [Lister], normalizing wire argument types to [ArgType] across both
-// transports. [Bool], [StringOrSlice], [StringInt], and [UnixTime] decode JSON
-// fields whose representation varies across OpenWrt releases.
-//
-// # Documentation
-//
-//   - [services/*]: 15 typed client packages for system, network, uci, dhcp,
-//     luci, wireless, and nine other OpenWrt ubus domains.
-//   - [architecture]: module layout, dependency direction, and wire paths.
-//   - [design]: calls, errors, signature discovery, firmware quirks, and API
-//     snapshots.
-//
-// [services/*]: https://pkg.go.dev/github.com/honeybbq/goubus/v2#section-directories
-// [architecture]: https://github.com/honeybbq/goubus/blob/main/docs/architecture.md
-// [design]: https://github.com/honeybbq/goubus/blob/main/docs/design.md
+// Non-zero ubus statuses return [*CallError] before payload decoding. Match
+// status causes with errors.Is against [ErrNotFound], [ErrPermissionDenied],
+// and the other root sentinels (or [ErrCall] for any call refusal), and inspect
+// Service, Method, Code, and Message with errors.AsType. [List] normalizes
+// argument policies across both transports to [ArgType].
 package goubus

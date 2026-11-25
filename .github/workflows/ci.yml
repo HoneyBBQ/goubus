@@ -92,6 +92,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: "OpenWrt 21.02"
+            release: "21-02"
+          - name: "OpenWrt 22.03"
+            release: "22-03"
+          - name: "OpenWrt 23.05"
+            release: "23-05"
           - name: "OpenWrt 24.10"
             release: "24-10"
           - name: "OpenWrt 25.12"

@@ -10,9 +10,24 @@ import (
 	"github.com/honeybbq/goubus/v2"
 )
 
+var (
+	errMockTransport            = errors.New("transport error")
+	errMockUnmarshal            = errors.New("unmarshal error")
+	errMockUnexpectedTargetType = errors.New("unexpected target type")
+)
+
 // mockTransport is a mock implementation of Transport for testing.
 type mockTransport struct {
 	callFunc func(ctx context.Context, service, method string, data any) (goubus.Result, error)
+}
+
+// mockResult is a mock implementation of Result for testing.
+type mockResult struct {
+	unmarshalFunc func(target any) error
+}
+
+type callTestResponse struct {
+	Foo string `json:"foo"`
 }
 
 func (m *mockTransport) Call(ctx context.Context, service, method string, data any) (goubus.Result, error) {
@@ -23,23 +38,8 @@ func (m *mockTransport) Close() error {
 	return nil
 }
 
-// mockResult is a mock implementation of Result for testing.
-type mockResult struct {
-	unmarshalFunc func(target any) error
-}
-
 func (m *mockResult) Unmarshal(target any) error {
 	return m.unmarshalFunc(target)
-}
-
-var (
-	errMockTransport            = errors.New("transport error")
-	errMockUnmarshal            = errors.New("unmarshal error")
-	errMockUnexpectedTargetType = errors.New("unexpected target type")
-)
-
-type callTestResponse struct {
-	Foo string `json:"foo"`
 }
 
 func TestCallPointer(t *testing.T) {
@@ -189,4 +189,48 @@ func TestCallMap(t *testing.T) {
 			t.Fatalf("Call() = %#v, want nil map on unmarshal error", res)
 		}
 	})
+}
+
+func TestCallHelpers(t *testing.T) {
+	var order []string
+	base := goubus.CallerFunc(func(context.Context, string, string, any) (goubus.Result, error) {
+		order = append(order, "call")
+
+		return goubus.NewJSONResult(json.RawMessage(`{"ok":true}`)), nil
+	})
+	wrap := func(name string) goubus.CallMiddleware {
+		return func(next goubus.Caller) goubus.Caller {
+			return goubus.CallerFunc(func(ctx context.Context, service, method string, data any) (goubus.Result, error) {
+				order = append(order, "before-"+name)
+				result, err := next.Call(ctx, service, method, data)
+				order = append(order, "after-"+name)
+
+				return result, err
+			})
+		}
+	}
+
+	got, err := goubus.Call[struct {
+		OK bool `json:"ok"`
+	}](context.Background(), goubus.ChainMiddleware(base, wrap("one"), wrap("two")), "svc", "method", nil)
+	if err != nil || !got.OK {
+		t.Fatalf("Call() = %#v, %v", got, err)
+	}
+	wantOrder := []string{"before-one", "before-two", "call", "after-two", "after-one"}
+	if !reflect.DeepEqual(order, wantOrder) {
+		t.Errorf("middleware order = %#v, want %#v", order, wantOrder)
+	}
+}
+
+func TestNewJSONResultNoDataAndInvalid(t *testing.T) {
+	for _, raw := range []json.RawMessage{nil, []byte(" "), []byte("null")} {
+		err := goubus.NewJSONResult(raw).Unmarshal(new(any))
+		if !errors.Is(err, goubus.ErrNoData) {
+			t.Errorf("Unmarshal(%q) error = %v, want ErrNoData", raw, err)
+		}
+	}
+	err := goubus.NewJSONResult([]byte("{")).Unmarshal(new(any))
+	if !errors.Is(err, goubus.ErrInvalidResponse) {
+		t.Errorf("invalid JSON result error = %v, want ErrInvalidResponse", err)
+	}
 }

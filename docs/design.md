@@ -1,6 +1,11 @@
 # Design
 
-The conventions below hold across the root `goubus` package and all 15 `services/*` packages.
+## Package split: native bus vs web gateway
+
+- **`github.com/honeybbq/goubus/v2`** implements the native `ubusd` Unix domain socket protocol (`Client`, concurrent `Call`, `List`, `Ping`, `Listen`/`SendEvent`, `Subscribe`, `AddObject`) together with the transport-agnostic contracts (`Caller`, `Transport`, `Result`, `Call[T]`, `Lister`, `*CallError`, and status sentinels).
+- **`github.com/honeybbq/goubus/v2/rpc`** implements the stateless HTTP/HTTPS JSON-RPC 2.0 gateway protocol exposed by `uhttpd-mod-ubus` and `rpcd` (`rpc.Client`, implementing `goubus.Transport` and `goubus.Lister`).
+
+Higher-level wrappers for specific OpenWrt daemons belong in consumer packages built on `goubus.Caller` and `goubus.Call[T]`.
 
 ## Calls and ownership
 
@@ -12,60 +17,53 @@ type Caller interface {
 }
 ```
 
-`Transport` embeds `Caller` and adds `Close() error`. Service clients (`system.New`, `uci.New`, `network.New`, ...) take a `Caller` rather than a `Transport`: they borrow the connection and never close it. The code that called `NewSocketClient` or `NewRPCClient` owns `Close`.
+`Transport` embeds `Caller` and adds `Close() error`. Functions that execute ubus calls should accept `Caller` rather than `Transport`: they borrow the connection and never close it. The code that called `goubus.NewClient` or `rpc.NewClient` owns `Close`.
 
-Because `Caller` has one method, unit tests for code built on typed service clients do not need a router or a mock socket. Combine `CallerFunc` with `NewJSONResult`:
+Because `Caller` has one method, unit tests for downstream code do not need a router or a mock socket. Combine `CallerFunc` with `NewJSONResult`:
 
 ```go
 caller := goubus.CallerFunc(func(ctx context.Context, service, method string, data any) (goubus.Result, error) {
 	return goubus.NewJSONResult(json.RawMessage(`{"uptime": 3600}`)), nil
 })
-info, err := system.New(caller).Info(ctx)
+
+info, err := goubus.Call[struct {
+	Uptime int64 `json:"uptime"`
+}](ctx, caller, "system", "info", nil)
 ```
 
-`Result` decodes payload bytes; it does not carry wire status. Many ubus methods (`system.reboot`, `uci.commit`, `network.reload`) return status `0` with no data frame. Call `Caller.Call` directly for status-only methods. `goubus.Call[T]` runs `Caller.Call` and then `Result.Unmarshal(&target)`, which returns `ErrNoData` when a successful call carried an empty or `null` payload.
+`Result` decodes payload bytes; it does not carry wire status. Status-only methods (`system.reboot`, `uci.commit`, `file.remove`) return status `0` with no data frame—call `Caller.Call` directly for those. `goubus.Call[T]` runs `Caller.Call` and then `Result.Unmarshal(&target)`, returning `ErrNoData` when a successful call carried an empty or `null` payload.
 
 ### Middleware
 
-`CallMiddleware` wraps a `Caller` (`func(next Caller) Caller`). `ChainMiddleware(caller, m1, m2)` applies `m1` outermost, so `m1` sees each call first and its result last:
+`CallMiddleware` wraps a `Caller` (`func(next Caller) Caller`). `ChainMiddleware(caller, m1, m2)` applies `m1` outermost:
 
 ```go
 traced := goubus.ChainMiddleware(conn, auditMiddleware, metricsMiddleware)
-sys := system.New(traced)
+board, err := goubus.Call[BoardInfo](ctx, traced, "system", "board", nil)
 ```
 
-Two details to keep in mind when wrapping a transport:
-
 - `ChainMiddleware` returns a `Caller`, not a `Transport`. Keep the original `conn` reference for `defer conn.Close()`.
-- `goubus.List` checks `caller.(Lister)`. A middleware built with `CallerFunc` implements only `Call`; pass the underlying transport to `goubus.List` (or implement `Lister` on a custom wrapper struct if `dhcp.Client.AddLease` runs through the middleware and relies on signature discovery).
+- `goubus.List` checks `caller.(Lister)`. Pass the underlying transport to `goubus.List` unless your custom wrapper also implements `Lister`.
+
+## Multiplexing, events, pub/sub, and local objects (`goubus.Client`)
+
+`*goubus.Client` runs a single reader goroutine over the Unix socket after the `HELLO` handshake:
+
+- **Concurrent `Call` and `List`:** multiple goroutines share one `*goubus.Client` safely. Cancelling one call's `ctx` abandons only that pending sequence number without closing the shared socket connection. When a cached object restarts on `ubusd` under a new numeric ID, `Call` and `Subscribe` automatically evict the stale ID, re-lookup, and retry once. `Client.Done()` and `Client.Err()` expose connection shutdown to reconnect loops.
+- **`Listen` and `SendEvent`:** `Listen(ctx, pattern, handler)` subscribes to the system event bus (`objid = 1`); passing `""` matches `"*"`. Each `*Subscription` buffers and delivers events sequentially on its own goroutine so slow handlers never stall socket reads. Call `sub.Close()` to unregister.
+- **`Subscribe`:** `Subscribe(ctx, object, handler)` attaches to notifications emitted by a named object. `sub.Done()` closes when `sub.Close()` is called, the client closes, or the target object is removed from `ubusd` (`UBUS_MSG_UNSUBSCRIBE`).
+- **`AddObject`:** `AddObject(ctx, ObjectDef{...})` publishes a named object and its `MethodSignature` policies on `ubusd`, with optional `OnSubscribe` state transitions and `RegisteredObject.Done()`. Each incoming invocation runs `MethodHandler` in its own goroutine with caller `User`/`Group` metadata, so handlers can invoke `client.Call` or `pub.Notify` re-entrantly without deadlocking. Returning a `*CallError` or root sentinel (`ErrInvalidParameter`, `ErrPermissionDenied`, ...) reports the corresponding wire status code to the caller.
+
+Remote Go programs that have SSH access to a router can dial `/tmp/run/ubus/ubus.sock` over `golang.org/x/crypto/ssh` and pass the resulting `net.Conn` to `goubus.NewClientFromConn` for full bidirectional ubus support without `uhttpd-mod-ubus`.
 
 ## Errors
 
 Errors fall into two groups:
 
-1. **A refusal reported by `ubusd` or `uhttpd-mod-ubus`.** Both transports check the ubus status before returning a `Result`. Any non-zero ubus status code (`1` through `10`), any JSON-RPC `error` object over HTTP, and any socket object lookup failure that maps to a ubus status returns a `*goubus.CallError` immediately, even when the caller never decodes a response body.
-2. **A transport, decoding, or caller condition.** Dial failures and non-2xx HTTP responses wrap `ErrConnectionFailed` (an invalid socket path in `NewSocketClient` also wraps `ErrNotUnixSocket`). Using a closed client returns `ErrClosed`. Malformed wire frames or JSON type mismatches wrap `ErrInvalidResponse`. Decoding an empty payload returns `ErrNoData`. Calling `List` on a `Caller` without `Lister` returns `ErrNotSupported`. Context expiration or cancellation preserves `ctx.Err()`.
+1. **A refusal reported by `ubusd` or `uhttpd-mod-ubus`.** Both clients check the status before returning a `Result`. Any non-zero ubus status code (`1`..`10`), any JSON-RPC `error` object over HTTP, and any socket lookup status failure returns `*goubus.CallError` immediately.
+2. **A transport, decoding, or caller condition.** Dial failures and non-2xx HTTP responses wrap `ErrConnectionFailed` (an invalid filesystem path in `goubus.NewClient` also wraps `ErrNotUnixSocket`). Per-request read timeouts wrap `ErrTimeout`. Using a closed client returns `ErrClosed`. Malformed wire frames or JSON type mismatches wrap `ErrInvalidResponse`. Decoding an empty payload returns `ErrNoData`. Context cancellation preserves `ctx.Err()` and `context.Cause(ctx)`.
 
-`*CallError` carries `Service`, `Method`, numeric `Code`, `Message` (when supplied by JSON-RPC), and the mapped sentinel `Err`. Its `Unwrap() []error` returns `[ErrCall, Err]`, so `errors.Is` matches both the general `ErrCall` class and the specific cause:
-
-```go
-err := uci.New(conn).Package("firewall").Commit(ctx)
-switch {
-case errors.Is(err, goubus.ErrPermissionDenied):
-	// rpcd ACL refused uci.commit
-case errors.Is(err, goubus.ErrNotFound):
-	// uci object or config package is missing
-case errors.Is(err, goubus.ErrCall):
-	// any other ubus or JSON-RPC refusal
-}
-
-if callErr, ok := errors.AsType[*goubus.CallError](err); ok {
-	log.Printf("service=%s method=%s code=%d msg=%q",
-		callErr.Service, callErr.Method, callErr.Code, callErr.Message)
-}
-```
-
-### Wire status mapping
+`*CallError` unwraps to `[ErrCall, Err]`:
 
 | ubus code | JSON-RPC code | Sentinel | Meaning |
 | --- | --- | --- | --- |
@@ -80,30 +78,14 @@ if callErr, ok := errors.AsType[*goubus.CallError](err); ok {
 | `9` (`StatusUnknown`) | other codes | `ErrUnknown` | Unclassified ubus or JSON-RPC error |
 | `10` (`StatusConnectionFailed`) | n/a | `ErrConnectionFailed` | Daemon failed to reach upstream component |
 
-### Context cancellation
+## Gateway session lifetime (`rpc.Client`)
 
-Every network or socket method honors `ctx`. The two transports differ in what happens to the connection after cancellation:
+`uhttpd-mod-ubus` reports `-32002 Access denied` both when the `rpcd` session expired/restarted and when ACLs deny the method. Because automatically re-logging in could conceal lost session state or uncommitted UCI staging, `rpc.Client.Call` returns `ErrPermissionDenied` without retrying. Active calls slide local session expiry forward by `rpcd`'s idle timeout, and `(*rpc.Client).Authenticate(ctx)` forces a fresh login when needed.
 
-- **`RPCClient`:** cancelling `ctx` aborts only the in-flight `http.Request`. The `RPCClient` and its cached `rpcd` session remain usable for later calls.
-- **`SocketClient`:** ubus socket frames travel sequentially over one stream connection. If `ctx` is cancelled while the client is blocked in the `HELLO` handshake or waiting for a call/lookup reply, `SocketClient` closes the underlying `net.Conn` via `context.AfterFunc` so the blocked read returns immediately with `ctx.Err()`. Once cancelled mid-flight, that `SocketClient` is closed and a new one must be opened.
-
-## Session lifetime and re-authentication
-
-`uhttpd-mod-ubus` reports `-32002 Access denied` both when the session was removed or `rpcd` restarted and when the user's ACL denies the operation. The SDK cannot distinguish those cases. Automatically logging in and replaying the call could lose session keys stored with `session.Set`, or conceal UCI staged changes lost during a restart. `RPCClient.Call` therefore returns `ErrPermissionDenied` without retrying the business call.
-
-`rpcd` treats the session timeout as an idle timeout and resets it when a valid session ID is used. After each successful `Call`, `RPCClient` moves its local expiry forward by the session timeout. Calls whose cached session has expired locally use a guarded login. `(*RPCClient).Authenticate(ctx)` is also available to force a login and replace the cached session, even before its local expiry.
-
-Monitoring programs that keep no state between requests and use an account with the required full permissions can opt into one retry on `ErrPermissionDenied`:
+Stateless monitoring programs can opt into automatic single re-authentication on `-32002` directly via `rpc.WithAutoReauth(true)` (deduplicated across concurrent callers), or apply custom policy via `CallMiddleware`:
 
 ```go
-import (
-	"context"
-	"errors"
-
-	"github.com/honeybbq/goubus/v2"
-)
-
-func reauthenticateOnPermissionDenied(client *goubus.RPCClient) goubus.CallMiddleware {
+func retryOnDenied(client *rpc.Client) goubus.CallMiddleware {
 	return func(next goubus.Caller) goubus.Caller {
 		return goubus.CallerFunc(func(ctx context.Context, service, method string, data any) (goubus.Result, error) {
 			result, err := next.Call(ctx, service, method, data)
@@ -118,77 +100,14 @@ func reauthenticateOnPermissionDenied(client *goubus.RPCClient) goubus.CallMiddl
 		})
 	}
 }
-
-caller := goubus.ChainMiddleware(client, reauthenticateOnPermissionDenied(client))
 ```
 
 ## Object discovery (`List`)
 
-`goubus.List(ctx, caller, patterns...)` inspects registered objects and their method argument signatures:
+`goubus.List(ctx, caller, patterns...)` normalizes `ubusd` numeric `blobmsg` type IDs and `uhttpd-mod-ubus` type strings into `ArgType` (`ArgTypeString`, `ArgTypeNumber`, `ArgTypeBoolean`, `ArgTypeArray`, `ArgTypeObject`, `ArgTypeUnknown`). Note that `ubus` only advertises input `blobmsg_policy` signatures on the bus, not return schemas.
 
-- Passing no patterns or `"*"` lists every visible object. Passing an empty string `""` returns `ErrInvalidParameter`.
-- `RPCClient.List` invokes the sessionless JSON-RPC `"list"` method.
-- `SocketClient.List` sends `UBUS_MSG_LOOKUP` frames, ignores `ErrNotFound` on literal patterns that are not registered (matching JSON-RPC `"list"`), and records each returned `objpath -> objid` entry in its lookup cache.
+## Logging, credentials, and API snapshots
 
-Wire argument types differ between `uhttpd-mod-ubus` (strings such as `"integer"`, `"int32"`, `"table"`, `"int8"`) and `ubusd` (numeric `blobmsg` type IDs). Both normalize to `ArgType`:
+Both `goubus.Client` and `rpc.Client` discard logs by default (`goubus.WithLogger`, `rpc.WithLogger`). `rpc.Client` redacts `password` and `ubus_rpc_session` in `String()`, `GoString()`, `LogValue()`, outgoing request debug logs, and `"session"` responses, and zeroes credentials on `Close()`.
 
-| `ArgType` | Wire inputs mapped |
-| --- | --- |
-| `ArgTypeString` (`"string"`) | `"string"`, `blobmsg` `STRING` |
-| `ArgTypeNumber` (`"number"`) | `"number"`, `"integer"`, `"int16"`, `"int32"`, `"int64"`, `"double"`, and the matching numeric `blobmsg` types |
-| `ArgTypeBoolean` (`"boolean"`) | `"boolean"`, `"bool"`, `"int8"`, `blobmsg` `INT8` |
-| `ArgTypeArray` (`"array"`) | `"array"`, `blobmsg` `ARRAY` |
-| `ArgTypeObject` (`"object"`) | `"object"`, `"table"`, `blobmsg` `TABLE` |
-| `ArgTypeUnknown` (`"unknown"`) | Unrecognized wire type names or IDs |
-
-`List` reports bus visibility, not authorization. Over HTTP JSON-RPC, `"list"` runs without a session token and shows every registered object, while `Call` checks the logged-in user's `rpcd` ACLs.
-
-## Firmware and wire differences
-
-Earlier alphas split services by router model (`profiles/x86_generic`, `profiles/cmcc_rax3000m`). In practice, ubus schemas follow the OpenWrt release and installed package versions (`luci-base`, `odhcpd`, `netifd`, `rpcd`), not the board PCB. Maintaining per-device packages duplicated all 15 clients and forced callers to hardcode hardware names in imports.
-
-`goubus` v2 keeps one package per ubus domain under `services/` and resolves differences from the wire response or runtime probing, verified against fixtures from OpenWrt 24.10.5 (`x86_generic`) and 25.12.0-rc1 (CMCC RAX3000M):
-
-| OpenWrt behavior | How `goubus` handles it |
-| --- | --- |
-| Booleans encoded as `true`/`false`, `1`/`0`, `"1"`/`"0"`, `"yes"`/`"no"`, or `"on"`/`"off"` | `goubus.Bool` decodes all forms (`""` and `null` as `false`) and marshals as a JSON boolean. |
-| Fields encoded as `"eth0"` in one call and `["eth0", "eth1"]` in another | `goubus.StringOrSlice` decodes both into `[]string` (`""` and `null` as `nil`); `.First()` returns the first element or `""`. |
-| Integer fields such as `PID`/`PPID` in `luci.getProcessList` returned as strings (`"1"`) or numbers (`1`) | `goubus.StringInt` decodes both into `int64` (`""` and `null` as `0`). |
-| Timestamps returned as Unix seconds (integer, float, or quoted number) or RFC3339 strings | `goubus.UnixTime` embeds `time.Time` (UTC) and marshals back as Unix seconds (`0` when zero). |
-| `luci` exposes `getLocaltime` on OpenWrt 24.10 and `getUnixtime` on 25.12 | `luci.Client.Time` tries `getUnixtime` first; on `ErrMethodNotFound`, `ErrInvalidCommand`, or `ErrPermissionDenied` it falls back to `getLocaltime` and caches whichever succeeded via atomic CAS. |
-| `luci.getFeatures` returns booleans on 24.10 (`"firewall": true`) and nested subfeature maps on 25.12 (`"dnsmasq": {"dhcpv6": true}`) | `luci.Feature` sets `Enabled = true` and populates `Subfeatures` when given an object, or decodes a scalar directly into `Enabled`. |
-| `dhcp.add_lease` expects `duid` as `[]string` on some `odhcpd` builds and `string` on others | When `AddLeaseRequest.DUID` is set, `dhcp.Client.AddLease` checks `goubus.List(ctx, caller, "dhcp")` first; if unavailable, it sends `[]string{duid}` and retries `duid` as a string only on `ErrInvalidParameter`, caching the format once a call succeeds. |
-| `dhcp` lease responses nest interfaces under `"device"` or `"interfaces"`, and `IPv6Lease` uses `"ip6addr"`, `"address"`, `"ipv6"`, or `"ipv6-addr"` | `dhcp` unwraps the outer container, stamps `Interface` onto each lease/RA struct, and normalizes all four IPv6 address keys into `IPAddr` and `Address`. `IPv6RA` accepts `"prefix"` as either an address string or a numeric prefix length. |
-| `network.interface.<name>` `status` may be absent while `network.interface` `dump` is available | `network.InterfaceContext.Status` calls `network.interface.<name>.status` first and falls back to matching `<name>` in `DumpInterfaces`. |
-| UCI `option` (scalar) vs `list` (array) values must round-trip without losing single-item list types | `uci.SectionValues` tracks scalar vs list kinds separately; use `SetList` to keep a one-element UCI `list` serialized as a JSON array. |
-
-When you already know the target firmware's behavior and want to skip probing, pin it at construction time:
-
-```go
-luciClient := luci.New(conn, luci.WithTimeMethod(luci.TimeMethodLocaltime))
-dhcpClient := dhcp.New(conn, dhcp.WithDUIDFormat(dhcp.DUIDString))
-```
-
-All `Option` interfaces (`RPCOption`, `SocketOption`, `luci.Option`, `dhcp.Option`) are sealed with unexported methods so new internal fields can be added without breaking callers.
-
-## Logging and credentials
-
-Both transports discard logs by default. Pass `WithRPCLogger(logger)` or `WithSocketLogger(logger)` to emit `log/slog` records.
-
-Credential redaction covers the RPC session lifecycle:
-
-- `RPCClient.String()`, `GoString()`, and `LogValue()` format `password` and `ubus_rpc_session` as `"<redacted>"`.
-- `RPCClient` debug logs always redact outgoing JSON-RPC request bodies (which carry the session ID and, during login, the password) and redact responses to any call on the `"session"` service.
-- `RPCClient.Close()` clears `password` and `sessionData` in memory and sends `session.destroy`.
-
-Debug logging is not a general-purpose secret scrubber: non-`"session"` RPC response previews (capped at 512 bytes) and `SocketClient` debug logs (truncated JSON and hex frame previews) include ordinary ubus payloads, which can contain Wi-Fi keys, PPPoE passwords, or UCI secrets when querying those objects. Keep debug logs out of shared outputs unless reviewed, use HTTPS for remote `RPCClient` connections, and do not embed credentials in URLs.
-
-## Stability and API snapshots
-
-Every public package's exported surface is recorded in `api/*.txt`. Running `go run ./internal/tools/apidump -check` fails if any exported constant, function, type, struct field, or method drifts from the snapshot, or if an exported signature leaks an `internal/` or unexported type. Both CI and the release workflow enforce this check alongside `doc_coverage_test.go`, which requires a GoDoc comment on every exported declaration, field, and method.
-
-When changing the public API intentionally, refresh the snapshot and commit the diff in `api/*.txt` together with the code:
-
-```sh
-go run ./internal/tools/apidump
-```
+Public APIs are locked in `api/goubus.txt` and `api/rpc.txt` via `go run ./internal/tools/apidump -check`, enforced alongside `internal/tools/apidump` GoDoc coverage checks and `golangci-lint` (`gofumpt`, `gci`, `decorder`, `funcorder`) in CI.

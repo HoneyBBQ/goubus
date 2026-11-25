@@ -30,17 +30,6 @@ jobs:
         # yamllint enable rule:line-length
         with:
           version: v2.15.0
-      - name: Verify version matches tag
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: |
-          version="$(sed -n 's/^const Version = "\([^"]*\)"/\1/p' version.go)"
-          tag_version="${RELEASE_TAG#v}"
-          if [ "$version" != "$tag_version" ]; then
-            printf 'Version/tag mismatch:\n' >&2
-            printf '  version.go: %s; tag: %s\n' "$version" "$RELEASE_TAG" >&2
-            exit 1
-          fi
       - name: Verify build
         run: go build ./...
       - name: Run tests

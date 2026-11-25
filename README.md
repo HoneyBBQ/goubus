@@ -1,8 +1,8 @@
 <h1 align="center">goubus</h1>
 
 <p align="center">
-  <strong>OpenWrt ubus client in pure Go, over Unix sockets and HTTP JSON-RPC.</strong><br>
-  For OpenWrt 24.10 and 25.12. No CGO, no third-party dependencies.
+  <strong>Pure-Go OpenWrt <code>ubus</code> protocol library — full-duplex native Unix domain sockets, plus an optional HTTP/HTTPS JSON-RPC gateway subpackage.</strong><br>
+  Zero CGO · Zero third-party dependencies · MIPS / ARM / x86
 </p>
 
 <p align="center">
@@ -19,26 +19,33 @@
   <a href="https://pkg.go.dev/github.com/honeybbq/goubus/v2">Docs</a> ·
   <a href="docs/architecture.md">Architecture</a> ·
   <a href="docs/design.md">Design</a> ·
-  <a href="examples/">Examples</a> ·
   <a href="CHANGELOG.md">Changelog</a> ·
   <a href="README_CN.md">中文文档</a>
 </p>
 
-## Why this library
+## Overview
 
-- **Local socket and remote JSON-RPC.** Talk directly to `ubusd` on the router over `/tmp/run/ubus/ubus.sock` with a pure-Go binary `blobmsg` codec, or manage a router from outside over HTTP/HTTPS through `uhttpd-mod-ubus` and `rpcd`. No CGO and no third-party dependencies.
-- **15 independent typed service packages.** Each ubus domain lives in its own `services/<pkg>` package with no cross-service imports, so a binary only compiles the services it imports.
-- **Runtime handling of OpenWrt release differences.** OpenWrt 24.10's `luci` object exposes `getLocaltime`, while 25.12 exposes `getUnixtime`; `luci.Client.Time` probes and caches the working method, or `luci.WithTimeMethod` pins it. `dhcp.Client.AddLease` reads the router's `ubus list` signature to send `duid` as an array or string. `Bool`, `StringOrSlice`, `StringInt`, and `UnixTime` decode fields whose JSON types vary across daemons.
-- **One-line generic calls for custom objects.** Third-party OpenWrt packages that have no typed package in `services/` (such as `mwan3` or `banip`) run on the same `Caller` through `goubus.Call[T]`.
-- **Signature inspection and standard Go errors.** `goubus.List` reads object and method argument types in one normalized format over both transports. Non-zero ubus statuses and JSON-RPC refusals return `*goubus.CallError` before payload decoding, matching sentinels like `goubus.ErrNotFound` and `goubus.ErrPermissionDenied` via `errors.Is`.
+OpenWrt's `ubusd` speaks binary `blobmsg` frames over a local Unix domain socket (`package goubus`), while remote HTTP/HTTPS JSON-RPC access is served by OpenWrt's `uhttpd-mod-ubus` + `rpcd` web gateway (`package rpc`):
+
+- **Full-duplex multiplexed native `ubus` (`goubus`).** Connect directly to `/tmp/run/ubus/ubus.sock` with `goubus.NewClient` (or any `net.Conn`, such as an SSH-forwarded socket, via `NewClientFromConn`). Concurrent `Call` and `List` requests multiplex by sequence ID over one connection without head-of-line blocking, and on-router binaries never link `net/http` or `crypto/tls`.
+- **Events, subscriptions, and Go `ubus` objects (`goubus`).** Broadcast and listen to system events (`SendEvent`, `Listen`), subscribe to object notifications (`Subscribe`), and publish Go methods onto `ubusd` (`AddObject`, `RegisteredObject.Notify`) in pure Go without `libubus` or CGO.
+- **Remote HTTP/HTTPS JSON-RPC gateway (`goubus/v2/rpc`).** Manage routers from external hosts via `rpc.NewClient`, with automatic `rpcd` session login, sliding idle expiry, explicit `Authenticate`, and credential redaction—implementing the exact same `goubus.Transport` and `goubus.Lister` interfaces.
+- **Wire-first errors and signature introspection.** Non-zero ubus statuses (`1`..`10`) and JSON-RPC errors return `*goubus.CallError` before payload decoding, and `goubus.List` normalizes argument signatures into `ArgType`.
+
+## Packages
+
+| Import path | Role |
+| --- | --- |
+| `github.com/honeybbq/goubus/v2` | Native UDS `Client` (`Call`, `List`, `Ping`, `Listen`, `SendEvent`, `Subscribe`, `AddObject`), `Caller` / `Transport` / `Call[T]`, and `*CallError` & status sentinels |
+| `github.com/honeybbq/goubus/v2/rpc` | Remote HTTP/HTTPS JSON-RPC 2.0 `Client` for `uhttpd-mod-ubus` and `rpcd` (`Transport` + `Lister`) |
 
 ## Install
 
 ```sh
-go get github.com/honeybbq/goubus/v2@v2.0.0-beta.1
+go get github.com/honeybbq/goubus/v2@latest
 ```
 
-2.0 is in beta: `go get` without a version skips pre-releases unless you name one. Go 1.26 or newer is required. Upgrading from `v2.0.0-alpha1` or `v2.0.0-alpha2`? See the [migration table in CHANGELOG.md](CHANGELOG.md#migrating-from-v200-alpha1-and-v200-alpha2).
+Requires Go 1.26 or newer.
 
 ## Quick start
 
@@ -53,8 +60,16 @@ import (
 	"time"
 
 	"github.com/honeybbq/goubus/v2"
-	"github.com/honeybbq/goubus/v2/services/system"
+	"github.com/honeybbq/goubus/v2/rpc"
 )
+
+type boardInfo struct {
+	Model   string `json:"model"`
+	Release struct {
+		Version  string `json:"version"`
+		Revision string `json:"revision"`
+	} `json:"release"`
+}
 
 func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -65,17 +80,16 @@ func main() {
 		err  error
 	)
 	if host := os.Getenv("UBUS_URL"); host != "" {
-		conn, err = goubus.NewRPCClient(ctx, host, os.Getenv("UBUS_USER"), os.Getenv("UBUS_PASSWORD"))
+		conn, err = rpc.NewClient(ctx, host, os.Getenv("UBUS_USER"), os.Getenv("UBUS_PASSWORD"))
 	} else {
-		conn, err = goubus.NewSocketClient(ctx, "")
+		conn, err = goubus.NewClient(ctx, "")
 	}
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer func() { _ = conn.Close() }()
 
-	sys := system.New(conn)
-	board, err := sys.Board(ctx)
+	board, err := goubus.Call[boardInfo](ctx, conn, "system", "board", nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -85,154 +99,105 @@ func main() {
 
 ## Usage
 
-### Connecting: on-router socket vs remote RPC
-
-When your Go binary runs on the router itself, connect to `ubusd` over the local Unix socket. Passing `""` uses `/tmp/run/ubus/ubus.sock`:
+### Calling methods and inspecting signatures
 
 ```go
-conn, err := goubus.NewSocketClient(ctx, "")
+type wanStatus struct {
+	Proto  string   `json:"proto"`
+	DNS    []string `json:"dns-server"`
+	Up     bool     `json:"up"`
+	Uptime int64    `json:"uptime"`
+}
+
+wan, err := goubus.Call[wanStatus](ctx, conn, "network.interface.wan", "status", nil)
+
+// Status-only call with no response body:
+_, err = conn.Call(ctx, "uci", "commit", map[string]any{"config": "network"})
+
+// Introspect registered objects and argument types (ubus -v list):
+sigs, err := goubus.List(ctx, conn, "uci")
+```
+
+### Events, subscriptions, and publishing Go objects (native UDS)
+
+```go
+sock, err := goubus.NewClient(ctx, "")
 if err != nil {
 	return err
 }
-defer conn.Close()
-```
+defer sock.Close()
 
-When your program runs on another machine, connect to `uhttpd-mod-ubus` over HTTP or HTTPS. If the URL has no path, `NewRPCClient` uses `/ubus`, logs in through `session.login`, refreshes the `rpcd` session when its idle timeout expires, and calls `session.destroy` on `Close`. `Call` returns `ErrPermissionDenied` without retrying; call `Authenticate(ctx)` to force a fresh login.
-
-```go
-conn, err := goubus.NewRPCClient(ctx, "https://192.168.1.1", "root", os.Getenv("UBUS_PASSWORD"))
+// Listen to broadcast events (ubus listen) and emit one (ubus send):
+evSub, err := sock.Listen(ctx, "network.interface", func(ev goubus.Event) {
+	log.Printf("event %s: %s", ev.Type, ev.Data)
+})
 if err != nil {
 	return err
 }
-defer conn.Close()
-```
+defer evSub.Close()
 
-Both `*SocketClient` and `*RPCClient` implement `goubus.Transport` (`Caller` plus `Close`). Service clients accept `goubus.Caller` and never close the underlying transport.
+_ = sock.SendEvent(ctx, "custom.ready", map[string]any{"ok": true})
 
-### Typed service packages (`services/<pkg>`)
-
-Import only the `services/<pkg>` packages your program calls; unused services stay out of the binary, and multiple clients can share one `Caller`:
-
-```go
-import (
-	"github.com/honeybbq/goubus/v2/services/luci"
-	"github.com/honeybbq/goubus/v2/services/network"
-	"github.com/honeybbq/goubus/v2/services/system"
-)
-
-sys := system.New(conn)
-netClient := network.New(conn)
-luciClient := luci.New(conn)
-
-info, err := sys.Info(ctx)
+// Publish a pure-Go ubus object onto ubusd:
+obj, err := sock.AddObject(ctx, goubus.ObjectDef{
+	Name: "myapp.greeter",
+	Methods: map[string]goubus.Method{
+		"hello": {
+			Policy: goubus.MethodSignature{"name": goubus.ArgTypeString},
+			Handler: func(ctx context.Context, req goubus.CallRequest) (any, error) {
+				var in struct {
+					Name string `json:"name"`
+				}
+				if err := req.Unmarshal(&in); err != nil {
+					return nil, goubus.ErrInvalidParameter
+				}
+				return map[string]any{"greeting": "Hello, " + in.Name}, nil
+			},
+		},
+	},
+})
 if err != nil {
 	return err
 }
-wan, err := netClient.Interface("wan").Status(ctx)
+defer obj.Close()
 ```
 
-Reuse `*luci.Client` and `*dhcp.Client` instances across calls on the same router connection so their runtime probes (`luci` time method and `dhcp.add_lease` DUID format) stay cached.
-
-### Handling errors
-
-Every non-zero ubus status (`1` to `10`) and every JSON-RPC error response returns a `*goubus.CallError` before any response JSON is decoded. Match causes with `errors.Is` and read wire details with `errors.AsType`:
+### Error handling
 
 ```go
-wan, err := netClient.Interface("wan6").Status(ctx)
+_, err := conn.Call(ctx, "network.interface.wan6", "status", nil)
 switch {
 case errors.Is(err, goubus.ErrNotFound):
-	// ubus object or interface does not exist
+	// ubus object or target resource does not exist
 case errors.Is(err, goubus.ErrPermissionDenied):
-	// rpcd ACL denied the session
+	// denied by ubusd or rpcd ACL
 case err != nil:
 	if callErr, ok := errors.AsType[*goubus.CallError](err); ok {
-		log.Printf("%s.%s failed with code %d (%s)",
+		log.Printf("%s.%s failed: code=%d msg=%q",
 			callErr.Service, callErr.Method, callErr.Code, callErr.Message)
 	}
 	return err
 }
-_ = wan
 ```
-
-### Calling third-party ubus objects
-
-OpenWrt packages outside the 15 built-in services (for example `mwan3`, `banip`, or custom `rpcd` scripts) work directly with `goubus.Call[T]`:
-
-```go
-type Mwan3Interface struct {
-	Status string      `json:"status"`
-	Online int         `json:"online"`
-	Up     goubus.Bool `json:"up"`
-}
-
-type Mwan3Status struct {
-	Interfaces map[string]Mwan3Interface `json:"interfaces"`
-}
-
-mwan, err := goubus.Call[Mwan3Status](ctx, conn, "mwan3", "status", map[string]any{
-	"section": "interfaces",
-})
-```
-
-For methods that return only a ubus status code and no payload, call `_, err := conn.Call(ctx, "system", "reboot", nil)`.
-
-### Inspecting objects with `List`
-
-`goubus.List` queries visible objects and their argument types (`string`, `number`, `boolean`, `array`, `object`, `unknown`) on either transport:
-
-```go
-objects, err := goubus.List(ctx, conn, "dhcp")
-if err != nil {
-	return err
-}
-fmt.Println(objects["dhcp"]["add_lease"]) // map[duid:array ip:string ...]
-```
-
-`List` reports what `ubusd` registers on the bus; over HTTP JSON-RPC, calling a listed method still requires `rpcd` ACL access for the authenticated session.
-
-## Packages
-
-| Import | ubus objects | What it covers |
-| --- | --- | --- |
-| `github.com/honeybbq/goubus/v2` | any | `SocketClient`, `RPCClient`, `Caller`, `Call[T]`, `List`, `*CallError`, status sentinels, `Bool`, `StringOrSlice`, `StringInt`, `UnixTime` |
-| `github.com/honeybbq/goubus/v2/services/container` | `container` | Procd container instances, state, features, and console |
-| `github.com/honeybbq/goubus/v2/services/dhcp` | `dhcp` | `odhcpd` / `dnsmasq` IPv4 and IPv6 leases, IPv6 RA prefixes, and `add_lease` |
-| `github.com/honeybbq/goubus/v2/services/file` | `file` | File read/write, directory listings, `stat`/`lstat`, MD5, and command execution |
-| `github.com/honeybbq/goubus/v2/services/hostapd` | `hostapd`, `hostapd.*` | AP status, associated stations, client deauth/ban, and channel switch |
-| `github.com/honeybbq/goubus/v2/services/log` | `log` | Reading `logd` ring buffer entries and writing syslog events |
-| `github.com/honeybbq/goubus/v2/services/luci` | `luci`, `luci-rpc` | LuCI version, time, processes, mounts, block/USB devices, LEDs, board JSON, network/wireless devices, host hints, and leases |
-| `github.com/honeybbq/goubus/v2/services/network` | `network`, `network.device`, `network.interface*`, `network.wireless` | `netifd` interfaces, devices, host routes, protocol handlers, and radio control |
-| `github.com/honeybbq/goubus/v2/services/rc` | `rc` | `/etc/init.d` script state and actions (`start`, `stop`, `restart`, `enable`, `disable`) |
-| `github.com/honeybbq/goubus/v2/services/rpcsys` | `rpc-sys` | Installed package list, password changes, factory reset, and sysupgrade stages |
-| `github.com/honeybbq/goubus/v2/services/service` | `service` | `procd` service definitions, instances, state, signals, and watchdogs |
-| `github.com/honeybbq/goubus/v2/services/session` | `session` | `rpcd` session login, creation, key-value storage, and ACL grants |
-| `github.com/honeybbq/goubus/v2/services/system` | `system` | Board metadata, uptime/memory/storage info, watchdog, signals, image validation, and sysupgrade |
-| `github.com/honeybbq/goubus/v2/services/uci` | `uci` | Reading, staging, applying, confirming, and reverting `/etc/config/*` sections and options |
-| `github.com/honeybbq/goubus/v2/services/wireless` | `iwinfo` | Wireless devices, radio info, SSID scans, station assoclists, frequencies, TX power, and channel survey |
-| `github.com/honeybbq/goubus/v2/services/wpasupplicant` | `wpa_supplicant`, `wpa_supplicant.*` | Station interface status, reconfiguration, WPS, and control commands |
 
 ## Documentation
 
-The full API reference is on [pkg.go.dev](https://pkg.go.dev/github.com/honeybbq/goubus/v2).
+Full API reference: [pkg.go.dev/github.com/honeybbq/goubus/v2](https://pkg.go.dev/github.com/honeybbq/goubus/v2).
 
-- [Architecture](docs/architecture.md): package tree, dependency rules, and how `RPCClient` and `SocketClient` execute calls on the wire.
-- [Design](docs/design.md): ownership (`Caller` vs `Transport`), middleware, `*CallError` mapping, `List` normalization, OpenWrt 24.10/25.12 quirks, credential redaction, and `api/*.txt` snapshots.
-- [Examples](examples/): standalone programs for `system`, `network`, `uci`, `file`, `service`, `session`, and transport benchmarks.
-- [Changelog](CHANGELOG.md): release history and the migration guide from `v2.0.0-alpha1` / `v2.0.0-alpha2`.
+- [Architecture](docs/architecture.md): native UDS vs `uhttpd-mod-ubus` gateway split, package layout, and wire paths.
+- [Design](docs/design.md): ownership, multiplexing, events/objects, `*CallError` mapping, gateway sessions, and API snapshots.
+- [Changelog](CHANGELOG.md): release notes and version history.
 
 ## Compatibility
 
-| Target | Tested against |
+| Target | Verified against |
 | --- | --- |
-| OpenWrt 24.10 | Live OpenWrt `24.10` container in CI (Unix socket, HTTP RPC, and HTTPS RPC) plus captured JSON and binary `blobmsg` fixtures from `x86/64` generic (`24.10.5`). |
-| OpenWrt 25.12 | Live OpenWrt `25.12` container in CI (Unix socket, HTTP RPC, and HTTPS RPC) plus captured JSON and binary `blobmsg` fixtures from CMCC RAX3000M (`25.12.0-rc1`). |
-| Go | 1.26 and newer (CI runs Go 1.26 and 1.27 plus `linux/mipsle`, `linux/arm`, `linux/386`, and `linux/arm64` cross-builds); pure Go, no CGO. |
-
-Which ubus objects exist on a router depends on its installed OpenWrt packages (`rpcd-mod-file`, `rpcd-mod-iwinfo`, `luci-base`, `odhcpd`, and others). Over HTTP JSON-RPC, each call is also subject to the `rpcd` ACLs of the logged-in user.
+| OpenWrt 21.02 – 25.12 | Live `21.02`, `22.03`, `23.05`, `24.10`, and `25.12` containers in parallel CI (multiplexed Unix socket, `Listen`/`SendEvent`, `AddObject`/`Subscribe`, HTTP RPC, and HTTPS RPC) plus binary `blobmsg` corpus. |
+| Go | 1.26 and newer (CI tests Go 1.26 and 1.27 and cross-builds `linux/mipsle`, `linux/arm`, `linux/386`, and `linux/arm64`); pure Go, no CGO. |
 
 ## Contributing
 
-See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for local setup and CI checks, and [Contributing test data](docs/CONTRIBUTING_DATA.md) to submit `ubus call` / `ubus -v list` captures from another OpenWrt target or release.
+See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for local setup, formatting (`golangci-lint fmt`), API snapshot checks, and running the live OpenWrt container suite.
 
 ## License
 
