@@ -10,6 +10,7 @@ import (
 	"maps"
 	"math"
 	"os"
+	"reflect"
 
 	"github.com/honeybbq/goubus/v2/internal/errs"
 )
@@ -192,10 +193,11 @@ func NormalizeArgs(data any) (map[string]any, error) {
 
 	switch value := data.(type) {
 	case map[string]any:
-		dst := make(map[string]any, len(value))
-		maps.Copy(dst, value)
+		if len(value) == 0 {
+			return make(map[string]any), nil
+		}
 
-		return dst, nil
+		return maps.Clone(value), nil
 	case string:
 		return decodeJSONMap([]byte(value))
 	case []byte:
@@ -229,12 +231,10 @@ func decodeJSONMap(raw []byte) (map[string]any, error) {
 
 func ReadUint(value any) (uint32, bool) {
 	switch value := value.(type) {
-	case uint8, uint16, uint32:
-		return readUnsigned(value)
-	case uint64:
-		return readUint64(value)
-	case int, int32, int64:
-		return readSigned(value)
+	case uint, uint8, uint16, uint32, uint64:
+		return readUint64(reflect.ValueOf(value).Uint())
+	case int, int8, int16, int32, int64:
+		return readInt64(reflect.ValueOf(value).Int())
 	case float64:
 		return readFloat64(value)
 	case json.Number:
@@ -252,6 +252,14 @@ func readUint64(value uint64) (uint32, bool) {
 	return 0, false
 }
 
+func readInt64(value int64) (uint32, bool) {
+	if value >= 0 && value <= math.MaxUint32 {
+		return uint32(value), true
+	}
+
+	return 0, false
+}
+
 func readFloat64(value float64) (uint32, bool) {
 	if value >= 0 && value <= math.MaxUint32 && value == math.Trunc(value) {
 		return uint32(value), true
@@ -263,46 +271,12 @@ func readFloat64(value float64) (uint32, bool) {
 func readJSONNumber(value json.Number) (uint32, bool) {
 	i, err := value.Int64()
 	if err == nil {
-		return readSigned(i)
+		return readInt64(i)
 	}
 
 	f, err := value.Float64()
 	if err == nil {
 		return readFloat64(f)
-	}
-
-	return 0, false
-}
-
-func readUnsigned(value any) (uint32, bool) {
-	switch val := value.(type) {
-	case uint8:
-		return uint32(val), true
-	case uint16:
-		return uint32(val), true
-	case uint32:
-		return val, true
-	default:
-		return 0, false
-	}
-}
-
-func readSigned(value any) (uint32, bool) {
-	var i64 int64
-
-	switch val := value.(type) {
-	case int:
-		i64 = int64(val)
-	case int32:
-		i64 = int64(val)
-	case int64:
-		i64 = val
-	default:
-		return 0, false
-	}
-
-	if i64 >= 0 && i64 <= math.MaxUint32 {
-		return uint32(i64), true
 	}
 
 	return 0, false

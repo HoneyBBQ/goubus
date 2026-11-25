@@ -267,7 +267,7 @@ func (c *Client) AddObject(ctx context.Context, def ObjectDef) (*RegisteredObjec
 
 	objCtx, objCancel := context.WithCancel(context.WithoutCancel(ctx))
 	pub := newRegisteredObject(objCtx, objCancel, c, def.Name, def.OnSubscribe)
-	frames, status, err := c.registerNamedObject(ctx, body, def.Name, handlers, pub)
+	status, err := c.registerNamedObject(ctx, body, def.Name, handlers, pub)
 	if err != nil {
 		pub.abortRegistration(c)
 
@@ -278,15 +278,10 @@ func (c *Client) AddObject(ctx context.Context, def ObjectDef) (*RegisteredObjec
 
 		return nil, &CallError{Err: StatusError(int(status)), Service: def.Name, Method: "add_object", Code: int(status)}
 	}
-
 	if pub.ID() == 0 {
-		objID, ok := extractRegisteredObjID(frames)
-		if !ok {
-			pub.abortRegistration(c)
+		pub.abortRegistration(c)
 
-			return nil, errs.Wrapf(ErrInvalidResponse, "add_object response missing objid")
-		}
-		c.installNamedObject(objID, def.Name, handlers, pub)
+		return nil, errs.Wrapf(ErrInvalidResponse, "add_object response missing objid")
 	}
 	if def.OnSubscribe != nil {
 		go pub.watchSubscribers(objCtx, def.OnSubscribe)
@@ -301,8 +296,8 @@ func (c *Client) registerNamedObject(
 	name string,
 	handlers map[string]MethodHandler,
 	pub *RegisteredObject,
-) ([]map[string]any, uint32, error) {
-	return c.sendRequestWithHook(
+) (uint32, error) {
+	_, status, err := c.sendRequestWithHook(
 		ctx,
 		"ubus add_object",
 		blobmsg.UbusMsgAddObject,
@@ -314,6 +309,8 @@ func (c *Client) registerNamedObject(
 			}
 		},
 	)
+
+	return status, err
 }
 
 func (c *Client) installNamedObject(
@@ -337,12 +334,7 @@ func (c *Client) installNamedObject(
 }
 
 func (c *Client) sendRemoveObject(ctx context.Context, objID uint32) error {
-	body, err := blobmsg.CreateBlobMessage(map[uint32]any{
-		blobmsg.UbusAttrObjID: objID,
-	}, []uint32{blobmsg.UbusAttrObjID})
-	if err != nil {
-		return err
-	}
+	body := blobmsg.EncodeUintAttributes([2]uint32{blobmsg.UbusAttrObjID, objID})
 
 	_, status, err := c.sendRequest(ctx, "ubus remove_object", blobmsg.UbusMsgRemoveObject, 0, body)
 	if err != nil {
@@ -416,14 +408,4 @@ func createNotifyBody(objID uint32, method string, args map[string]any) ([]byte,
 		blobmsg.UbusAttrMethod,
 		blobmsg.UbusAttrData,
 	})
-}
-
-func extractRegisteredObjID(frames []map[string]any) (uint32, bool) {
-	for _, frame := range frames {
-		if id, ok := blobmsg.ReadUint(frame["objid"]); ok {
-			return id, true
-		}
-	}
-
-	return 0, false
 }

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"math"
-	"strings"
 
 	"github.com/honeybbq/goubus/v2/internal/errs"
 )
@@ -131,7 +130,7 @@ func ParseBlobmsgEntry(blobType uint32, payload []byte) (string, any, error) {
 	}
 
 	nameBytes := payload[Uint16Size : Uint16Size+nameLen]
-	name := strings.TrimRight(string(nameBytes), "\x00")
+	name := string(bytes.TrimRight(nameBytes, "\x00"))
 	valueData := payload[headerLen:]
 	if blobType == TypeUnspec {
 		return name, nil, nil

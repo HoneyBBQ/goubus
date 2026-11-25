@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"log/slog"
@@ -57,9 +58,7 @@ func NewClient(ctx context.Context, host, username, password string, opts ...Opt
 			opt.apply(client)
 		}
 	}
-	if client.httpClient == nil {
-		client.httpClient = &http.Client{Timeout: defaultTimeout}
-	}
+	client.httpClient = cmp.Or(client.httpClient, &http.Client{Timeout: defaultTimeout})
 
 	endpoint, err := normalizeEndpoint(host, client.endpoint)
 	if err != nil {
@@ -179,9 +178,5 @@ func (c *Client) isClosed() bool {
 }
 
 func normalizeContext(ctx context.Context) context.Context {
-	if ctx == nil {
-		return context.Background()
-	}
-
-	return ctx
+	return cmp.Or(ctx, context.Background())
 }

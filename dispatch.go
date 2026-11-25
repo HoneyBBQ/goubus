@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"maps"
+	"slices"
 
 	"github.com/honeybbq/goubus/v2/internal/blobmsg"
 )
@@ -89,16 +90,12 @@ func (c *Client) runMethodHandler(
 		return
 	}
 
-	var replyData map[string]any
-	if resp != nil {
-		normalized, normErr := blobmsg.NormalizeArgs(resp)
-		if normErr != nil {
-			c.logger.Debug("marshal object handler response failed", slog.Any("error", normErr))
-			c.sendInvokeReply(callerPeer, callerSeq, objID, nil, StatusInvalidParameter)
+	replyData, normErr := blobmsg.NormalizeArgs(resp)
+	if normErr != nil {
+		c.logger.Debug("marshal object handler response failed", slog.Any("error", normErr))
+		c.sendInvokeReply(callerPeer, callerSeq, objID, nil, StatusInvalidParameter)
 
-			return
-		}
-		replyData = normalized
+		return
 	}
 	c.sendInvokeReply(callerPeer, callerSeq, objID, replyData, StatusOK)
 }
@@ -113,22 +110,16 @@ func (c *Client) sendInvokeReply(peer uint32, seq uint16, objID uint32, data map
 				blobmsg.UbusAttrData:  encoded,
 			}, []uint32{blobmsg.UbusAttrObjID, blobmsg.UbusAttrData})
 			if bodyErr == nil {
-				dataFrame, _ = encodeWireFrame(blobmsg.UbusMsgData, seq, peer, body)
+				dataFrame = encodeWireFrame(blobmsg.UbusMsgData, seq, peer, body)
 			}
 		}
 	}
 
-	statusBody, err := blobmsg.CreateBlobMessage(map[uint32]any{
-		blobmsg.UbusAttrStatus: status,
-		blobmsg.UbusAttrObjID:  objID,
-	}, []uint32{blobmsg.UbusAttrStatus, blobmsg.UbusAttrObjID})
-	if err != nil {
-		return
-	}
-	statusFrame, err := encodeWireFrame(blobmsg.UbusMsgStatus, seq, peer, statusBody)
-	if err != nil {
-		return
-	}
+	statusBody := blobmsg.EncodeUintAttributes(
+		[2]uint32{blobmsg.UbusAttrStatus, status},
+		[2]uint32{blobmsg.UbusAttrObjID, objID},
+	)
+	statusFrame := encodeWireFrame(blobmsg.UbusMsgStatus, seq, peer, statusBody)
 
 	c.writeMu.Lock()
 	defer c.writeMu.Unlock()
@@ -189,10 +180,7 @@ func (c *Client) removeLocalObject(objID uint32) {
 
 func (c *Client) shutdownLocalObjects() {
 	c.localMu.Lock()
-	snapshot := make([]*localObject, 0, len(c.localObjects))
-	for _, loc := range c.localObjects {
-		snapshot = append(snapshot, loc)
-	}
+	snapshot := slices.Collect(maps.Values(c.localObjects))
 	clear(c.localObjects)
 	c.localMu.Unlock()
 
@@ -211,9 +199,7 @@ func marshalAttrData(raw any) json.RawMessage {
 	if !ok || len(mapped) == 0 {
 		return nil
 	}
-	cloned := make(map[string]any, len(mapped))
-	maps.Copy(cloned, mapped)
-	encoded, err := json.Marshal(cloned)
+	encoded, err := json.Marshal(maps.Clone(mapped))
 	if err != nil {
 		return nil
 	}

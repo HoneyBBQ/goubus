@@ -32,6 +32,14 @@ func TestCallErrorUnwrapTree(t *testing.T) {
 	if got := (&goubus.CallError{Method: "list", Code: 1}).Error(); got != "ubus list failed (code 1): <nil>" {
 		t.Errorf("Error() without service = %q", got)
 	}
+	withMsg := (&goubus.CallError{Method: "list", Message: "denied", Code: 6}).Error()
+	if withMsg != "ubus list failed (code 6: denied): <nil>" {
+		t.Errorf("Error() without service with message = %q", withMsg)
+	}
+	noMsg := (&goubus.CallError{Service: "uci", Method: "get", Err: goubus.ErrNotFound, Code: 4}).Error()
+	if noMsg != "ubus call uci.get failed (code 4): not found" {
+		t.Errorf("Error() without message = %q", noMsg)
+	}
 }
 
 func TestStatusErrorMapping(t *testing.T) {

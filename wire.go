@@ -1,8 +1,9 @@
 package goubus
 
 import (
-	"bytes"
+	"cmp"
 	"context"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -60,11 +61,7 @@ func (c *Client) sendRequestWithHook(
 	}
 	defer c.unregisterPending(seq)
 
-	frame, err := encodeWireFrame(msgType, seq, peer, body)
-	if err != nil {
-		return nil, 0, err
-	}
-
+	frame := encodeWireFrame(msgType, seq, peer, body)
 	writeErr := c.writeFrame(frame, msgType, seq, body)
 	if writeErr != nil {
 		return nil, 0, writeErr
@@ -239,6 +236,9 @@ func (c *Client) writeFrame(frame []byte, msgType uint8, seq uint16, body []byte
 
 	err := c.writeLocked(frame)
 	if err != nil {
+		if c.isClosed() {
+			return c.closedReason()
+		}
 		_ = c.closeWithError(err)
 
 		return err
@@ -268,23 +268,14 @@ func (c *Client) writeLocked(frame []byte) error {
 	return nil
 }
 
-func encodeWireFrame(msgType uint8, seq uint16, peer uint32, body []byte) ([]byte, error) {
-	var buf bytes.Buffer
-	header := &blobmsg.UbusMessageHeader{
-		Version: 0,
-		Type:    msgType,
-		Seq:     seq,
-		Peer:    peer,
-	}
-	err := blobmsg.EncodeHeader(&buf, header)
-	if err != nil {
-		return nil, errs.Wrapf(ErrInvalidParameter, "encode header: %v", err)
-	}
-	if len(body) > 0 {
-		_, _ = buf.Write(body)
-	}
+func encodeWireFrame(msgType uint8, seq uint16, peer uint32, body []byte) []byte {
+	frame := make([]byte, blobmsg.HeaderBytes+len(body))
+	frame[1] = msgType
+	binary.BigEndian.PutUint16(frame[2:4], seq)
+	binary.BigEndian.PutUint32(frame[4:8], peer)
+	copy(frame[blobmsg.HeaderBytes:], body)
 
-	return buf.Bytes(), nil
+	return frame
 }
 
 func deadlineFromTimeout(timeout time.Duration) time.Time {
@@ -296,11 +287,7 @@ func deadlineFromTimeout(timeout time.Duration) time.Time {
 }
 
 func normalizeContext(ctx context.Context) context.Context {
-	if ctx == nil {
-		return context.Background()
-	}
-
-	return ctx
+	return cmp.Or(ctx, context.Background())
 }
 
 func wrapCtxErr(ctx context.Context, prefix string) error {

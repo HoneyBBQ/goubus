@@ -307,10 +307,9 @@ func TestClient_StaleObjectCacheRefreshesAndLifecycleSignals(t *testing.T) {
 	}
 
 	broker.pushSubscriberState(pub1.ID(), true)
+	waitForSubscriberState(t, subStates, true)
 	broker.pushSubscriberState(pub1.ID(), false)
-	if !<-subStates || <-subStates {
-		t.Fatal("OnSubscribe transitions did not arrive in order")
-	}
+	waitForSubscriberState(t, subStates, false)
 
 	assertRestartCacheRefresh(t, broker, client, pub1)
 
@@ -325,6 +324,19 @@ func TestClient_StaleObjectCacheRefreshesAndLifecycleSignals(t *testing.T) {
 	}
 	if !errors.Is(client.Err(), goubus.ErrClosed) {
 		t.Fatalf("closed Client.Err() = %v, want ErrClosed", client.Err())
+	}
+}
+
+func waitForSubscriberState(t *testing.T, states <-chan bool, want bool) {
+	t.Helper()
+
+	select {
+	case got := <-states:
+		if got != want {
+			t.Fatalf("OnSubscribe state = %v, want %v", got, want)
+		}
+	case <-time.After(time.Second):
+		t.Fatalf("timed out waiting for OnSubscribe(%v)", want)
 	}
 }
 
@@ -543,7 +555,9 @@ func (b *muxMockBroker) deliverIncomingReply(hdr *blobmsg.UbusMessageHeader, pay
 	}
 	if hdr.Type == blobmsg.UbusMsgStatus && replyCaptureStatus != nil {
 		code, _ := blobmsg.ReadUint(attrs["status"])
-		replyCaptureStatus <- code
+		ch := replyCaptureStatus
+		replyCaptureStatus = nil
+		ch <- code
 	}
 }
 
@@ -570,12 +584,7 @@ func (b *muxMockBroker) handleClientRequest(hdr *blobmsg.UbusMessageHeader, payl
 		b.sendFrame(blobmsg.UbusMsgData, hdr.Seq, 1, dataBody)
 		b.sendStatus(hdr.Seq, 0)
 	case blobmsg.UbusMsgSubscribe:
-		b.sendStatus(hdr.Seq, 0)
-		target, _ := blobmsg.ReadUint(attrs["target"])
-		if target == 200 {
-			subID, _ := blobmsg.ReadUint(attrs["objid"])
-			b.pushEvent(subID, "sta.authorized", map[string]any{"address": "aa:bb:cc:dd:ee:ff"})
-		}
+		b.handleSubscribe(hdr.Seq, attrs)
 	case blobmsg.UbusMsgRemoveObject:
 		if id, ok := blobmsg.ReadUint(attrs["objid"]); ok {
 			b.writeMu.Lock()
@@ -588,35 +597,76 @@ func (b *muxMockBroker) handleClientRequest(hdr *blobmsg.UbusMessageHeader, payl
 	}
 }
 
+func (b *muxMockBroker) handleSubscribe(seq uint16, attrs map[string]any) {
+	target, _ := blobmsg.ReadUint(attrs["target"])
+	b.writeMu.Lock()
+	_, targetExists := b.registered[target]
+	b.writeMu.Unlock()
+	if target != 100 && !targetExists {
+		b.sendStatus(seq, goubus.StatusNotFound)
+
+		return
+	}
+	b.sendStatus(seq, 0)
+	if target == 200 {
+		subID, _ := blobmsg.ReadUint(attrs["objid"])
+		b.pushEvent(subID, "sta.authorized", map[string]any{"address": "aa:bb:cc:dd:ee:ff"})
+	}
+}
+
 func (b *muxMockBroker) lookupObject(seq uint16, attrs map[string]any, payload []byte) {
 	path, _ := attrs["objpath"].(string)
-	if path != "" {
-		b.writeMu.Lock()
-		var matchedID uint32
-		for id, name := range b.registered {
-			if name == path {
-				matchedID = id
+	if path == "" {
+		sigTable, _ := blobmsg.CreateBlobmsgTable(map[string]any{
+			"info": map[string]any{
+				"verbose": int32(blobmsg.TypeBool),
+				"items":   int32(blobmsg.TypeArray),
+				"meta":    int32(blobmsg.TypeTable),
+				"other":   int32(blobmsg.TypeUnspec),
+				"text":    "string",
+				"bad":     true,
+			},
+		})
+		dataBody, _ := blobmsg.CreateBlobMessage(map[uint32]any{
+			blobmsg.UbusAttrObjPath:   testSystemService,
+			blobmsg.UbusAttrObjID:     uint32(100),
+			blobmsg.UbusAttrSignature: sigTable[blobmsg.BlobHeaderBytes:],
+		}, nil)
+		b.sendFrame(blobmsg.UbusMsgData, seq, 1, dataBody)
+		b.sendStatus(seq, 0)
 
-				break
-			}
-		}
-		b.writeMu.Unlock()
+		return
+	}
+	b.writeMu.Lock()
+	var matchedID uint32
+	for id, name := range b.registered {
+		if name == path {
+			matchedID = id
 
-		if matchedID != 0 {
-			dataBody, _ := blobmsg.CreateBlobMessage(map[uint32]any{
-				blobmsg.UbusAttrObjPath: path,
-				blobmsg.UbusAttrObjID:   matchedID,
-			}, nil)
-			b.sendFrame(blobmsg.UbusMsgData, seq, 1, dataBody)
-			b.sendStatus(seq, 0)
-
-			return
+			break
 		}
 	}
-
-	b.writeMu.Lock()
-	handleLookup(b.conn, seq, payload)
 	b.writeMu.Unlock()
+
+	if matchedID != 0 {
+		dataBody, _ := blobmsg.CreateBlobMessage(map[uint32]any{
+			blobmsg.UbusAttrObjPath: path,
+			blobmsg.UbusAttrObjID:   matchedID,
+		}, nil)
+		b.sendFrame(blobmsg.UbusMsgData, seq, 1, dataBody)
+		b.sendStatus(seq, 0)
+
+		return
+	}
+
+	if path == testSystemService {
+		b.writeMu.Lock()
+		handleLookup(b.conn, seq, payload)
+		b.writeMu.Unlock()
+
+		return
+	}
+	b.sendStatus(seq, goubus.StatusNotFound)
 }
 
 func (b *muxMockBroker) dispatchInvoke(seq uint16, attrs map[string]any, payload []byte) {

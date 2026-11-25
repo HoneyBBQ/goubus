@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -241,8 +242,8 @@ func normalizeEndpoint(host, endpointPath string) (string, error) {
 	}
 	if endpointPath != "" {
 		parsed.Path = "/" + strings.TrimLeft(endpointPath, "/")
-	} else if parsed.Path == "" {
-		parsed.Path = DefaultEndpoint
+	} else {
+		parsed.Path = cmp.Or(parsed.Path, DefaultEndpoint)
 	}
 
 	return parsed.String(), nil

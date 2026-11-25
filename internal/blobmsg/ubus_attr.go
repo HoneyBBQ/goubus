@@ -32,7 +32,7 @@ func CreateBlobMessage(attrs map[uint32]any, ordered []uint32) ([]byte, error) {
 		return nil, errs.ErrInvalidBlobLength
 	}
 
-	return BuildBlobBuffer(uint32(totalLen64), items)
+	return BuildBlobBuffer(uint32(totalLen64), items), nil
 }
 
 // GetSortedKeys orders attribute IDs using the requested prefix order.
@@ -57,7 +57,7 @@ func GetSortedKeys(attrs map[uint32]any, ordered []uint32) []uint32 {
 }
 
 // BuildBlobBuffer joins a length header and encoded attributes.
-func BuildBlobBuffer(totalLen uint32, items [][]byte) ([]byte, error) {
+func BuildBlobBuffer(totalLen uint32, items [][]byte) []byte {
 	out := make([]byte, 0, max(int(totalLen), BlobHeaderBytes))
 	out = binary.BigEndian.AppendUint32(out, totalLen)
 
@@ -65,7 +65,7 @@ func BuildBlobBuffer(totalLen uint32, items [][]byte) ([]byte, error) {
 		out = append(out, item...)
 	}
 
-	return out, nil
+	return out
 }
 
 // EncodeUbusAttribute encodes a single top-level ubus attribute.
@@ -90,6 +90,24 @@ func EncodeUbusAttribute(attrID uint32, value any) ([]byte, error) {
 	return AlignBuffer(raw), nil
 }
 
+// EncodeUintAttributes encodes fixed uint32 ubus attributes into a blob payload.
+func EncodeUintAttributes(pairs ...[2]uint32) []byte {
+	const attrBytes = uint32(MinAttrLen + Uint32Size)
+	totalLen := uint32(BlobHeaderBytes)
+	for range pairs {
+		totalLen += attrBytes
+	}
+	out := make([]byte, 0, totalLen)
+	out = binary.BigEndian.AppendUint32(out, totalLen)
+	for _, pair := range pairs {
+		idLen := (pair[0] << AttrIDShift) | attrBytes
+		out = binary.BigEndian.AppendUint32(out, idLen)
+		out = binary.BigEndian.AppendUint32(out, pair[1])
+	}
+
+	return out
+}
+
 // EncodeAttributeValue encodes an attribute value without its header.
 func EncodeAttributeValue(attrID uint32, value any) ([]byte, error) {
 	switch v := value.(type) {
@@ -97,8 +115,12 @@ func EncodeAttributeValue(attrID uint32, value any) ([]byte, error) {
 		return EncodeStringValue(v), nil
 	case []byte:
 		return EncodeByteAttributeValue(attrID, v)
-	case uint32, uint16, uint8:
-		return EncodeUintAttributeValue(v)
+	case uint32:
+		return EncodeUint32(v), nil
+	case uint16:
+		return EncodeUint32(uint32(v)), nil
+	case uint8:
+		return EncodeUint32(uint32(v)), nil
 	case int:
 		return EncodeIntAttributeValue(v)
 	default:
@@ -109,20 +131,6 @@ func EncodeAttributeValue(attrID uint32, value any) ([]byte, error) {
 // EncodeByteAttributeValue returns a byte attribute payload.
 func EncodeByteAttributeValue(_ uint32, value []byte) ([]byte, error) {
 	return value, nil
-}
-
-// EncodeUintAttributeValue encodes an unsigned top-level attribute value.
-func EncodeUintAttributeValue(value any) ([]byte, error) {
-	switch v := value.(type) {
-	case uint32:
-		return EncodeUint32(v), nil
-	case uint16:
-		return EncodeUint32(uint32(v)), nil
-	case uint8:
-		return EncodeUint32(uint32(v)), nil
-	default:
-		return nil, errs.Wrapf(errs.ErrUnsupportedAttributeType, "%T", value)
-	}
 }
 
 // EncodeIntAttributeValue encodes a non-negative integer attribute value.

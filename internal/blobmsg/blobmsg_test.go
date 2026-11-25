@@ -60,6 +60,26 @@ func TestEncodeDecodeHeader(t *testing.T) {
 		decoded.Peer != original.Peer {
 		t.Errorf("Decoded header mismatch. Got %+v, want %+v", decoded, original)
 	}
+
+	nilHeaderErr := blobmsg.EncodeHeader(&buf, nil)
+	if !errors.Is(nilHeaderErr, blobmsg.ErrNilValue) {
+		t.Fatalf("EncodeHeader(nil) = %v, want ErrNilValue", nilHeaderErr)
+	}
+	if blobmsg.DecodeFloat64Value([]byte{1, 2}) != 0 ||
+		blobmsg.DecodeInt64([]byte{1}) != 0 ||
+		blobmsg.DecodeInt32([]byte{1}) != 0 ||
+		blobmsg.DecodeInt16([]byte{1}) != 0 ||
+		blobmsg.DecodeInt16([]byte{0xff, 0xfe}) != -2 {
+		t.Error("unexpected short or int16 decode result")
+	}
+	_, _, shortErr := blobmsg.ParseBlobmsgEntry(blobmsg.TypeString, []byte{0})
+	if shortErr == nil {
+		t.Error("expected error on 1-byte blobmsg entry")
+	}
+	_, _, truncErr := blobmsg.ParseBlobmsgEntry(blobmsg.TypeString, []byte{0, 10, 'a'})
+	if truncErr == nil {
+		t.Error("expected error on truncated blobmsg entry header")
+	}
 }
 
 func TestBlobmsgComprehensive(t *testing.T) {

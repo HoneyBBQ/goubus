@@ -1,14 +1,34 @@
 package blobmsg_test
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
+	"math"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/honeybbq/goubus/v2/internal/blobmsg"
+	"github.com/honeybbq/goubus/v2/internal/errs"
 )
 
 const testValName = "test"
+
+var errTestMarshal = errors.New("marshal boom")
+
+type customMarshaler struct {
+	err error
+	raw string
+}
+
+func (m customMarshaler) MarshalJSON() ([]byte, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+
+	return []byte(m.raw), nil
+}
 
 func TestCreateBlobMessage(t *testing.T) {
 	attrs := map[uint32]any{
@@ -311,32 +331,6 @@ func TestEncodeIntAttributeValue(t *testing.T) {
 	}
 }
 
-func TestReflectUint64(t *testing.T) {
-	if blobmsg.ReflectUint64(uint(10)) != 10 {
-		t.Errorf("ReflectUint64(uint) failed")
-	}
-
-	if blobmsg.ReflectUint64(uint8(8)) != 8 {
-		t.Errorf("ReflectUint64(uint8) failed")
-	}
-
-	if blobmsg.ReflectUint64(uint16(16)) != 16 {
-		t.Errorf("ReflectUint64(uint16) failed")
-	}
-
-	if blobmsg.ReflectUint64(uint32(32)) != 32 {
-		t.Errorf("ReflectUint64(uint32) failed")
-	}
-
-	if blobmsg.ReflectUint64(uint64(64)) != 64 {
-		t.Errorf("ReflectUint64(uint64) failed")
-	}
-
-	if blobmsg.ReflectUint64("string") != 0 {
-		t.Errorf("ReflectUint64(string) should be 0")
-	}
-}
-
 func TestEncodeReflectMapFail(t *testing.T) {
 	// Map with non-string key should fail
 	badMap := map[int]string{1: "a"}
@@ -529,4 +523,161 @@ func TestDecodeErrors(t *testing.T) {
 	if blobmsg.DecodeString([]byte{}) != "" {
 		t.Errorf("DecodeString(empty) failed")
 	}
+	if got := blobmsg.DecodeString([]byte{0, 0, 0, 0, 'h', 'i', 0, 0}); got != "hi" {
+		t.Errorf("DecodeString(padded) = %q, want hi", got)
+	}
+	if got := blobmsg.DecodeString([]byte{'r', 'a', 'w'}); got != "raw" {
+		t.Errorf("DecodeString(unterminated) = %q, want raw", got)
+	}
+	if blobmsg.DecodeInt16(nil) != 0 {
+		t.Error("DecodeInt16(nil) != 0")
+	}
+}
+
+func TestReflectionNamedTypesAndMarshalers(t *testing.T) {
+	type (
+		myBool  bool
+		myStr   string
+		myInt   int
+		myUint  uint
+		myFloat float64
+		myBytes []byte
+		myItem  struct {
+			Skip   int `json:"-"`
+			Val    int `json:"val"`
+			hidden int
+		}
+	)
+
+	var nilInt *int
+	values := []any{
+		myBool(true),
+		myStr("ok"),
+		myInt(7),
+		myUint(9),
+		myFloat(1.25),
+		myBytes("abc"),
+		myBytes(nil),
+		map[string]int{"k": 1},
+		myItem{Skip: 1, Val: 2, hidden: 3},
+		nilInt,
+		customMarshaler{raw: `{"m":1}`},
+	}
+	for _, val := range values {
+		_, _, err := blobmsg.EncodeBlobmsgValue(val)
+		if err != nil {
+			t.Errorf("EncodeBlobmsgValue(%T) unexpected error: %v", val, err)
+		}
+	}
+
+	assertReflectionAndDecodeErrorBranches(t)
+}
+
+func assertReflectionAndDecodeErrorBranches(t *testing.T) {
+	t.Helper()
+
+	_, _, err := blobmsg.EncodeReflectValue(nil)
+	if err == nil {
+		t.Error("expected error on untyped nil in EncodeReflectValue")
+	}
+	_, _, err = blobmsg.EncodeBlobmsgValue(customMarshaler{err: errTestMarshal})
+	if err == nil {
+		t.Error("expected error on failing json.Marshaler")
+	}
+	_, _, err = blobmsg.EncodeBlobmsgValue(customMarshaler{raw: "{"})
+	if err == nil {
+		t.Error("expected error on invalid JSON from json.Marshaler")
+	}
+	_, err = blobmsg.CreateBlobmsgEntry(strings.Repeat("k", 70000), "v")
+	if err == nil {
+		t.Error("expected error on oversized entry name")
+	}
+	_, err = blobmsg.CreateBlobmsgData(map[string]any{"bad": struct{ F func() }{}})
+	if err == nil {
+		t.Error("expected error on unmarshalable struct in map")
+	}
+	assertTopLevelAttributeTypes(t)
+	assertContainerAndNumberCornerCases(t)
+}
+
+func assertTopLevelAttributeTypes(t *testing.T) {
+	t.Helper()
+
+	for _, valid := range []any{uint16(1), uint8(1), int(1)} {
+		_, err := blobmsg.EncodeUbusAttribute(blobmsg.UbusAttrStatus, valid)
+		if err != nil {
+			t.Errorf("EncodeUbusAttribute(%T): %v", valid, err)
+		}
+	}
+	_, err := blobmsg.EncodeUbusAttribute(blobmsg.UbusAttrStatus, struct{}{})
+	if err == nil {
+		t.Error("expected error on unsupported top-level ubus attribute type")
+	}
+}
+
+func assertContainerAndNumberCornerCases(t *testing.T) {
+	t.Helper()
+
+	arr, err := blobmsg.ParseBlobmsgContainer(nil, blobmsg.TypeArray)
+	items, ok := arr.([]any)
+	if err != nil || !ok || len(items) != 0 {
+		t.Errorf("empty array container = (%v, %v)", arr, err)
+	}
+	arr, err = blobmsg.ParseBlobmsgContainer([]byte{0, 0, 0, 0}, blobmsg.TypeArray)
+	items, ok = arr.([]any)
+	if err != nil || !ok || len(items) != 0 {
+		t.Errorf("padded empty array container = (%v, %v)", arr, err)
+	}
+	_, err = blobmsg.ParseBlobmsgContainer([]byte{0, 0, 0, 4}, blobmsg.TypeArray)
+	if err == nil {
+		t.Error("expected error on non-extended array entry")
+	}
+	_, err = blobmsg.ParseBlobmsgContainer([]byte{0, 0, 0, 4}, blobmsg.TypeTable)
+	if err == nil {
+		t.Error("expected error on non-extended table entry")
+	}
+	m, normErr := blobmsg.NormalizeArgs([]byte(nil))
+	if normErr != nil || len(m) != 0 {
+		t.Errorf("NormalizeArgs(empty []byte) = (%v, %v)", m, normErr)
+	}
+	for _, bad := range []any{uint64(math.MaxUint32) + 1, float64(-1), float64(math.MaxUint32) + 100} {
+		if _, ok := blobmsg.ReadUint(bad); ok {
+			t.Errorf("ReadUint(%v) unexpectedly succeeded", bad)
+		}
+	}
+	if errs.Wrapf(nil, "noop") != nil {
+		t.Error("Wrapf(nil) != nil")
+	}
+	assertWireTruncationAndMalformedContainers(t)
+}
+
+func assertWireTruncationAndMalformedContainers(t *testing.T) {
+	t.Helper()
+
+	for _, shortFrame := range [][]byte{
+		make([]byte, 9),
+		{0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 8, 1, 2},
+	} {
+		_, _, err := blobmsg.ReadMessage(bytes.NewReader(shortFrame))
+		if err == nil {
+			t.Error("expected ReadMessage truncation error")
+		}
+	}
+	if got := blobmsg.DecodeInt16([]byte{0, 7}); got != 7 {
+		t.Errorf("DecodeInt16 = %d, want 7", got)
+	}
+	_, _ = blobmsg.ParseBlobmsgValue(blobmsg.TypeInt16, []byte{0, 7})
+	_, _ = blobmsg.CreateBlobmsgData(map[string]any{"arr": []any{make(chan int)}})
+	_, _ = blobmsg.CreateBlobmsgData(map[string]any{"sub": map[string]any{"ch": make(chan int)}})
+	_, _ = blobmsg.CreateBlobMessage(map[uint32]any{1: struct{}{}}, nil)
+
+	// Zero-length terminator, non-extended unknown attr 99, and extended invalid blobType 99.
+	_, _ = blobmsg.ParseTopLevelAttributes([]byte{0, 0, 0, 8, 0, 0, 0, 0})
+	_, _ = blobmsg.ParseTopLevelAttributes([]byte{0, 0, 0, 12, 99, 0, 0, 8, 1, 2, 3, 4})
+	_, _ = blobmsg.ParseTopLevelAttributes([]byte{0, 0, 0, 12, 0x80 | 99, 0, 0, 8, 0, 0, 0, 0})
+
+	_, _ = blobmsg.ParseBlobmsgContainer([]byte{0, 0, 0, 0}, blobmsg.TypeArray)
+	_, _ = blobmsg.ParseBlobmsgContainer([]byte{0, 0, 0, 9}, blobmsg.TypeArray)
+	_, _ = blobmsg.ParseBlobmsgContainer([]byte{0x80 | 99, 0, 0, 8, 0, 0, 0, 0}, blobmsg.TypeArray)
+	_, _ = blobmsg.ParseBlobmsgContainer([]byte{0x80 | 99, 0, 0, 8, 0, 0, 0, 0}, blobmsg.TypeTable)
 }

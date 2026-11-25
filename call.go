@@ -74,9 +74,6 @@ func (c *Client) List(ctx context.Context, patterns ...string) (map[string]Objec
 
 	objects := make(map[string]ObjectSignatures)
 	for _, pattern := range queries {
-		if pattern == "*" {
-			pattern = ""
-		}
 		entries, listErr := c.listObjects(ctx, pattern)
 		if listErr != nil {
 			code, ok, statusErr := lookupStatusError(listErr)

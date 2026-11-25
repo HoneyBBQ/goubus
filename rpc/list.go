@@ -54,9 +54,6 @@ func (c *Client) List(ctx context.Context, patterns ...string) (map[string]goubu
 	if decodeErr != nil {
 		return nil, errs.Wrapf(goubus.ErrInvalidResponse, "decode list signatures: %v", decodeErr)
 	}
-	if objects == nil {
-		objects = make(map[string]goubus.ObjectSignatures)
-	}
 
 	return objects, nil
 }

@@ -62,15 +62,11 @@ func CreateBlobmsgTable(values map[string]any) ([]byte, error) {
 		return nil, errs.ErrInvalidBlobLength
 	}
 
-	return BuildBlobBuffer(uint32(totalLen64), entries)
+	return BuildBlobBuffer(uint32(totalLen64), entries), nil
 }
 
 // GetSortedMapKeys returns map keys in deterministic order.
 func GetSortedMapKeys(values map[string]any) []string {
-	if len(values) == 0 {
-		return []string{}
-	}
-
 	return slices.Sorted(maps.Keys(values))
 }
 
@@ -93,7 +89,7 @@ func CreateBlobmsgArray(values []any) ([]byte, error) {
 		return nil, errs.ErrInvalidBlobLength
 	}
 
-	return BuildBlobBuffer(uint32(totalLen64), entries)
+	return BuildBlobBuffer(uint32(totalLen64), entries), nil
 }
 
 // CreateBlobmsgEntry encodes one named blobmsg value.
@@ -114,15 +110,8 @@ func CreateBlobmsgEntry(name string, value any) ([]byte, error) {
 	}
 
 	var buf bytes.Buffer
-	err = EncodeBlobmsgHeader(&buf, blobType, attrLen, name, nameLen)
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = buf.Write(valueData)
-	if err != nil {
-		return nil, err
-	}
+	EncodeBlobmsgHeader(&buf, blobType, attrLen, name, uint16(nameLen))
+	_, _ = buf.Write(valueData)
 
 	return AlignBuffer(buf.Bytes()), nil
 }
@@ -138,15 +127,11 @@ func CalculateAttrLen(nameLen, valueLen int) (uint32, error) {
 	return uint32(attrLen64), nil
 }
 
-func EncodeBlobmsgHeader(buf *bytes.Buffer, blobType uint8, attrLen uint32, name string, nameLen int) error {
-	if nameLen < 0 || nameLen > math.MaxUint16 {
-		return errs.Wrapf(errs.ErrInvalidParameter, "name length %d out of uint16 range", nameLen)
-	}
-
+func EncodeBlobmsgHeader(buf *bytes.Buffer, blobType uint8, attrLen uint32, name string, nameLen uint16) {
 	idLen := (uint32(blobType) << AttrIDShift) | (attrLen & AttrLenMask) | AttrExtended
 	var hdr [6]byte
 	binary.BigEndian.PutUint32(hdr[0:4], idLen)
-	binary.BigEndian.PutUint16(hdr[4:6], uint16(nameLen))
+	binary.BigEndian.PutUint16(hdr[4:6], nameLen)
 	_, _ = buf.Write(hdr[:])
 	_, _ = buf.WriteString(name)
 	_ = buf.WriteByte(StringTerminator)
@@ -154,43 +139,29 @@ func EncodeBlobmsgHeader(buf *bytes.Buffer, blobType uint8, attrLen uint32, name
 	for buf.Len()%4 != 0 {
 		_ = buf.WriteByte(0)
 	}
-
-	return nil
 }
 
 func EncodeBlobmsgValue(value any) (uint8, []byte, error) {
 	switch v := value.(type) {
 	case nil:
 		return TypeUnspec, []byte{}, nil
-	case bool, string:
-		return EncodeBasicValue(v)
+	case bool:
+		return EncodeBoolValue(v)
+	case string:
+		return EncodeStringAttributeValue(v)
 	case json.Number, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
 		return EncodeNumericValue(v)
 	case []byte:
 		u8, b := EncodeBytesAttributeValue(v)
 
 		return u8, b, nil
-	case map[string]any, []any:
-		return EncodeComplexValue(v)
+	case map[string]any:
+		return EncodeMapValue(v)
+	case []any:
+		return EncodeArrayValue(v)
 	default:
 		return EncodeReflectValue(value)
 	}
-}
-
-func EncodeBasicValue(value any) (uint8, []byte, error) {
-	if b, isBool := value.(bool); isBool {
-		u8, buf := EncodeBoolValue(b)
-
-		return u8, buf, nil
-	}
-
-	if s, isString := value.(string); isString {
-		u8, buf := EncodeStringAttributeValue(s)
-
-		return u8, buf, nil
-	}
-
-	return 0, nil, errs.Wrapf(errs.ErrUnsupportedAttributeType, "%T", value)
 }
 
 func EncodeNumericValue(value any) (uint8, []byte, error) {
@@ -198,41 +169,27 @@ func EncodeNumericValue(value any) (uint8, []byte, error) {
 	case json.Number:
 		return EncodeJSONNumber(v)
 	case int, int8, int16, int32, int64:
-		return EncodeIntegerValue(ReflectInt64(v))
+		return EncodeIntegerValue(reflect.ValueOf(v).Int())
 	case uint, uint8, uint16, uint32, uint64:
-		return EncodeUnsignedValue(ReflectUint64(v))
-	case float32, float64:
-		return EncodeFloatValue(v)
+		return EncodeUnsignedValue(reflect.ValueOf(v).Uint())
 	default:
-		return 0, nil, errs.Wrapf(errs.ErrUnsupportedAttributeType, "%T", value)
+		return EncodeFloatValue(v)
 	}
 }
 
-func EncodeComplexValue(value any) (uint8, []byte, error) {
-	if m, isMap := value.(map[string]any); isMap {
-		return EncodeMapValue(m)
-	}
-
-	if a, isArray := value.([]any); isArray {
-		return EncodeArrayValue(a)
-	}
-
-	return 0, nil, errs.Wrapf(errs.ErrUnsupportedAttributeType, "%T", value)
-}
-
-func EncodeBoolValue(value bool) (uint8, []byte) {
+func EncodeBoolValue(value bool) (uint8, []byte, error) {
 	data := []byte{0}
 	if value {
 		data[0] = 1
 	}
 
-	return TypeBool, data
+	return TypeBool, data, nil
 }
 
-func EncodeStringAttributeValue(value string) (uint8, []byte) {
+func EncodeStringAttributeValue(value string) (uint8, []byte, error) {
 	data := append([]byte(value), StringTerminator)
 
-	return TypeString, data
+	return TypeString, data, nil
 }
 
 func EncodeBytesAttributeValue(value []byte) (uint8, []byte) {
@@ -337,9 +294,9 @@ func EncodeReflectValue(value any) (uint8, []byte, error) {
 	case reflect.Struct:
 		return EncodeReflectStruct(reflected)
 	case reflect.Bool:
-		return EncodeBasicValue(reflected.Bool())
+		return EncodeBoolValue(reflected.Bool())
 	case reflect.String:
-		return EncodeBasicValue(reflected.String())
+		return EncodeStringAttributeValue(reflected.String())
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return EncodeIntegerValue(reflected.Int())
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
@@ -349,9 +306,9 @@ func EncodeReflectValue(value any) (uint8, []byte, error) {
 	case reflect.Invalid, reflect.Complex64, reflect.Complex128, reflect.Chan,
 		reflect.Func, reflect.Interface, reflect.Pointer, reflect.UnsafePointer:
 		return 0, nil, errs.Wrapf(errs.ErrUnsupportedAttributeType, "%T", value)
+	default:
+		return 0, nil, errs.Wrapf(errs.ErrUnsupportedAttributeType, "%T", value)
 	}
-
-	return 0, nil, errs.Wrapf(errs.ErrUnsupportedAttributeType, "%T", value)
 }
 
 func encodeMarshaledValue(value any, marshaler json.Marshaler) (uint8, []byte, error) {
@@ -497,48 +454,11 @@ func ReflectValue(value any) reflect.Value {
 	return v
 }
 
-func ReflectInt64(value any) int64 {
-	switch v := value.(type) {
-	case int:
-		return int64(v)
-	case int8:
-		return int64(v)
-	case int16:
-		return int64(v)
-	case int32:
-		return int64(v)
-	case int64:
-		return v
-	default:
-		return 0
-	}
-}
-
-func ReflectUint64(value any) uint64 {
-	switch v := value.(type) {
-	case uint:
-		return uint64(v)
-	case uint8:
-		return uint64(v)
-	case uint16:
-		return uint64(v)
-	case uint32:
-		return uint64(v)
-	case uint64:
-		return v
-	default:
-		return 0
-	}
-}
-
 func ParseJSONTag(tag string) string {
 	if tag == "-" {
 		return ""
 	}
-
-	if idx := strings.Index(tag, ","); idx != -1 {
-		tag = tag[:idx]
-	}
+	tag, _, _ = strings.Cut(tag, ",")
 
 	return tag
 }

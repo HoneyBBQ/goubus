@@ -374,7 +374,7 @@ func (c *Client) registerAnonymousObject(ctx context.Context, sub *Subscription)
 	body := []byte{0, 0, 0, 4}
 	var registeredID uint32
 
-	frames, status, err := c.sendRequestWithHook(
+	_, status, err := c.sendRequestWithHook(
 		ctx,
 		"ubus add_object",
 		blobmsg.UbusMsgAddObject,
@@ -406,30 +406,18 @@ func (c *Client) registerAnonymousObject(ctx context.Context, sub *Subscription)
 
 		return 0, &CallError{Err: StatusError(int(status)), Method: "add_object", Code: int(status)}
 	}
-
 	if registeredID == 0 {
-		objID, ok := extractRegisteredObjID(frames)
-		if !ok {
-			return 0, errs.Wrapf(ErrInvalidResponse, "add_object response missing objid")
-		}
-		registeredID = objID
-		c.localMu.Lock()
-		c.localObjects[objID] = &localObject{id: objID, sub: sub}
-		c.localMu.Unlock()
+		return 0, errs.Wrapf(ErrInvalidResponse, "add_object response missing objid")
 	}
 
 	return registeredID, nil
 }
 
 func (c *Client) sendSubscribe(ctx context.Context, object string, subscriberID, targetID uint32) error {
-	attrs := map[uint32]any{
-		blobmsg.UbusAttrObjID:  subscriberID,
-		blobmsg.UbusAttrTarget: targetID,
-	}
-	body, err := blobmsg.CreateBlobMessage(attrs, []uint32{blobmsg.UbusAttrObjID, blobmsg.UbusAttrTarget})
-	if err != nil {
-		return err
-	}
+	body := blobmsg.EncodeUintAttributes(
+		[2]uint32{blobmsg.UbusAttrObjID, subscriberID},
+		[2]uint32{blobmsg.UbusAttrTarget, targetID},
+	)
 
 	_, status, err := c.sendRequest(ctx, "ubus subscribe", blobmsg.UbusMsgSubscribe, 0, body)
 	if err != nil {
@@ -443,14 +431,10 @@ func (c *Client) sendSubscribe(ctx context.Context, object string, subscriberID,
 }
 
 func (c *Client) sendUnsubscribe(ctx context.Context, subscriberID, targetID uint32) error {
-	attrs := map[uint32]any{
-		blobmsg.UbusAttrObjID:  subscriberID,
-		blobmsg.UbusAttrTarget: targetID,
-	}
-	body, err := blobmsg.CreateBlobMessage(attrs, []uint32{blobmsg.UbusAttrObjID, blobmsg.UbusAttrTarget})
-	if err != nil {
-		return err
-	}
+	body := blobmsg.EncodeUintAttributes(
+		[2]uint32{blobmsg.UbusAttrObjID, subscriberID},
+		[2]uint32{blobmsg.UbusAttrTarget, targetID},
+	)
 
 	_, status, err := c.sendRequest(ctx, "ubus unsubscribe", blobmsg.UbusMsgUnsubscribe, 0, body)
 	if err != nil {

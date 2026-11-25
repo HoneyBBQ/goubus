@@ -234,3 +234,37 @@ func TestNewJSONResultNoDataAndInvalid(t *testing.T) {
 		t.Errorf("invalid JSON result error = %v, want ErrInvalidResponse", err)
 	}
 }
+
+func TestListAndArgTypeEdgeCases(t *testing.T) {
+	nonLister := goubus.CallerFunc(func(context.Context, string, string, any) (goubus.Result, error) {
+		return nil, goubus.ErrNoData
+	})
+	_, err := goubus.List(t.Context(), nonLister)
+	if !errors.Is(err, goubus.ErrNotSupported) {
+		t.Fatalf("List(non-Lister) error = %v, want ErrNotSupported", err)
+	}
+	_, err = goubus.List(t.Context(), nonLister, "")
+	if !errors.Is(err, goubus.ErrInvalidParameter) {
+		t.Fatalf("List(empty pattern) error = %v, want ErrInvalidParameter", err)
+	}
+
+	cases := map[string]goubus.ArgType{
+		`"boolean"`:            goubus.ArgTypeBoolean,
+		`"array"`:              goubus.ArgTypeArray,
+		`"object"`:             goubus.ArgTypeObject,
+		`"mystery"`:            goubus.ArgTypeUnknown,
+		`["unknown","number"]`: goubus.ArgTypeNumber,
+	}
+	for raw, want := range cases {
+		var got goubus.ArgType
+		unmarshalErr := json.Unmarshal([]byte(raw), &got)
+		if unmarshalErr != nil || got != want {
+			t.Errorf("Unmarshal(%s) = (%q, %v), want %q", raw, got, unmarshalErr, want)
+		}
+	}
+
+	var bad goubus.ArgType
+	if (&bad).UnmarshalJSON([]byte("{")) == nil || bad != goubus.ArgTypeUnknown {
+		t.Errorf("invalid ArgType JSON = %q, want ArgTypeUnknown", bad)
+	}
+}

@@ -1,6 +1,7 @@
 package goubus
 
 import (
+	"cmp"
 	"log/slog"
 	"time"
 )
@@ -15,12 +16,7 @@ type optionFunc func(*Client)
 // WithLogger sets the structured logger for the client.
 func WithLogger(logger *slog.Logger) Option {
 	return optionFunc(func(client *Client) {
-		if logger == nil {
-			client.logger = discardLogger
-
-			return
-		}
-		client.logger = logger
+		client.logger = cmp.Or(logger, discardLogger)
 	})
 }
 

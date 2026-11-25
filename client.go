@@ -3,6 +3,7 @@ package goubus
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"log/slog"
 	"net"
 	"os"
@@ -65,7 +66,7 @@ func NewClient(ctx context.Context, sockPath string, opts ...Option) (*Client, e
 
 	err := blobmsg.ValidateSocketPath(sockPath)
 	if err != nil {
-		return nil, errs.Wrapf(ErrConnectionFailed, "%v", err)
+		return nil, fmt.Errorf("%w: %w", ErrConnectionFailed, err)
 	}
 
 	connCtx, connCancel := context.WithCancel(context.WithoutCancel(ctx))
@@ -169,14 +170,7 @@ func (c *Client) Err() error {
 	c.closeMu.Lock()
 	defer c.closeMu.Unlock()
 
-	if !c.closed {
-		return nil
-	}
-	if c.terminalErr != nil {
-		return c.terminalErr
-	}
-
-	return ErrClosed
+	return c.terminalErr
 }
 
 // Close closes the underlying Unix socket connection and stops all active subscriptions and objects.
@@ -195,11 +189,7 @@ func (c *Client) closedReason() error {
 	c.closeMu.Lock()
 	defer c.closeMu.Unlock()
 
-	if c.terminalErr != nil {
-		return c.terminalErr
-	}
-
-	return ErrClosed
+	return c.terminalErr
 }
 
 func (c *Client) closeWithError(cause error) error {
@@ -210,9 +200,6 @@ func (c *Client) closeWithError(cause error) error {
 		return nil
 	}
 	c.closed = true
-	if cause == nil {
-		cause = ErrClosed
-	}
 	c.terminalErr = cause
 	conn := c.conn
 	c.closeMu.Unlock()
@@ -220,11 +207,7 @@ func (c *Client) closeWithError(cause error) error {
 	c.connCancel()
 	c.shutdownLocalObjects()
 
-	if conn != nil {
-		return conn.Close()
-	}
-
-	return nil
+	return conn.Close()
 }
 
 func (c *Client) exchangeHello(ctx context.Context) (retErr error) {

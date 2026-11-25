@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"cmp"
 	"log/slog"
 	"net/http"
 )
@@ -15,12 +16,7 @@ type optionFunc func(*Client)
 // WithLogger configures the structured logger used by Client.
 func WithLogger(logger *slog.Logger) Option {
 	return optionFunc(func(client *Client) {
-		if logger == nil {
-			client.logger = discardLogger
-
-			return
-		}
-		client.logger = logger
+		client.logger = cmp.Or(logger, discardLogger)
 	})
 }
 
