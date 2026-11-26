@@ -673,6 +673,15 @@ func (b *muxMockBroker) dispatchInvoke(seq uint16, attrs map[string]any, payload
 	objID, _ := blobmsg.ReadUint(attrs["objid"])
 	method, _ := attrs["method"].(string)
 	if objID == 1 {
+		if method == "register" {
+			regData := blobmsg.ExtractDataSection(attrs)
+			rawID, ok := regData["object"].(int64)
+			if !ok || rawID < -1<<31 || rawID > (1<<31)-1 {
+				b.sendStatus(seq, goubus.StatusInvalidParameter)
+
+				return
+			}
+		}
 		b.sendStatus(seq, 0)
 		if method == "send" {
 			b.forwardEventSend(attrs)

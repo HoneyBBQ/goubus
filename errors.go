@@ -29,6 +29,12 @@ var (
 	ErrUnknown = errs.ErrUnknown
 	// ErrConnectionFailed identifies a failed transport connection.
 	ErrConnectionFailed = errs.ErrConnectionFailed
+	// ErrNoMemory identifies an out-of-memory error reported by ubusd or a daemon.
+	ErrNoMemory = errs.ErrNoMemory
+	// ErrParseError identifies a message data parse failure reported by ubus.
+	ErrParseError = errs.ErrParseError
+	// ErrSystemError identifies an OS or daemon-level system error reported by ubus.
+	ErrSystemError = errs.ErrSystemError
 	// ErrClosed identifies use of a closed client.
 	ErrClosed = errs.ErrClosed
 	// ErrInvalidResponse identifies a malformed or unexpected wire response.

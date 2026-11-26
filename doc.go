@@ -18,11 +18,11 @@
 //	board, err := goubus.Call[boardInfo](ctx, conn, "system", "board", nil)
 //
 // Over the same multiplexed [*Client], programs can concurrently invoke
-// methods ([Client.Call]), inspect registered signatures ([Client.List]),
-// probe liveness ([Client.Ping]), broadcast and receive system events
-// ([Client.SendEvent], [Client.Listen]), subscribe to object notifications
-// ([Client.Subscribe]), and publish Go objects onto the bus
-// ([Client.AddObject]).
+// methods ([Client.Call], [Client.CallStream], [Client.CallFD]), inspect
+// registered signatures ([Client.List]), probe liveness ([Client.Ping]),
+// broadcast and receive system events ([Client.SendEvent], [Client.Listen]),
+// subscribe to object notifications ([Client.Subscribe]), monitor bus traffic
+// ([Client.Monitor]), and publish Go objects onto the bus ([Client.AddObject]).
 //
 // # Remote HTTP/HTTPS JSON-RPC gateway
 //

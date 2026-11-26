@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"math"
 	"sync"
 	"time"
 
@@ -40,12 +41,13 @@ type Notification struct {
 // NotificationHandler handles an incoming ubus object notification.
 type NotificationHandler func(notification Notification)
 
-// Subscription manages an active event listener or object subscription on a Client.
+// Subscription manages an active event listener, object subscription, or bus monitor on a Client.
 type Subscription struct {
 	ctx        context.Context
 	client     *Client
 	cancel     context.CancelFunc
-	deliver    func(method string, data json.RawMessage)
+	deliver    func(item inboundPush)
+	closeFn    func(ctx context.Context) error
 	wake       chan struct{}
 	queue      []inboundPush
 	mu         sync.Mutex
@@ -56,8 +58,9 @@ type Subscription struct {
 }
 
 type inboundPush struct {
-	method string
-	data   json.RawMessage
+	method  string
+	data    json.RawMessage
+	monitor MonitorMessage
 }
 
 // Unmarshal decodes the event payload into target.
@@ -77,11 +80,13 @@ func newSubscription(
 	deliver func(method string, data json.RawMessage),
 ) *Subscription {
 	return &Subscription{
-		ctx:     subCtx,
-		cancel:  subCancel,
-		client:  client,
-		deliver: deliver,
-		wake:    make(chan struct{}, 1),
+		ctx:    subCtx,
+		cancel: subCancel,
+		client: client,
+		deliver: func(item inboundPush) {
+			deliver(item.method, item.data)
+		},
+		wake: make(chan struct{}, 1),
 	}
 }
 
@@ -93,7 +98,11 @@ func (s *Subscription) Done() <-chan struct{} {
 
 // Close unregisters the subscription and stops invoking its handler.
 func (s *Subscription) Close() error {
-	cleanCtx, cancel := context.WithTimeout(s.client.connCtx, defaultUnsubscribeTimeout)
+	return s.closeDetached(s.client.connCtx)
+}
+
+func (s *Subscription) closeDetached(ctx context.Context) error {
+	cleanCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), defaultUnsubscribeTimeout)
 	defer cancel()
 
 	return s.closeWithContext(cleanCtx)
@@ -133,6 +142,9 @@ func (s *Subscription) closeWithContext(ctx context.Context) error {
 	if !wasOpen {
 		return nil
 	}
+	if s.closeFn != nil {
+		return s.closeFn(ctx)
+	}
 
 	s.client.removeLocalObject(s.objID)
 	if s.client.isClosed() {
@@ -152,6 +164,10 @@ func (s *Subscription) closeWithContext(ctx context.Context) error {
 }
 
 func (s *Subscription) enqueue(method string, data json.RawMessage) {
+	s.enqueuePush(inboundPush{method: method, data: data})
+}
+
+func (s *Subscription) enqueuePush(item inboundPush) {
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
@@ -160,11 +176,14 @@ func (s *Subscription) enqueue(method string, data json.RawMessage) {
 	}
 	if len(s.queue) >= maxSubscriptionQueue {
 		s.mu.Unlock()
-		s.client.logger.Debug("dropped ubus notification due to full subscription queue", slog.String("method", method))
+		s.client.logger.Debug(
+			"dropped ubus notification due to full subscription queue",
+			slog.String("method", item.method),
+		)
 
 		return
 	}
-	s.queue = append(s.queue, inboundPush{method: method, data: data})
+	s.queue = append(s.queue, item)
 	s.mu.Unlock()
 
 	select {
@@ -180,7 +199,7 @@ func (s *Subscription) run(ctx context.Context) {
 			if !ok {
 				break
 			}
-			s.deliver(item.method, item.data)
+			s.deliver(item)
 		}
 
 		select {
@@ -275,13 +294,15 @@ func (c *Client) Listen(ctx context.Context, pattern string, handler EventHandle
 	}
 	sub.objID = objID
 
+	// ubusd's event.register policy requires BLOBMSG_TYPE_INT32 for "object",
+	// carrying the raw 32-bit bit pattern of objID (equivalent to blobmsg_add_u32).
 	regArgs := map[string]any{
-		"object":  objID,
+		"object":  objIDToWireInt32(objID),
 		"pattern": pattern,
 	}
 	_, err = c.invokeByID(ctx, "event", ubusSystemObjectEvent, "register", regArgs)
 	if err != nil {
-		_ = sub.closeWithContext(ctx)
+		_ = sub.closeDetached(ctx)
 
 		return nil, err
 	}
@@ -325,7 +346,7 @@ func (c *Client) Subscribe(
 
 	targetID, err = c.subscribeWithRefresh(ctx, object, objID, targetID, fromCache)
 	if err != nil {
-		_ = sub.closeWithContext(ctx)
+		_ = sub.closeDetached(ctx)
 
 		return nil, err
 	}
@@ -395,6 +416,7 @@ func (c *Client) registerAnonymousObject(ctx context.Context, sub *Subscription)
 	if err != nil {
 		if registeredID != 0 {
 			c.removeLocalObject(registeredID)
+			c.cleanupOrphanObject(ctx, registeredID)
 		}
 
 		return 0, err
@@ -452,4 +474,13 @@ func (c *Client) cleanupDetachedSubscriber(connCtx context.Context, objID uint32
 	defer cancel()
 
 	_ = c.sendRemoveObject(cleanCtx, objID)
+}
+
+func objIDToWireInt32(objID uint32) int64 {
+	v := int64(objID)
+	if v > math.MaxInt32 {
+		v -= 1 << 32
+	}
+
+	return v
 }

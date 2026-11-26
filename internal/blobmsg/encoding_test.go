@@ -681,3 +681,112 @@ func assertWireTruncationAndMalformedContainers(t *testing.T) {
 	_, _ = blobmsg.ParseBlobmsgContainer([]byte{0x80 | 99, 0, 0, 8, 0, 0, 0, 0}, blobmsg.TypeArray)
 	_, _ = blobmsg.ParseBlobmsgContainer([]byte{0x80 | 99, 0, 0, 8, 0, 0, 0, 0}, blobmsg.TypeTable)
 }
+
+func TestSubscribersAttrNestedParsing(t *testing.T) {
+	emptyMsg, err := blobmsg.CreateBlobMessage(map[uint32]any{
+		blobmsg.UbusAttrObjID:       uint32(42),
+		blobmsg.UbusAttrSubscribers: []byte{},
+		blobmsg.UbusAttrStatus:      uint32(0),
+	}, nil)
+	if err != nil {
+		t.Fatalf("CreateBlobMessage(empty subscribers): %v", err)
+	}
+	attrs, err := blobmsg.ParseTopLevelAttributes(emptyMsg)
+	if err != nil {
+		t.Fatalf("ParseTopLevelAttributes(empty subscribers): %v", err)
+	}
+	subs, ok := attrs["subscribers"].([]uint32)
+	if !ok || len(subs) != 0 {
+		t.Fatalf("empty subscribers = %#v, want empty []uint32", attrs["subscribers"])
+	}
+
+	nestedPayload := blobmsg.EncodeUintAttributes([2]uint32{0, 101}, [2]uint32{0, 202})[blobmsg.BlobHeaderBytes:]
+	fullMsg, err := blobmsg.CreateBlobMessage(map[uint32]any{
+		blobmsg.UbusAttrSubscribers: nestedPayload,
+		blobmsg.UbusAttrStatus:      uint32(0),
+	}, nil)
+	if err != nil {
+		t.Fatalf("CreateBlobMessage(nested subscribers): %v", err)
+	}
+	attrs, err = blobmsg.ParseTopLevelAttributes(fullMsg)
+	if err != nil {
+		t.Fatalf("ParseTopLevelAttributes(nested subscribers): %v", err)
+	}
+	subs, ok = attrs["subscribers"].([]uint32)
+	if !ok || len(subs) != 2 || subs[0] != 101 || subs[1] != 202 {
+		t.Fatalf("nested subscribers = %#v, want [101 202]", attrs["subscribers"])
+	}
+
+	_, err = blobmsg.ParseSubscriberIDs([]byte{0, 0, 0, 5, 1})
+	if err == nil {
+		t.Error("expected error on truncated subscriber entry")
+	}
+}
+
+func TestUnsignedAboveMaxInt32AndMaxMessageLimit(t *testing.T) {
+	const bigUint uint32 = 3_000_000_000
+
+	for _, input := range []any{
+		map[string]any{"x": bigUint},
+		struct {
+			X uint32 `json:"x"`
+		}{X: bigUint},
+	} {
+		args, err := blobmsg.NormalizeArgs(input)
+		if err != nil {
+			t.Fatalf("NormalizeArgs(%T): %v", input, err)
+		}
+		encoded, err := blobmsg.CreateBlobmsgData(args)
+		if err != nil {
+			t.Fatalf("CreateBlobmsgData(%T): %v", input, err)
+		}
+		decoded, err := blobmsg.ParseBlobmsgContainer(encoded, blobmsg.TypeTable)
+		if err != nil {
+			t.Fatalf("ParseBlobmsgContainer(%T): %v", input, err)
+		}
+		table, ok := decoded.(map[string]any)
+		if !ok || table["x"] != int64(bigUint) {
+			t.Errorf("%T round-trip x = %#v (%T), want int64(%d)", input, table["x"], table["x"], bigUint)
+		}
+	}
+
+	oversized := bytes.Repeat([]byte("a"), blobmsg.MaxMessageBytes)
+	_, err := blobmsg.CreateBlobMessage(map[uint32]any{blobmsg.UbusAttrData: oversized}, nil)
+	if !errors.Is(err, errs.ErrInvalidParameter) || !errors.Is(err, errs.ErrInvalidBlobLength) {
+		t.Errorf("oversized CreateBlobMessage error = %v, want ErrInvalidParameter+ErrInvalidBlobLength", err)
+	}
+}
+
+func TestParseMonitorAttributes(t *testing.T) {
+	innerAttrs, err := blobmsg.CreateBlobMessage(map[uint32]any{
+		blobmsg.UbusAttrMethod: "board",
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	monBody, err := blobmsg.CreateBlobMessage(map[uint32]any{
+		blobmsg.UbusMonitorClient: uint32(7),
+		blobmsg.UbusMonitorPeer:   uint32(100),
+		blobmsg.UbusMonitorSend:   []byte{1},
+		blobmsg.UbusMonitorSeq:    uint32(42),
+		blobmsg.UbusMonitorType:   uint32(blobmsg.UbusMsgInvoke),
+		blobmsg.UbusMonitorData:   innerAttrs[blobmsg.BlobHeaderBytes:],
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	frame, err := blobmsg.ParseMonitorAttributes(monBody)
+	if err != nil {
+		t.Fatalf("ParseMonitorAttributes: %v", err)
+	}
+	if frame.Client != 7 || frame.Peer != 100 || !frame.Send || frame.Seq != 42 ||
+		frame.Type != blobmsg.UbusMsgInvoke || frame.Data["method"] != "board" {
+		t.Fatalf("unexpected MonitorFrame: %+v", frame)
+	}
+
+	_, err = blobmsg.ParseMonitorAttributes([]byte{0, 0, 0, 99})
+	if err == nil {
+		t.Error("expected error on truncated monitor frame")
+	}
+}

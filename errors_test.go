@@ -46,13 +46,16 @@ func TestStatusErrorMapping(t *testing.T) {
 	if goubus.StatusError(goubus.StatusOK) != nil {
 		t.Fatalf("StatusError(StatusOK) = %v, want nil", goubus.StatusError(goubus.StatusOK))
 	}
-	if !errors.Is(goubus.StatusError(goubus.StatusNotFound), goubus.ErrNotFound) {
-		t.Errorf("StatusError(StatusNotFound) did not match ErrNotFound")
-	}
-	if !errors.Is(goubus.StatusError(999), goubus.ErrUnknown) {
-		t.Errorf("StatusError(999) did not match ErrUnknown")
-	}
-	if !errors.Is(goubus.StatusError(-1), goubus.ErrUnknown) {
-		t.Errorf("StatusError(-1) did not match ErrUnknown")
+	for code, want := range map[int]error{
+		goubus.StatusNotFound:    goubus.ErrNotFound,
+		goubus.StatusNoMemory:    goubus.ErrNoMemory,
+		goubus.StatusParseError:  goubus.ErrParseError,
+		goubus.StatusSystemError: goubus.ErrSystemError,
+		999:                      goubus.ErrUnknown,
+		-1:                       goubus.ErrUnknown,
+	} {
+		if !errors.Is(goubus.StatusError(code), want) {
+			t.Errorf("StatusError(%d) did not match %v", code, want)
+		}
 	}
 }

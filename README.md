@@ -27,16 +27,16 @@
 
 OpenWrt's `ubusd` speaks binary `blobmsg` frames over a local Unix domain socket (`package goubus`), while remote HTTP/HTTPS JSON-RPC access is served by OpenWrt's `uhttpd-mod-ubus` + `rpcd` web gateway (`package rpc`):
 
-- **Full-duplex multiplexed native `ubus` (`goubus`).** Connect directly to `/tmp/run/ubus/ubus.sock` with `goubus.NewClient` (or any `net.Conn`, such as an SSH-forwarded socket, via `NewClientFromConn`). Concurrent `Call` and `List` requests multiplex by sequence ID over one connection without head-of-line blocking, and on-router binaries never link `net/http` or `crypto/tls`.
-- **Events, subscriptions, and Go `ubus` objects (`goubus`).** Broadcast and listen to system events (`SendEvent`, `Listen`), subscribe to object notifications (`Subscribe`), and publish Go methods onto `ubusd` (`AddObject`, `RegisteredObject.Notify`) in pure Go without `libubus` or CGO.
+- **Full-duplex multiplexed native `ubus` (`goubus`).** Connect directly to `/tmp/run/ubus/ubus.sock` with `goubus.NewClient` (or any `net.Conn`, such as an SSH-forwarded socket, via `NewClientFromConn`). Concurrent `Call`, lossless multi-frame `CallStream`, `SCM_RIGHTS` file-descriptor `CallFD`, and `List` requests multiplex by sequence ID over one connection without head-of-line blocking, and on-router binaries never link `net/http` or `crypto/tls`.
+- **Events, subscriptions, monitoring, and Go `ubus` objects (`goubus`).** Broadcast and listen to system events (`SendEvent`, `Listen`), subscribe to object notifications (`Subscribe`), observe bus traffic (`Monitor`), and publish Go methods onto `ubusd` (`AddObject`, `RegisteredObject.Notify`) in pure Go without `libubus` or CGO.
 - **Remote HTTP/HTTPS JSON-RPC gateway (`goubus/v2/rpc`).** Manage routers from external hosts via `rpc.NewClient`, with automatic `rpcd` session login, sliding idle expiry, explicit `Authenticate`, and credential redaction—implementing the exact same `goubus.Transport` and `goubus.Lister` interfaces.
-- **Wire-first errors and signature introspection.** Non-zero ubus statuses (`1`..`10`) and JSON-RPC errors return `*goubus.CallError` before payload decoding, and `goubus.List` normalizes argument signatures into `ArgType`.
+- **Wire-first errors and signature introspection.** Non-zero ubus statuses (`1`..`13`) and JSON-RPC errors return `*goubus.CallError` before payload decoding, and `goubus.List` normalizes argument signatures into `ArgType`.
 
 ## Packages
 
 | Import path | Role |
 | --- | --- |
-| `github.com/honeybbq/goubus/v2` | Native UDS `Client` (`Call`, `List`, `Ping`, `Listen`, `SendEvent`, `Subscribe`, `AddObject`), `Caller` / `Transport` / `Call[T]`, and `*CallError` & status sentinels |
+| `github.com/honeybbq/goubus/v2` | Native UDS `Client` (`Call`, `CallStream`, `CallFD`, `List`, `Ping`, `Listen`, `SendEvent`, `Subscribe`, `Monitor`, `AddObject`), `Caller` / `Transport` / `Call[T]`, and `*CallError` & status sentinels |
 | `github.com/honeybbq/goubus/v2/rpc` | Remote HTTP/HTTPS JSON-RPC 2.0 `Client` for `uhttpd-mod-ubus` and `rpcd` (`Transport` + `Lister`) |
 
 ## Install

@@ -7,7 +7,6 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"testing"
-	"time"
 )
 
 func TestMain(m *testing.M) {
@@ -16,8 +15,6 @@ func TestMain(m *testing.M) {
 		os.Exit(code)
 	}
 
-	// Give asynchronous close/cleanup goroutines a brief scheduling turn before GC leak analysis.
-	time.Sleep(20 * time.Millisecond)
 	runtime.GC()
 	runtime.GC()
 

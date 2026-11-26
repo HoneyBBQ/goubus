@@ -90,6 +90,16 @@ const (
 	UbusAttrGroup       = 13
 )
 
+// Ubus monitor attribute ids (enum ubus_monitor_attr in ubusmsg.h).
+const (
+	UbusMonitorClient = 0
+	UbusMonitorPeer   = 1
+	UbusMonitorSend   = 2
+	UbusMonitorSeq    = 3
+	UbusMonitorType   = 4
+	UbusMonitorData   = 5
+)
+
 var (
 	ErrNilValue   = errors.New("nil value")
 	UbusAttrNames = map[uint32]string{
@@ -115,6 +125,16 @@ type UbusMessageHeader struct {
 	Type    uint8
 	Seq     uint16
 	Peer    uint32
+}
+
+// MonitorFrame describes a parsed UBUS_MSG_MONITOR message body.
+type MonitorFrame struct {
+	Data   map[string]any
+	Client uint32
+	Peer   uint32
+	Seq    uint16
+	Type   uint8
+	Send   bool
 }
 
 // AttrHeader describes a parsed blob attribute header.

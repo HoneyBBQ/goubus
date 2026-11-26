@@ -24,7 +24,8 @@ const (
 	defaultReadTimeout  = 60 * time.Second // Long-running ubus calls block on the stream before replying.
 	defaultWriteTimeout = 3 * time.Second
 
-	ubusSystemObjectEvent uint32 = 1
+	ubusSystemObjectEvent   uint32 = 1
+	ubusSystemObjectMonitor uint32 = 3
 )
 
 var (
@@ -34,7 +35,7 @@ var (
 
 // Client implements a multiplexed, full-duplex native ubus Unix domain socket client.
 // It supports concurrent method calls, bus introspection, event listeners,
-// object subscriptions, and local ubus object registration over one connection.
+// object subscriptions, bus monitoring, and local ubus object registration over one connection.
 type Client struct {
 	conn         net.Conn
 	connCtx      context.Context
@@ -45,6 +46,7 @@ type Client struct {
 	objectCache  map[string]uint32
 	pending      map[uint16]*pendingRequest
 	localObjects map[uint32]*localObject
+	monitor      *Subscription
 	dialTimeout  time.Duration
 	readTimeout  time.Duration
 	writeTimeout time.Duration
@@ -173,9 +175,24 @@ func (c *Client) Err() error {
 	return c.terminalErr
 }
 
-// Close closes the underlying Unix socket connection and stops all active subscriptions and objects.
+// Close closes the underlying Unix socket connection, stops all active subscriptions
+// and objects, and waits for the background reader goroutine to exit.
 func (c *Client) Close() error {
-	return c.closeWithError(ErrClosed)
+	err := c.closeWithError(ErrClosed)
+	<-c.readDone
+
+	return err
+}
+
+func (c *Client) cleanupOrphanObject(ctx context.Context, objID uint32) {
+	if objID == 0 || c.isClosed() {
+		return
+	}
+
+	cleanCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), defaultUnsubscribeTimeout)
+	defer cancel()
+
+	_ = c.sendRemoveObject(cleanCtx, objID)
 }
 
 func (c *Client) isClosed() bool {

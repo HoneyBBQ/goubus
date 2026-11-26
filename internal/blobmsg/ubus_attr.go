@@ -28,8 +28,14 @@ func CreateBlobMessage(attrs map[uint32]any, ordered []uint32) ([]byte, error) {
 		totalLen64 += int64(len(item))
 	}
 
-	if totalLen64 < 0 || totalLen64 > math.MaxUint32 {
-		return nil, errs.ErrInvalidBlobLength
+	if totalLen64 < 0 || totalLen64 > MaxMessageBytes {
+		return nil, fmt.Errorf(
+			"%w: %w: message length %d exceeds max %d",
+			errs.ErrInvalidParameter,
+			errs.ErrInvalidBlobLength,
+			totalLen64,
+			MaxMessageBytes,
+		)
 	}
 
 	return BuildBlobBuffer(uint32(totalLen64), items), nil
@@ -76,8 +82,14 @@ func EncodeUbusAttribute(attrID uint32, value any) ([]byte, error) {
 	}
 
 	attrLen64 := int64(MinAttrLen) + int64(len(attrValue))
-	if attrLen64 < 0 || attrLen64 > math.MaxUint32 {
-		return nil, errs.ErrInvalidBlobLength
+	if attrLen64 < 0 || attrLen64 > MaxMessageBytes {
+		return nil, fmt.Errorf(
+			"%w: %w: attribute length %d exceeds max %d",
+			errs.ErrInvalidParameter,
+			errs.ErrInvalidBlobLength,
+			attrLen64,
+			MaxMessageBytes,
+		)
 	}
 
 	attrLen := uint32(attrLen64)
@@ -166,7 +178,11 @@ func ParseTopLevelAttributes(data []byte) (map[string]any, error) {
 		return nil, errs.ErrInvalidBlobLength
 	}
 
-	reader := BlobReader{Data: data[HeaderLen:int(totalLen)]}
+	return parseTopLevelStream(data[HeaderLen:int(totalLen)])
+}
+
+func parseTopLevelStream(stream []byte) (map[string]any, error) {
+	reader := BlobReader{Data: stream}
 	result := make(map[string]any)
 
 	for reader.HasNext() {
@@ -190,10 +206,105 @@ func ParseTopLevelAttributes(data []byte) (map[string]any, error) {
 	return result, nil
 }
 
+func ParseMonitorAttributes(data []byte) (MonitorFrame, error) {
+	var frame MonitorFrame
+	if len(data) < BlobHeaderBytes {
+		return frame, nil
+	}
+
+	totalLen := binary.BigEndian.Uint32(data[:BlobHeaderBytes])
+	if totalLen == 0 || int(totalLen) > len(data) {
+		return frame, errs.ErrInvalidBlobLength
+	}
+
+	reader := BlobReader{Data: data[HeaderLen:int(totalLen)]}
+	for reader.HasNext() {
+		header, payload, err := reader.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return MonitorFrame{}, err
+		}
+		err = applyMonitorAttr(&frame, header, payload)
+		if err != nil {
+			return MonitorFrame{}, err
+		}
+	}
+
+	return frame, nil
+}
+
+func applyMonitorAttr(frame *MonitorFrame, header *AttrHeader, payload []byte) error {
+	switch header.ID {
+	case UbusMonitorClient, UbusMonitorPeer, UbusMonitorSeq, UbusMonitorType:
+		v, err := DecodeUint(payload)
+		if err != nil {
+			return err
+		}
+		assignMonitorUint(frame, header.ID, v)
+	case UbusMonitorSend:
+		frame.Send = len(payload) > 0 && payload[0] != 0
+	case UbusMonitorData:
+		attrs, err := parseTopLevelStream(payload)
+		if err != nil {
+			return err
+		}
+		frame.Data = attrs
+	}
+
+	return nil
+}
+
+func assignMonitorUint(frame *MonitorFrame, id, value uint32) {
+	switch id {
+	case UbusMonitorClient:
+		frame.Client = value
+	case UbusMonitorPeer:
+		frame.Peer = value
+	case UbusMonitorSeq:
+		if value <= math.MaxUint16 {
+			frame.Seq = uint16(value)
+		}
+	case UbusMonitorType:
+		if value <= math.MaxUint8 {
+			frame.Type = uint8(value)
+		}
+	}
+}
+
+func ParseSubscriberIDs(payload []byte) ([]uint32, error) {
+	if len(payload) == 0 {
+		return []uint32{}, nil
+	}
+
+	reader := BlobReader{Data: payload}
+	ids := make([]uint32, 0)
+	for reader.HasNext() {
+		_, itemPayload, err := reader.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		id, err := DecodeUint(itemPayload)
+		if err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+
+	return ids, nil
+}
+
 func ParseAttribute(header *AttrHeader, payload []byte) (any, error) {
 	switch header.ID {
-	case UbusAttrStatus, UbusAttrObjID, UbusAttrObjType, UbusAttrSubscribers, UbusAttrTarget:
+	case UbusAttrStatus, UbusAttrObjID, UbusAttrObjType, UbusAttrTarget:
 		return DecodeUint(payload)
+	case UbusAttrSubscribers:
+		return ParseSubscriberIDs(payload)
 	case UbusAttrObjPath, UbusAttrMethod, UbusAttrUser, UbusAttrGroup:
 		return DecodeString(payload), nil
 	case UbusAttrActive, UbusAttrNoReply:

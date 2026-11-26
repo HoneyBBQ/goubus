@@ -811,7 +811,74 @@ func TestLiveObjectPublishSubscribeAndRemoteRPCCall(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = pub.Close() })
 
+	// Verify Notify with zero subscribers parses empty UBUS_ATTR_SUBSCRIBERS without disconnecting.
+	notifyErr := pub.Notify(t.Context(), "idle", map[string]any{"subscribers": 0})
+	if notifyErr != nil {
+		t.Fatalf("Notify(0 subscribers): %v", notifyErr)
+	}
+	pingErr := providerSock.Ping(t.Context())
+	if pingErr != nil {
+		t.Fatalf("Ping after 0-subscriber Notify: %v", pingErr)
+	}
+
 	assertLiveDemoInteractions(t, env, pub)
+}
+
+func TestLiveCallStreamAndMonitor(t *testing.T) {
+	env := mustLoadLiveEnv(t)
+
+	monSock, err := goubus.NewClient(t.Context(), env.socketPath)
+	if err != nil {
+		t.Fatalf("monitor NewClient: %v", err)
+	}
+	t.Cleanup(func() { _ = monSock.Close() })
+
+	monSeen := make(chan goubus.MonitorMessage, 16)
+	mon, err := monSock.Monitor(t.Context(), func(msg goubus.MonitorMessage) {
+		select {
+		case monSeen <- msg:
+		default:
+		}
+	})
+	if err != nil {
+		t.Fatalf("Monitor(): %v", err)
+	}
+	t.Cleanup(func() { _ = mon.Close() })
+
+	callerSock, err := goubus.NewClient(t.Context(), env.socketPath)
+	if err != nil {
+		t.Fatalf("caller NewClient: %v", err)
+	}
+	t.Cleanup(func() { _ = callerSock.Close() })
+
+	var frames int
+	streamErr := callerSock.CallStream(t.Context(), "uci", "configs", nil, func(res goubus.Result) error {
+		var cfg uciConfigsResp
+		unmarshalErr := res.Unmarshal(&cfg)
+		if unmarshalErr != nil {
+			return unmarshalErr
+		}
+		frames++
+
+		return nil
+	})
+	if streamErr != nil || frames == 0 {
+		t.Fatalf("CallStream(uci.configs) = (%d frames, %v)", frames, streamErr)
+	}
+
+	select {
+	case msg := <-monSeen:
+		if msg.Client == 0 {
+			t.Fatalf("live MonitorMessage missing client id: %+v", msg)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for live MonitorMessage")
+	}
+
+	closeErr := mon.Close()
+	if closeErr != nil {
+		t.Fatalf("mon.Close(): %v", closeErr)
+	}
 }
 
 func registerLiveDemoObject(

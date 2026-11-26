@@ -12,10 +12,13 @@ const StatusInvalidCommand untyped int = 1
 const StatusInvalidParameter untyped int = 2
 const StatusMethodNotFound untyped int = 3
 const StatusNoData untyped int = 5
+const StatusNoMemory untyped int = 11
 const StatusNotFound untyped int = 4
 const StatusNotSupported untyped int = 8
 const StatusOK untyped int = 0
+const StatusParseError untyped int = 12
 const StatusPermissionDenied untyped int = 6
+const StatusSystemError untyped int = 13
 const StatusTimeout untyped int = 7
 const StatusUnknown untyped int = 9
 var ErrCall error
@@ -26,10 +29,13 @@ var ErrInvalidParameter error
 var ErrInvalidResponse error
 var ErrMethodNotFound error
 var ErrNoData error
+var ErrNoMemory error
 var ErrNotFound error
 var ErrNotSupported error
 var ErrNotUnixSocket error
+var ErrParseError error
 var ErrPermissionDenied error
+var ErrSystemError error
 var ErrTimeout error
 var ErrUnknown error
 func Call[T any](ctx context.Context, caller Caller, service string, method string, data any) (T, error)
@@ -68,11 +74,14 @@ method (CallerFunc) Call(ctx context.Context, service string, method string, dat
 type Client struct
 method (*Client) AddObject(ctx context.Context, def ObjectDef) (*RegisteredObject, error)
 method (*Client) Call(ctx context.Context, service string, method string, data any) (Result, error)
+method (*Client) CallFD(ctx context.Context, service string, method string, data any, sendFile *os.File) (Result, *os.File, error)
+method (*Client) CallStream(ctx context.Context, service string, method string, data any, onFrame func(Result) error) error
 method (*Client) Close() error
 method (*Client) Done() <-chan struct{}
 method (*Client) Err() error
 method (*Client) List(ctx context.Context, patterns ...string) (map[string]ObjectSignatures, error)
 method (*Client) Listen(ctx context.Context, pattern string, handler EventHandler) (*Subscription, error)
+method (*Client) Monitor(ctx context.Context, handler MonitorHandler) (*Subscription, error)
 method (*Client) PeerID() uint32
 method (*Client) Ping(ctx context.Context) error
 method (*Client) SendEvent(ctx context.Context, id string, data any) error
@@ -89,6 +98,15 @@ field Method.Handler MethodHandler
 field Method.Policy MethodSignature
 type MethodHandler func(ctx context.Context, req CallRequest) (any, error)
 type MethodSignature map[string]ArgType
+type MonitorHandler func(msg MonitorMessage)
+type MonitorMessage struct
+field MonitorMessage.Data json.RawMessage
+field MonitorMessage.Client uint32
+field MonitorMessage.Peer uint32
+field MonitorMessage.Seq uint16
+field MonitorMessage.Type uint8
+field MonitorMessage.Send bool
+method (MonitorMessage) Unmarshal(target any) error
 type Notification struct
 field Notification.Object string
 field Notification.Method string

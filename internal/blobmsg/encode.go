@@ -421,7 +421,7 @@ func EncodeIntegerValue(value int64) (uint8, []byte, error) {
 }
 
 func EncodeUnsignedValue(value uint64) (uint8, []byte, error) {
-	if value <= math.MaxUint32 {
+	if value <= math.MaxInt32 {
 		data := make([]byte, Uint32Size)
 		binary.BigEndian.PutUint32(data, uint32(value))
 

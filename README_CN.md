@@ -27,16 +27,16 @@
 
 在 OpenWrt 中，`ubusd` 原生只支持本机 Unix Domain Socket（UDS）与二进制 `blobmsg` 帧协议；而远程 HTTP/HTTPS JSON-RPC 接口是由 `uhttpd-mod-ubus` 网页插件配合 `rpcd` 会话服务提供的外部网关。`goubus` 按真实协议边界划分为两个包：
 
-- **全双工多路复用原生 `ubus`（根包 `goubus`）。** 通过 `goubus.NewClient` 直连 `/tmp/run/ubus/ubus.sock`（或通过 `NewClientFromConn` 传入 SSH 转发的 `net.Conn`），单条连接按序列号并发复用 `Call` 与 `List`；路由器本地编译的程序只引根包时完全不链接 `net/http` 与 `crypto/tls`，显著减小固件二进制体积。
-- **事件广播、对象订阅与纯 Go 注册守护对象（根包 `goubus`）。** 原生支持系统事件收发（`Listen`、`SendEvent`）、对象级通知订阅（`Subscribe`）以及将 Go 方法直接发布注册为 `ubusd` 总线对象（`AddObject`、`RegisteredObject.Notify`），无需 CGO 或 `libubus`。
+- **全双工多路复用原生 `ubus`（根包 `goubus`）。** 通过 `goubus.NewClient` 直连 `/tmp/run/ubus/ubus.sock`（或通过 `NewClientFromConn` 传入 SSH 转发的 `net.Conn`），单条连接按序列号并发复用 `Call`、无损多帧 `CallStream`、`SCM_RIGHTS` 文件描述符传递 `CallFD` 与 `List`；路由器本地编译的程序只引根包时完全不链接 `net/http` 与 `crypto/tls`，显著减小固件二进制体积。
+- **事件广播、对象订阅、总线监听与纯 Go 注册守护对象（根包 `goubus`）。** 原生支持系统事件收发（`Listen`、`SendEvent`）、对象级通知订阅（`Subscribe`）、总线抓包监听（`Monitor`）以及将 Go 方法直接发布注册为 `ubusd` 总线对象（`AddObject`、`RegisteredObject.Notify`），无需 CGO 或 `libubus`。
 - **远程 HTTP/HTTPS JSON-RPC 网关（子包 `goubus/v2/rpc`）。** 从外部主机管理路由器时引入 `rpc.NewClient`，内置 `rpcd` 登录、空闲超时顺延、强制重认证与凭据脱敏，并完整实现根包的 `goubus.Transport` 与 `goubus.Lister`，与原生客户端无缝共享上层代码。
-- **统一错误体系与签名自省。** 非 0 状态码（`1`..`10`）与 JSON-RPC 报错在解码前即返回 `*goubus.CallError`；`goubus.List` 将两套传输的参数策略归一为 `ArgType`。
+- **统一错误体系与签名自省。** 非 0 状态码（`1`..`13`）与 JSON-RPC 报错在解码前即返回 `*goubus.CallError`；`goubus.List` 将两套传输的参数策略归一为 `ArgType`。
 
 ## 包划分
 
 | 导入路径 | 职责范围 |
 | --- | --- |
-| `github.com/honeybbq/goubus/v2` | 原生 UDS `Client`（并发 `Call`、`List`、`Ping`、`Listen`、`SendEvent`、`Subscribe`、`AddObject`），`Caller` / `Transport` / `Call[T]`，以及 `*CallError` 与状态哨兵错误 |
+| `github.com/honeybbq/goubus/v2` | 原生 UDS `Client`（并发 `Call`、`CallStream`、`CallFD`、`List`、`Ping`、`Listen`、`SendEvent`、`Subscribe`、`Monitor`、`AddObject`），`Caller` / `Transport` / `Call[T]`，以及 `*CallError` 与状态哨兵错误 |
 | `github.com/honeybbq/goubus/v2/rpc` | 面向 `uhttpd-mod-ubus` + `rpcd` 的远程 HTTP/HTTPS JSON-RPC 2.0 `Client`（实现 `Transport` 与 `Lister`） |
 
 ## 安装

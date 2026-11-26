@@ -269,7 +269,9 @@ func (c *Client) AddObject(ctx context.Context, def ObjectDef) (*RegisteredObjec
 	pub := newRegisteredObject(objCtx, objCancel, c, def.Name, def.OnSubscribe)
 	status, err := c.registerNamedObject(ctx, body, def.Name, handlers, pub)
 	if err != nil {
+		orphanID := pub.ID()
 		pub.abortRegistration(c)
+		c.cleanupOrphanObject(ctx, orphanID)
 
 		return nil, err
 	}

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"maps"
+	"os"
 	"slices"
 
 	"github.com/honeybbq/goubus/v2/internal/blobmsg"
@@ -36,24 +37,59 @@ func (r *socketResult) Unmarshal(target any) error {
 
 // Call invokes a method on a ubus object over the multiplexed socket transport.
 func (c *Client) Call(ctx context.Context, service, method string, data any) (Result, error) {
-	ctx = normalizeContext(ctx)
-	if service == "" || method == "" {
-		return nil, errs.Wrapf(ErrInvalidParameter, "service and method required")
-	}
-
-	args, err := blobmsg.NormalizeArgs(data)
+	ctx, args, err := c.prepareCall(ctx, service, method, data)
 	if err != nil {
-		return nil, errs.Wrapf(ErrInvalidParameter, "normalize arguments: %v", err)
-	}
-	if c.isClosed() {
-		return nil, ErrClosed
-	}
-	ctxErr := wrapCtxErr(ctx, "ubus call")
-	if ctxErr != nil {
-		return nil, ctxErr
+		return nil, err
 	}
 
 	return c.callWithRefresh(ctx, service, method, args)
+}
+
+// CallStream invokes a method on a ubus object and delivers each UBUS_MSG_DATA frame
+// in arrival order to onFrame on the caller's goroutine without merging keys across frames.
+// Returning a non-nil error from onFrame stops reading and returns that error.
+func (c *Client) CallStream(
+	ctx context.Context,
+	service, method string,
+	data any,
+	onFrame func(Result) error,
+) error {
+	if onFrame == nil {
+		return errs.Wrapf(ErrInvalidParameter, "frame handler is required")
+	}
+
+	ctx, args, err := c.prepareCall(ctx, service, method, data)
+	if err != nil {
+		return err
+	}
+
+	return c.callStreamWithRefresh(ctx, service, method, args, onFrame)
+}
+
+// CallFD invokes a method on a ubus object over a Unix domain socket with optional SCM_RIGHTS
+// file descriptor passing. The caller retains ownership of sendFile (when non-nil) and owns
+// any non-nil *os.File returned by the remote object (for example OpenWrt logd streams).
+// Returns ErrNotSupported when the client was constructed from a non-Unix net.Conn.
+func (c *Client) CallFD(
+	ctx context.Context,
+	service, method string,
+	data any,
+	sendFile *os.File,
+) (Result, *os.File, error) {
+	if !supportsFDPassing(c.conn) {
+		return nil, nil, ErrNotSupported
+	}
+	fileErr := validateSendFile(sendFile)
+	if fileErr != nil {
+		return nil, nil, fileErr
+	}
+
+	ctx, args, err := c.prepareCall(ctx, service, method, data)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return c.callFDWithRefresh(ctx, service, method, args, sendFile)
 }
 
 // List returns registered ubus objects and their method argument signatures.
@@ -108,6 +144,31 @@ func (c *Client) collectListedObjects(objects map[string]ObjectSignatures, entri
 	}
 }
 
+func (c *Client) prepareCall(
+	ctx context.Context,
+	service, method string,
+	data any,
+) (context.Context, map[string]any, error) {
+	ctx = normalizeContext(ctx)
+	if service == "" || method == "" {
+		return nil, nil, errs.Wrapf(ErrInvalidParameter, "service and method required")
+	}
+
+	args, err := blobmsg.NormalizeArgs(data)
+	if err != nil {
+		return nil, nil, errs.Wrapf(ErrInvalidParameter, "normalize arguments: %v", err)
+	}
+	if c.isClosed() {
+		return nil, nil, ErrClosed
+	}
+	ctxErr := wrapCtxErr(ctx, "ubus call")
+	if ctxErr != nil {
+		return nil, nil, ctxErr
+	}
+
+	return ctx, args, nil
+}
+
 func (c *Client) callWithRefresh(
 	ctx context.Context,
 	service, method string,
@@ -130,6 +191,55 @@ func (c *Client) callWithRefresh(
 	}
 
 	return res, err
+}
+
+func (c *Client) callStreamWithRefresh(
+	ctx context.Context,
+	service, method string,
+	args map[string]any,
+	onFrame func(Result) error,
+) error {
+	objectID, fromCache, err := c.resolveCallTarget(ctx, service, method)
+	if err != nil {
+		return err
+	}
+
+	delivered, err := c.invokeStreamByID(ctx, service, objectID, method, args, onFrame)
+	if fromCache && delivered == 0 && isNotFoundCallError(err) {
+		c.evictObjectID(service, objectID)
+		freshID, _, lookupErr := c.resolveCallTarget(ctx, service, method)
+		if lookupErr != nil {
+			return lookupErr
+		}
+		_, err = c.invokeStreamByID(ctx, service, freshID, method, args, onFrame)
+	}
+
+	return err
+}
+
+func (c *Client) callFDWithRefresh(
+	ctx context.Context,
+	service, method string,
+	args map[string]any,
+	sendFile *os.File,
+) (Result, *os.File, error) {
+	objectID, fromCache, err := c.resolveCallTarget(ctx, service, method)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	res, file, err := c.invokeFDByID(ctx, service, objectID, method, args, sendFile)
+	if fromCache && file == nil && isNotFoundCallError(err) {
+		c.evictObjectID(service, objectID)
+		freshID, _, lookupErr := c.resolveCallTarget(ctx, service, method)
+		if lookupErr != nil {
+			return nil, nil, lookupErr
+		}
+
+		return c.invokeFDByID(ctx, service, freshID, method, args, sendFile)
+	}
+
+	return res, file, err
 }
 
 func (c *Client) resolveCallTarget(ctx context.Context, service, method string) (uint32, bool, error) {
@@ -174,6 +284,73 @@ func (c *Client) invokeByID(
 		}
 	}
 
+	return mergeDataFrames(frames), nil
+}
+
+func (c *Client) invokeStreamByID(
+	ctx context.Context,
+	service string,
+	objectID uint32,
+	method string,
+	args map[string]any,
+	onFrame func(Result) error,
+) (int, error) {
+	body, err := c.createInvokeBody(objectID, method, args)
+	if err != nil {
+		return 0, err
+	}
+
+	status, delivered, err := c.sendStreamRequest(ctx, "ubus call", blobmsg.UbusMsgInvoke, objectID, body, onFrame)
+	if err != nil {
+		return delivered, err
+	}
+	if status != StatusOK {
+		return delivered, &CallError{
+			Err: StatusError(int(status)), Service: service, Method: method, Code: int(status),
+		}
+	}
+
+	return delivered, nil
+}
+
+func (c *Client) invokeFDByID(
+	ctx context.Context,
+	service string,
+	objectID uint32,
+	method string,
+	args map[string]any,
+	sendFile *os.File,
+) (Result, *os.File, error) {
+	body, err := c.createInvokeBody(objectID, method, args)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	frames, status, recvFD, err := c.sendRequestWithOptions(
+		ctx,
+		"ubus call",
+		blobmsg.UbusMsgInvoke,
+		objectID,
+		body,
+		requestOptions{sendFile: sendFile, wantFD: true},
+	)
+	if err != nil {
+		closeFD(recvFD)
+
+		return nil, nil, err
+	}
+	if status != StatusOK {
+		closeFD(recvFD)
+
+		return nil, nil, &CallError{
+			Err: StatusError(int(status)), Service: service, Method: method, Code: int(status),
+		}
+	}
+
+	return mergeDataFrames(frames), fdToFile(recvFD), nil
+}
+
+func mergeDataFrames(frames []map[string]any) Result {
 	var merged map[string]any
 	for _, attrs := range frames {
 		extracted := blobmsg.ExtractDataSection(attrs)
@@ -186,7 +363,7 @@ func (c *Client) invokeByID(
 		maps.Copy(merged, extracted)
 	}
 
-	return &socketResult{data: merged}, nil
+	return &socketResult{data: merged}
 }
 
 func (c *Client) getObjectID(ctx context.Context, path string) (uint32, bool, error) {

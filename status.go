@@ -29,6 +29,12 @@ const (
 	StatusUnknown = 9
 	// StatusConnectionFailed indicates that the connection failed.
 	StatusConnectionFailed = 10
+	// StatusNoMemory indicates an out-of-memory condition in ubusd or a target daemon.
+	StatusNoMemory = 11
+	// StatusParseError indicates a message data parse failure in ubus.
+	StatusParseError = 12
+	// StatusSystemError indicates an OS or daemon-level system error in ubus.
+	StatusSystemError = 13
 )
 
 var statusErrors = [...]error{
@@ -43,6 +49,9 @@ var statusErrors = [...]error{
 	StatusNotSupported:     ErrNotSupported,
 	StatusUnknown:          ErrUnknown,
 	StatusConnectionFailed: ErrConnectionFailed,
+	StatusNoMemory:         ErrNoMemory,
+	StatusParseError:       ErrParseError,
+	StatusSystemError:      ErrSystemError,
 }
 
 // StatusError maps a ubus status code to its sentinel error.
@@ -70,12 +79,12 @@ func wireStatusFromError(err error) uint32 {
 		return StatusOK
 	}
 	if callErr, ok := errors.AsType[*CallError](err); ok {
-		if callErr.Code > StatusOK && callErr.Code <= StatusConnectionFailed {
+		if callErr.Code > StatusOK && callErr.Code <= StatusSystemError {
 			return uint32(callErr.Code)
 		}
 	}
 	if code, ok, _ := lookupStatusError(err); ok {
-		if code > StatusOK && code <= StatusConnectionFailed {
+		if code > StatusOK && code <= StatusSystemError {
 			return uint32(code)
 		}
 	}

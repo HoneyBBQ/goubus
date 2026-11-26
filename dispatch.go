@@ -103,15 +103,13 @@ func (c *Client) runMethodHandler(
 func (c *Client) sendInvokeReply(peer uint32, seq uint16, objID uint32, data map[string]any, status uint32) {
 	var dataFrame []byte
 	if len(data) > 0 {
-		encoded, err := blobmsg.CreateBlobmsgData(data)
-		if err == nil {
-			body, bodyErr := blobmsg.CreateBlobMessage(map[uint32]any{
-				blobmsg.UbusAttrObjID: objID,
-				blobmsg.UbusAttrData:  encoded,
-			}, []uint32{blobmsg.UbusAttrObjID, blobmsg.UbusAttrData})
-			if bodyErr == nil {
-				dataFrame = encodeWireFrame(blobmsg.UbusMsgData, seq, peer, body)
-			}
+		var err error
+		dataFrame, err = buildInvokeDataFrame(peer, seq, objID, data)
+		if err != nil {
+			c.logger.Debug("encode object handler response failed",
+				slog.Uint64("objid", uint64(objID)),
+				slog.Any("error", err))
+			status = wireStatusFromError(err)
 		}
 	}
 
@@ -127,17 +125,34 @@ func (c *Client) sendInvokeReply(peer uint32, seq uint16, objID uint32, data map
 		return
 	}
 	if len(dataFrame) > 0 {
-		writeErr := c.writeLocked(dataFrame)
+		writeErr := c.writeLocked(dataFrame, nil)
 		if writeErr != nil {
 			_ = c.closeWithError(writeErr)
 
 			return
 		}
 	}
-	writeErr := c.writeLocked(statusFrame)
+	writeErr := c.writeLocked(statusFrame, nil)
 	if writeErr != nil {
 		_ = c.closeWithError(writeErr)
 	}
+}
+
+func buildInvokeDataFrame(peer uint32, seq uint16, objID uint32, data map[string]any) ([]byte, error) {
+	encoded, err := blobmsg.CreateBlobmsgData(data)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := blobmsg.CreateBlobMessage(map[uint32]any{
+		blobmsg.UbusAttrObjID: objID,
+		blobmsg.UbusAttrData:  encoded,
+	}, []uint32{blobmsg.UbusAttrObjID, blobmsg.UbusAttrData})
+	if err != nil {
+		return nil, err
+	}
+
+	return encodeWireFrame(blobmsg.UbusMsgData, seq, peer, body), nil
 }
 
 func (c *Client) handleIncomingNotify(attrs map[string]any) {
@@ -182,8 +197,13 @@ func (c *Client) shutdownLocalObjects() {
 	c.localMu.Lock()
 	snapshot := slices.Collect(maps.Values(c.localObjects))
 	clear(c.localObjects)
+	mon := c.monitor
+	c.monitor = nil
 	c.localMu.Unlock()
 
+	if mon != nil {
+		mon.markClosed()
+	}
 	for _, loc := range snapshot {
 		if loc.sub != nil {
 			loc.sub.markClosed()
