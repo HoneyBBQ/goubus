@@ -26,22 +26,23 @@ func TestClient_InitAndEndpointErrors(t *testing.T) {
 		t.Errorf("unsupported scheme error = %v, want ErrInvalidParameter", err)
 	}
 
-	notFoundSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	notFoundSrv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
-	defer notFoundSrv.Close()
 
-	_, err = rpc.NewClient(t.Context(), notFoundSrv.URL, "u", "p", rpc.WithLogger(nil))
+	_, err = rpc.NewClient(t.Context(), notFoundSrv.URL, "u", "p",
+		rpc.WithHTTPClient(notFoundSrv.Client()),
+		rpc.WithLogger(nil),
+	)
 	if !errors.Is(err, goubus.ErrConnectionFailed) || !strings.Contains(err.Error(), "endpoint not found") {
 		t.Errorf("404 login error = %v, want endpoint not found wrapping ErrConnectionFailed", err)
 	}
 
-	badSessionSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	badSessionSrv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = fmt.Fprint(w, `{"jsonrpc":"2.0","id":1,"result":[0,{"ubus_rpc_session":123}]}`)
 	}))
-	defer badSessionSrv.Close()
 
-	_, err = rpc.NewClient(t.Context(), badSessionSrv.URL, "u", "p")
+	_, err = rpc.NewClient(t.Context(), badSessionSrv.URL, "u", "p", rpc.WithHTTPClient(badSessionSrv.Client()))
 	if !errors.Is(err, goubus.ErrInvalidResponse) {
 		t.Errorf("malformed session data error = %v, want ErrInvalidResponse", err)
 	}
@@ -49,7 +50,7 @@ func TestClient_InitAndEndpointErrors(t *testing.T) {
 
 func TestClient_ProtocolAndErrorMapping(t *testing.T) {
 	var mode atomic.Int32
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		req := decodeRPCRequestBody(r)
 		params, _ := req["params"].([]any)
 		if len(params) > 0 && params[0] == testAuthSession {
@@ -59,9 +60,8 @@ func TestClient_ProtocolAndErrorMapping(t *testing.T) {
 		}
 		writeModeResponse(w, mode.Load())
 	}))
-	defer srv.Close()
 
-	cli, err := rpc.NewClient(t.Context(), srv.URL, "u", "p")
+	cli, err := rpc.NewClient(t.Context(), srv.URL, "u", "p", rpc.WithHTTPClient(srv.Client()))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +150,7 @@ func TestClient_ListErrorsAndConcurrentAutoReauth(t *testing.T) {
 	var logins atomic.Int32
 	gate := make(chan struct{})
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		req := decodeRPCRequestBody(r)
 		if req["method"] == "list" {
 			switch listStep.Add(1) {
@@ -183,9 +183,11 @@ func TestClient_ListErrorsAndConcurrentAutoReauth(t *testing.T) {
 		}
 		_, _ = fmt.Fprint(w, `{"jsonrpc":"2.0","id":2,"result":[0]}`)
 	}))
-	defer srv.Close()
 
-	cli, err := rpc.NewClient(t.Context(), srv.URL, "u", "p", rpc.WithAutoReauth(true))
+	cli, err := rpc.NewClient(t.Context(), srv.URL, "u", "p",
+		rpc.WithHTTPClient(srv.Client()),
+		rpc.WithAutoReauth(true),
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -268,10 +270,10 @@ func TestClient_TransportFailureAfterConnect(t *testing.T) {
 		}
 		_, _ = fmt.Fprint(w, `{"jsonrpc":"2.0","id":2,"error":{"code":-32002,"message":"Access denied"}}`)
 	}))
+	t.Cleanup(srv.Close)
 
 	cli, err := rpc.NewClient(t.Context(), srv.URL, "u", "p", rpc.WithAutoReauth(true), rpc.WithHTTPClient(nil))
 	if err != nil {
-		srv.Close()
 		t.Fatal(err)
 	}
 

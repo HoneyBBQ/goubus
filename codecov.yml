@@ -3,8 +3,8 @@
 # per commit. The total shown on the badge is that merge.
 codecov:
   notify:
-    # Unit jobs (2 Go versions) + 5 OpenWrt integration legs (21.02..25.12).
-    after_n_builds: 7
+    # Unit job (Go 1.27) + 5 OpenWrt integration legs (21.02..25.12).
+    after_n_builds: 6
 
 # Informational: coverage is reported on pull requests, never a gate.
 coverage:

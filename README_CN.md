@@ -45,7 +45,7 @@
 go get github.com/honeybbq/goubus/v2@latest
 ```
 
-要求 Go 1.26 及以上版本。
+要求 Go 1.27 及以上版本。
 
 ## 快速上手
 
@@ -193,7 +193,7 @@ case err != nil:
 | 目标环境 | 实测覆盖 |
 | --- | --- |
 | OpenWrt 21.02 – 25.12 | CI 并行覆盖 `21.02`、`22.03`、`23.05`、`24.10`、`25.12` 五大存量主线真实容器集成测试（多路复用 Socket、`Listen`/`SendEvent`、`AddObject`/`Subscribe`、HTTP RPC、HTTPS RPC）及二进制 `blobmsg` 语料回归。 |
-| Go | 1.26 及以上（CI 覆盖 Go 1.26 / 1.27 测试及 `linux/mipsle`、`linux/arm`、`linux/386`、`linux/arm64` 交叉编译）；纯 Go 实现，零 CGO。 |
+| Go | 1.27 及以上（CI 覆盖 Go 1.27 测试及 `linux/mipsle`、`linux/arm`、`linux/386`、`linux/arm64` 交叉编译）；纯 Go 实现，零 CGO。 |
 
 ## 参与贡献
 

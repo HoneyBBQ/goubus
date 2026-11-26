@@ -22,7 +22,7 @@ Paste any returned error (`*goubus.CallError` fields, sentinel error) or redacte
 
 ## Environment
 
-- `goubus` version: (for example `v2.0.0-beta.1` or commit SHA)
-- Go version: (for example `go1.26.1`)
-- Transport: (`SocketClient` / `RPCClient` HTTP / `RPCClient` HTTPS)
+- `goubus` version: (for example `v2.0.0-beta.2` or commit SHA)
+- Go version: (for example `go1.27.4`)
+- Transport: (`goubus.Client` Unix socket / `rpc.Client` HTTP / `rpc.Client` HTTPS)
 - OpenWrt release & target: (for example `24.10.5 x86/64` or `25.12.6 mediatek/filogic`)

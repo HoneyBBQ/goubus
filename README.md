@@ -45,7 +45,7 @@ OpenWrt's `ubusd` speaks binary `blobmsg` frames over a local Unix domain socket
 go get github.com/honeybbq/goubus/v2@latest
 ```
 
-Requires Go 1.26 or newer.
+Requires Go 1.27 or newer.
 
 ## Quick start
 
@@ -193,7 +193,7 @@ Full API reference: [pkg.go.dev/github.com/honeybbq/goubus/v2](https://pkg.go.de
 | Target | Verified against |
 | --- | --- |
 | OpenWrt 21.02 – 25.12 | Live `21.02`, `22.03`, `23.05`, `24.10`, and `25.12` containers in parallel CI (multiplexed Unix socket, `Listen`/`SendEvent`, `AddObject`/`Subscribe`, HTTP RPC, and HTTPS RPC) plus binary `blobmsg` corpus. |
-| Go | 1.26 and newer (CI tests Go 1.26 and 1.27 and cross-builds `linux/mipsle`, `linux/arm`, `linux/386`, and `linux/arm64`); pure Go, no CGO. |
+| Go | 1.27 and newer (CI tests Go 1.27 and cross-builds `linux/mipsle`, `linux/arm`, `linux/386`, and `linux/arm64`); pure Go, no CGO. |
 
 ## Contributing
 

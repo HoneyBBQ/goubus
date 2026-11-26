@@ -6,7 +6,7 @@ By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). To repo
 
 ## Setup
 
-You need Go 1.26 or newer and [golangci-lint](https://golangci-lint.run/) (CI currently runs `v2.15.0`).
+You need Go 1.27 or newer and [golangci-lint](https://golangci-lint.run/) (CI currently runs `v2.15.0`).
 
 ```sh
 git clone https://github.com/HoneyBBQ/goubus

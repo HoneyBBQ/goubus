@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
+	"runtime"
+	"runtime/pprof"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -27,15 +29,27 @@ const (
 	testInfoMethod    = "info"
 )
 
-type roundTripFunc func(*http.Request) (*http.Response, error)
-
 type listTestState struct {
 	params []any
 	calls  int
 }
 
-func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
-	return f(req)
+func TestMain(m *testing.M) {
+	code := m.Run()
+	if code != 0 {
+		os.Exit(code)
+	}
+
+	runtime.GC()
+	runtime.GC()
+
+	prof := pprof.Lookup("goroutineleak")
+	if prof != nil && prof.Count() > 0 {
+		var buf bytes.Buffer
+		_ = prof.WriteTo(&buf, 2)
+		fmt.Fprintf(os.Stderr, "detected %d leaked goroutine(s):\n%s\n", prof.Count(), buf.String())
+		os.Exit(1)
+	}
 }
 
 func TestClient_NewClientAndCall(t *testing.T) {
@@ -103,29 +117,19 @@ func assertCredentialRedaction(t *testing.T, client *rpc.Client, logs string) {
 func TestClient_SessionSlidingAndIdleExpiry(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		var authCount atomic.Int32
-		transport := roundTripFunc(func(request *http.Request) (*http.Response, error) {
-			var reqBody map[string]any
-			decodeErr := json.NewDecoder(request.Body).Decode(&reqBody)
-			if decodeErr != nil {
-				return nil, decodeErr
-			}
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			reqBody := decodeRPCRequestBody(r)
 			params, _ := reqBody["params"].([]any)
-			body := `{"jsonrpc":"2.0","id":2,"result":[0,{"ok":true}]}`
 			if len(params) > 0 && params[0] == testAuthSession {
 				authCount.Add(1)
-				body = `{"jsonrpc":"2.0","id":1,"result":[0,{"ubus_rpc_session":"s1","timeout":3600}]}`
+				_, _ = fmt.Fprint(w, `{"jsonrpc":"2.0","id":1,"result":[0,{"ubus_rpc_session":"s1","timeout":3600}]}`)
+
+				return
 			}
+			_, _ = fmt.Fprint(w, `{"jsonrpc":"2.0","id":2,"result":[0,{"ok":true}]}`)
+		}))
 
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Status:     "200 OK",
-				Header:     make(http.Header),
-				Body:       io.NopCloser(strings.NewReader(body)),
-			}, nil
-		})
-
-		httpClient := &http.Client{Transport: transport}
-		client, err := rpc.NewClient(t.Context(), "192.0.2.1", "user", "pass", rpc.WithHTTPClient(httpClient))
+		client, err := rpc.NewClient(t.Context(), server.URL, "user", "pass", rpc.WithHTTPClient(server.Client()))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -159,7 +163,7 @@ func TestClient_SessionSlidingAndIdleExpiry(t *testing.T) {
 
 func TestClient_PermissionDeniedAndExplicitReauthenticate(t *testing.T) {
 	var logins, calls atomic.Int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		reqBody := decodeRPCRequestBody(r)
 		params, _ := reqBody["params"].([]any)
 		if len(params) > 0 && params[0] == testAuthSession {
@@ -176,9 +180,8 @@ func TestClient_PermissionDeniedAndExplicitReauthenticate(t *testing.T) {
 		}
 		_, _ = fmt.Fprint(w, `{"jsonrpc":"2.0","id":2,"result":[0,{"ok":true}]}`)
 	}))
-	defer server.Close()
 
-	client, err := rpc.NewClient(t.Context(), server.URL, "user", "password")
+	client, err := rpc.NewClient(t.Context(), server.URL, "user", "password", rpc.WithHTTPClient(server.Client()))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -200,7 +203,7 @@ func TestClient_PermissionDeniedAndExplicitReauthenticate(t *testing.T) {
 
 func TestClient_WithAutoReauthAndValidation(t *testing.T) {
 	var logins atomic.Int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		reqBody := decodeRPCRequestBody(r)
 		params, _ := reqBody["params"].([]any)
 		if len(params) > 0 && params[0] == testAuthSession {
@@ -216,9 +219,11 @@ func TestClient_WithAutoReauthAndValidation(t *testing.T) {
 		}
 		_, _ = fmt.Fprint(w, `{"jsonrpc":"2.0","id":2,"result":[0,{"ok":true}]}`)
 	}))
-	defer server.Close()
 
-	client, err := rpc.NewClient(t.Context(), server.URL, "user", "password", rpc.WithAutoReauth(true))
+	client, err := rpc.NewClient(t.Context(), server.URL, "user", "password",
+		rpc.WithHTTPClient(server.Client()),
+		rpc.WithAutoReauth(true),
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -248,26 +253,19 @@ func TestClient_WithAutoReauthAndValidation(t *testing.T) {
 func TestClient_ConcurrentReauthAndClose(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		var logins atomic.Int32
-		transport := roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			reqBody := decodeRPCRequestBody(r)
 			params, _ := reqBody["params"].([]any)
-			body := `{"jsonrpc":"2.0","id":2,"result":[0]}`
 			if len(params) > 0 && params[0] == testAuthSession {
 				logins.Add(1)
-				body = `{"jsonrpc":"2.0","id":1,"result":[0,{"ubus_rpc_session":"sid","timeout":10}]}`
+				_, _ = fmt.Fprint(w, `{"jsonrpc":"2.0","id":1,"result":[0,{"ubus_rpc_session":"sid","timeout":10}]}`)
+
+				return
 			}
+			_, _ = fmt.Fprint(w, `{"jsonrpc":"2.0","id":2,"result":[0]}`)
+		}))
 
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Status:     "200 OK",
-				Header:     make(http.Header),
-				Body:       io.NopCloser(strings.NewReader(body)),
-			}, nil
-		})
-
-		client, err := rpc.NewClient(t.Context(), "192.0.2.1", "u", "p",
-			rpc.WithHTTPClient(&http.Client{Transport: transport}),
-		)
+		client, err := rpc.NewClient(t.Context(), server.URL, "u", "p", rpc.WithHTTPClient(server.Client()))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -321,12 +319,11 @@ func TestClient_ListAndOversizedCap(t *testing.T) {
 }
 
 func TestClient_HoistsExplicitSessionAndHandles404(t *testing.T) {
-	notFoundSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	notFoundSrv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
-	defer notFoundSrv.Close()
 
-	_, err := rpc.NewClient(t.Context(), notFoundSrv.URL, "u", "p")
+	_, err := rpc.NewClient(t.Context(), notFoundSrv.URL, "u", "p", rpc.WithHTTPClient(notFoundSrv.Client()))
 	if !errors.Is(err, goubus.ErrConnectionFailed) || !strings.Contains(err.Error(), "endpoint not found") {
 		t.Fatalf("404 login error = %v, want ErrConnectionFailed with endpoint not found", err)
 	}
@@ -339,7 +336,7 @@ func assertSessionHoisting(t *testing.T) {
 
 	var seenSID string
 	var seenArgs map[string]any
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		reqBody := decodeRPCRequestBody(r)
 		params, _ := reqBody["params"].([]any)
 		if params[0] == testAuthSession {
@@ -351,9 +348,8 @@ func assertSessionHoisting(t *testing.T) {
 		seenArgs, _ = params[3].(map[string]any)
 		_, _ = fmt.Fprint(w, `{"jsonrpc":"2.0","id":2,"result":[0,{"access":true}]}`)
 	}))
-	defer server.Close()
 
-	client, err := rpc.NewClient(t.Context(), server.URL, "u", "p")
+	client, err := rpc.NewClient(t.Context(), server.URL, "u", "p", rpc.WithHTTPClient(server.Client()))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -373,7 +369,7 @@ func assertSessionHoisting(t *testing.T) {
 func newListTestClient(t *testing.T, state *listTestState) *rpc.Client {
 	t.Helper()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body := decodeRPCRequestBody(r)
 		if body["method"] == "call" {
 			_, _ = fmt.Fprint(w, `{"jsonrpc":"2.0","id":1,"result":[0,{"ubus_rpc_session":"sid","timeout":3600}]}`)
@@ -385,9 +381,8 @@ func newListTestClient(t *testing.T, state *listTestState) *rpc.Client {
 		_, _ = fmt.Fprint(w, `{"jsonrpc":"2.0","id":2,"result":{`+
 			`"system":{"info":{"hostname":"string","uptime":["number","integer"]}}}}`)
 	}))
-	t.Cleanup(server.Close)
 
-	client, err := rpc.NewClient(t.Context(), server.URL, "u", "p")
+	client, err := rpc.NewClient(t.Context(), server.URL, "u", "p", rpc.WithHTTPClient(server.Client()))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -399,7 +394,7 @@ func assertOversizedRejected(t *testing.T) {
 	t.Helper()
 
 	const oversizedLen = (4 << 20) + 1024
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		reqBody := decodeRPCRequestBody(r)
 		params, _ := reqBody["params"].([]any)
 		if len(params) > 0 && params[0] == testAuthSession {
@@ -411,9 +406,8 @@ func assertOversizedRejected(t *testing.T) {
 		_, _ = w.Write([]byte(strings.Repeat("x", oversizedLen)))
 		_, _ = w.Write([]byte(`"}]}`))
 	}))
-	defer server.Close()
 
-	client, err := rpc.NewClient(t.Context(), server.URL, "u", "p")
+	client, err := rpc.NewClient(t.Context(), server.URL, "u", "p", rpc.WithHTTPClient(server.Client()))
 	if err != nil {
 		t.Fatal(err)
 	}

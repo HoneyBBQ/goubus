@@ -124,7 +124,7 @@ func TestMapNestedStructUsesJSONEncoding(t *testing.T) {
 		Zero  int    `json:"zero,omitzero"`
 	}
 
-	value := Nested{Embedded: Embedded{Promoted: "visible"}, Name: "nested"}
+	value := Nested{Promoted: "visible", Name: "nested"}
 	blobType, encoded, err := blobmsg.EncodeBlobmsgValue(map[string]any{
 		"value":   value,
 		"pointer": &value,
