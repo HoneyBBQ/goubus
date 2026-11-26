@@ -2,6 +2,19 @@
 
 All notable changes to this module are documented here. This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v2.0.0-beta.3 (2026-11-25)
+
+### Changed
+
+- **Breaking:** Minimum Go version is now 1.27 (`go 1.27.0`), adopting standard `runtime/pprof` `goroutineleak` leak checks across `goubus` and `rpc` test suites, in-memory `httptest.NewTestServer` with `testing/synctest`, and Go 1.21–1.27 standard library helpers (`cmp.Or`, `maps.Clone`, `slices.Collect`, `strings.Cut`, `bytes.TrimRight`).
+- Encode fixed `uint32` top-level `ubus` control attributes (`status`, `objid`, `target`) without intermediate map/slice allocations, and raise unit statement coverage across `goubus`, `rpc`, and `internal/blobmsg` to ~95%.
+- Pin Dependabot updates for `ghcr.io/openwrt/rootfs` within each OpenWrt release series and bump pinned GitHub Actions SHAs across CI, Release, CodeQL, Vulnerabilities, and Scorecard workflows.
+
+### Fixed
+
+- Preserve `goubus.ErrNotUnixSocket` alongside `goubus.ErrConnectionFailed` in the error chain returned by `goubus.NewClient` when a target path is not a Unix domain socket.
+- Return the true connection close cause (`Client.Err`, such as `ErrInvalidResponse` or `ErrClosed`) instead of a secondary `SetWriteDeadline` closed-pipe error when `readLoop` shuts down the socket concurrently with an in-flight write.
+
 ## v2.0.0-beta.2 (2026-11-25)
 
 ### Added
