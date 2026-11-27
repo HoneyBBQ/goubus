@@ -2,6 +2,23 @@
 
 All notable changes to this module are documented here. This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v2.0.0-beta.4 (2026-11-26)
+
+### Added
+
+- `(*Client).CallStream(ctx, service, method, data, onFrame)` for lossless per-frame streaming of multi-frame `UBUS_MSG_DATA` responses on the caller's goroutine (never blocking `readLoop`, permitting nested calls inside `onFrame`, and preserving stale `objid` cache retry before the first frame).
+- `(*Client).CallFD(ctx, service, method, data, sendFile)` for bidirectional Unix domain socket `SCM_RIGHTS` file descriptor passing (`*os.File`), with non-blocking fd validation via `SyscallConn().Control`, `CloseOnExec`/`SetNonblock` on received descriptors, automatic cleanup of unsolicited or timed-out descriptors, and cross-platform non-Unix fallback.
+- `(*Client).Monitor(ctx, handler)` (`MonitorMessage`, `MonitorHandler`, returning `*Subscription`) for native `UBUS_MSG_MONITOR` bus traffic inspection via `monitor.add`/`monitor.remove` (root-only on `ubusd`).
+- Missing `ubusmsg.h` status codes and sentinel errors: `StatusNoMemory` (`11`, `ErrNoMemory`), `StatusParseError` (`12`, `ErrParseError`), and `StatusSystemError` (`13`, `ErrSystemError`).
+
+### Fixed
+
+- Parse `UBUS_ATTR_SUBSCRIBERS` as a nested `BLOB_ATTR_NESTED` list of `uint32` subscriber IDs (allowing empty 0-byte payloads), fixing a protocol framing error that tore down the `ubus` connection whenever `RegisteredObject.Notify` was called with zero subscribers.
+- Clean up partially registered objects in `ubusd` using a detached short-timeout context (`context.WithoutCancel`) when `Listen`, `Subscribe`, or `AddObject` fails or times out after acquiring an `objid`.
+- Log encoding errors and return a non-OK wire status instead of silently sending an empty `StatusOK` in local object `sendInvokeReply` when serializing a `MethodHandler` response fails.
+- Align `EncodeUnsignedValue` with `EncodeIntegerValue` by promoting values greater than `math.MaxInt32` to `TypeInt64` (preserving `TypeInt32` bit encoding for `event.register` `object` IDs as required by `ubusd`), and reject outbound frames exceeding `MaxMessageBytes` (1 MiB) before writing to the socket.
+- Wait for `readLoop` (`<-c.readDone`) before returning from `(*Client).Close()`, making client shutdown deterministic without external sleeps.
+
 ## v2.0.0-beta.3 (2026-11-25)
 
 ### Changed
